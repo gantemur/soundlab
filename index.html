@@ -1,0 +1,1518 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#192d49">
+  <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
+  <title>Sound Lab · Дууны лаборатори</title>
+  <link rel="stylesheet" href="sound-lab.css?v=s040a">
+  <script src="sound-model.js" defer></script>
+  <script src="sound-string.js?v=s037" defer></script>
+  <script src="sound-piano.js?v=s019" defer></script>
+  <script src="sound-transient.js?v=s039" defer></script>
+  <script src="sound-sustain.js?v=s020b" defer></script>
+  <script src="sound-spectrum.js?v=s017" defer></script>
+  <script src="sound-motion.js?v=s020c" defer></script>
+  <script src="sound-beats.js" defer></script>
+  <script src="sound-intervals.js?v=s021" defer></script>
+  <script src="sound-ear-tune.js?v=s028" defer></script>
+  <script src="sound-scales.js?v=s031" defer></script>
+  <script src="sound-limit5.js?v=s036" defer></script>
+  <script src="sound-temperaments.js?v=s036" defer></script>
+  <script src="sound-harmonics.js" defer></script>
+  <script src="sound-noise.js" defer></script>
+  <script src="sound-recorder.js" defer></script>
+  <script src="sound-score.js?v=s040a" defer></script>
+  <script src="sound-abc.js?v=s040a" defer></script>
+  <script src="sound-score-player.js?v=s040a" defer></script>
+  <script src="sound-compose.js?v=s040a" defer></script>
+  <script src="sound-lab.js?v=s039a" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 42 42"><path d="M3 21C9 21 9 7 15 7s6 28 12 28 6-19 12-19" fill="none" stroke="white" stroke-width="3.4" stroke-linecap="round"/></svg>
+        </div>
+        <div><h1>Sound Lab</h1><small>Дууны лаборатори</small></div>
+      </div>
+      <div class="top-actions">
+        <div class="lang-group" role="group" aria-label="Interface language">
+          <button class="lang-option" id="langEn" type="button" aria-pressed="false">EN</button>
+          <button class="lang-option active" id="langMn" type="button" aria-pressed="true">MN</button>
+        </div>
+        <div class="record-anchor">
+          <button id="recordButton" type="button" class="record-button" aria-pressed="false" aria-label="Бичлэг эхлэх" title="Бичлэг эхлэх">
+            <span id="recordSymbol" class="record-symbol" aria-hidden="true">●</span>
+            <span id="recordButtonLabel" class="record-button-label">REC</span>
+            <output id="recordTimer" class="record-timer" hidden>0.0 сек</output>
+          </button>
+          <p id="recordStatus" class="record-status sr-only" role="status" aria-live="polite">Бичлэг эхлүүлээд авиа тоглуулж эсвэл цохиж үзээрэй.</p>
+          <section id="recordResult" class="record-popover" aria-label="Сүүлийн бичлэг" data-i18n-aria="recordResultAria" hidden>
+            <div class="record-popover-heading">
+              <strong data-i18n="recordSavedShort">WAV бэлэн</strong>
+              <button id="recordDismiss" class="record-dismiss" type="button" aria-label="Хаах" data-i18n-aria="recordDismissAria">×</button>
+            </div>
+            <audio id="recordPreview" controls preload="none" aria-label="Бичлэгийг сонсох" data-i18n-aria="recordPreviewAria"></audio>
+            <a id="recordDownload" class="record-download" href="#" download="sound-lab.wav" data-i18n="recordSave">WAV дахин хадгалах</a>
+          </section>
+        </div>
+        <button id="stopAll" class="stop-all" type="button" data-i18n="stop">■ Stop</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="mode-bar">
+      <nav class="mode-switch" aria-label="Дууны бүлэг" id="modeSwitch">
+        <button type="button" id="modePure" class="mode-button active" aria-pressed="true" data-i18n="modePure">Цэвэр авиа</button>
+        <button type="button" id="modeStrike" class="mode-button" aria-pressed="false" data-i18n="modeStrike">Цохих/татах</button>
+        <button type="button" id="modeSustain" class="mode-button" aria-pressed="false" data-i18n="modeSustain">Үлээх/нумдах</button>
+        <button type="button" id="modeMotion" class="mode-button" aria-pressed="false" data-i18n="modeMotion">Хувирдаг давтамж</button>
+        <button type="button" id="modeMix" class="mode-button" aria-pressed="false" data-i18n="modeMix">Долгион холих</button>
+        <button type="button" id="modeTuning" class="mode-button" aria-pressed="false" data-i18n="modeTuning">Хөг</button>
+        <button type="button" id="modeCompose" class="mode-button" aria-pressed="false" data-i18n="modeCompose">Ая зохиох</button>
+      </nav>
+      <span class="pill" id="pagePhase" data-i18n="phase">01 · Энгийн дохионууд</span>
+    </div>
+
+    <div class="workspace" id="pureWorkspace">
+      <section class="panel controls" aria-labelledby="controls-title">
+        <div class="section-top">
+          <h2 id="controls-title" data-i18n="chooseShape">Choose a wave shape</h2>
+          <p id="soundDescription" class="description">One smooth vibration with just one frequency.</p>
+        </div>
+
+        <div class="wave-choices" role="group" aria-label="Waveform shape" id="waveChoices">
+          <button class="wave-choice selected" type="button" data-wave="sine" aria-pressed="true">
+            <svg viewBox="0 0 64 28" aria-hidden="true"><path d="M2 14C9-2 17-2 24 14S39 30 46 14 55-2 62 14"/></svg>
+            <span data-i18n="sine">Sine</span>
+          </button>
+          <button class="wave-choice" type="button" data-wave="triangle" aria-pressed="false">
+            <svg viewBox="0 0 64 28" aria-hidden="true"><path d="M2 14L17 2 32 26 47 2 62 14"/></svg>
+            <span data-i18n="triangle">Triangle</span>
+          </button>
+          <button class="wave-choice" type="button" data-wave="square" aria-pressed="false">
+            <svg viewBox="0 0 64 28" aria-hidden="true"><path d="M2 26V2H32V26H62V2"/></svg>
+            <span data-i18n="square">Square</span>
+          </button>
+          <button class="wave-choice" type="button" data-wave="sawtooth" aria-pressed="false">
+            <svg viewBox="0 0 64 28" aria-hidden="true"><path d="M2 26L32 2V26L62 2"/></svg>
+            <span data-i18n="sawtooth">Sawtooth</span>
+          </button>
+        </div>
+
+        <button class="play-button" type="button" id="playButton" aria-pressed="false">
+          <span class="play-icon" id="playIcon" aria-hidden="true">▶</span>
+          <span id="playLabel" data-i18n="play">Play tone</span>
+          <span class="play-caption" id="playCaption" data-i18n="playCaption">Tap or click to hear</span>
+        </button>
+        <p class="audio-status" id="audioStatus" role="status" aria-live="polite">Ready. Sound begins only when you press Play.</p>
+
+        <div class="field-group">
+          <div class="field-title">
+            <label for="frequencySlider" data-i18n="frequency">Frequency</label>
+            <output id="noteLabel" class="note-badge" for="frequencySlider frequencyInput">A4 · Ля4</output>
+          </div>
+          <div class="frequency-controls">
+            <input id="frequencySlider" type="range" min="0" max="1000" step="1" value="530" aria-label="Logarithmic frequency slider">
+            <div class="number-wrap">
+              <input id="frequencyInput" type="number" min="20" max="12000" step="any" inputmode="decimal" value="440" aria-label="Exact frequency in hertz">
+              <span data-i18n="unitHz">Гц</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span data-unit-hz="80">80 Гц</span>
+            <label class="check-label"><input id="snapCheck" type="checkbox"> <span data-i18n="snap">Snap to notes</span></label>
+            <span data-unit-hz="2,000">2,000 Гц</span>
+          </div>
+          <p class="field-help" id="sliderHelp" data-i18n="sliderHint">The slider is logarithmic. Type a frequency for values outside its range.</p>
+        </div>
+
+        <div class="note-presets" role="group" aria-label="Musical note presets">
+          <span data-i18n="tryNote">Try a note:</span>
+          <button type="button" data-note="60">C4 · До</button>
+          <button type="button" data-note="69">A4 · Ля</button>
+          <button type="button" data-note="72">C5 · До</button>
+        </div>
+
+        <div class="field-group volume-field">
+          <div class="field-title">
+            <label for="volumeSlider" data-i18n="volume">Volume</label>
+            <output id="volumeReadout" for="volumeSlider">40%</output>
+          </div>
+          <input id="volumeSlider" type="range" min="0" max="100" step="1" value="40">
+          <p class="field-help" data-i18n="safeVolume">Start at a low volume and increase carefully, especially with headphones.</p>
+        </div>
+
+        <details id="settings" class="settings">
+          <summary data-i18n="settings">⚙ Settings</summary>
+          <div class="settings-inner">
+            <div class="setting-row">
+              <div>
+                <strong data-i18n="tuning">Tuning for snapped notes</strong>
+                <p data-i18n="tuningHint">The note names use 12-tone equal temperament for now.</p>
+              </div>
+              <span class="setting-value" data-i18n="equal">12-tone equal</span>
+            </div>
+            <label class="check-label setting-check">
+              <input type="checkbox" id="fixedTimeCheck" checked>
+              <span data-i18n="fixedTime">Хугацааны цонхыг 20 мсек-д тогтмол байлгах</span>
+            </label>
+            <p class="field-help" data-i18n="fixedHint">Uncheck to zoom into four periods and examine the wave shape.</p>
+          </div>
+        </details>
+      </section>
+
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="wave-title">
+          <div class="chart-heading">
+            <div>
+              <h2 id="wave-title" data-i18n="waveTitle">Waveform over time</h2>
+              <p id="waveSubtitle" data-i18n="waveSubtitle">Хугацаа 20 мсек хэвээр: давтамж ихсэхэд олон үе багтана.</p>
+            </div>
+            <span class="chart-badge" id="periodBadge">T = 2.27 мсек</span>
+          </div>
+          <canvas id="waveCanvas" role="img" aria-label="Modeled waveform over time" width="740" height="265"></canvas>
+          <div class="chart-foot">
+            <span id="windowLabel">0–9.1 мсек</span>
+            <span data-i18n="timeAxis">time →</span>
+          </div>
+        </section>
+
+        <section class="panel chart-panel" aria-labelledby="spectrum-title">
+          <div class="chart-heading">
+            <div>
+              <h2 id="spectrum-title" data-i18n="spectrumTitle">Harmonics</h2>
+              <p data-i18n="spectrumSubtitle">Ideal frequency components, relative to the first</p>
+            </div>
+            <span class="chart-badge" id="fundamentalBadge">f₀ = 440 Гц</span>
+          </div>
+          <canvas id="spectrumCanvas" role="img" aria-label="Modeled harmonic magnitude spectrum" width="740" height="215"></canvas>
+          <div class="chart-foot">
+            <span id="harmonicInsight">A sine wave has only its fundamental frequency.</span>
+            <span data-i18n="frequencyAxis">frequency →</span>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="strikeWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="strike-controls-title">
+        <div class="section-top">
+          <h2 id="strike-controls-title" data-i18n="strikeChoose">Дууны загвар сонгох</h2>
+          <p class="description" id="strikeDescription">Чавхдасыг татаж тавихад хэлбэлзэл нь аажмаар намдана.</p>
+        </div>
+        <div class="strike-choices" id="strikeChoices" role="group" aria-label="Дууны загвар">
+          <button type="button" class="strike-choice selected" data-strike="pluck" aria-pressed="true">
+            <span aria-hidden="true" class="strike-glyph">🎸</span><span data-i18n="pluck">Татсан чавхдас</span>
+          </button>
+          <button type="button" class="strike-choice" data-strike="kick" aria-pressed="false">
+            <span aria-hidden="true" class="strike-glyph">🥁</span><span data-i18n="kick">Басс бөмбөр</span>
+          </button>
+          <button type="button" class="strike-choice" data-strike="piano" aria-pressed="false">
+            <span aria-hidden="true" class="strike-glyph">🎹</span><span data-i18n="piano">Төгөлдөр хуур</span>
+          </button>
+        </div>
+        <div id="strikeGuitarPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikeGuitarPlay">
+          <button type="button" data-strike-play="single">▶ Татах</button>
+          <button type="button" data-strike-play="strum">▶ Цохих</button>
+        </div>
+        <div id="strikePianoPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikePianoTouchTitle" hidden>
+          <button type="button" data-strike-play="press">▶ Товчлуур дарах</button>
+          <button type="button" data-strike-play="tap">▶ Товших</button>
+        </div>
+        <button id="strikeButton" type="button" class="play-button strike-button" hidden>
+          <span class="play-icon" aria-hidden="true">✦</span>
+          <span id="strikeButtonLabel">Цохих</span>
+          <span class="play-caption" data-i18n="strikeCaption">Дарж сонсоод, дахин дарж давтаарай</span>
+        </button>
+        <p id="strikeStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Дарахад л дуу гарна.</p>
+        <p id="strikePianoHint" class="field-help" data-i18n="strikePianoTouchHint" hidden>Дарах нь товчлуурыг барьсан үеийн чөлөөт намдлыг, товших нь зөөлөн богино даралт ба намжаагч эрт буцахыг загварчилна.</p>
+
+        <div class="field-group" id="strikeChordGroup" hidden>
+          <div class="field-title"><span data-i18n="strikeChord">Аккорд цохих</span></div>
+          <div class="drum-sizes strike-pads" role="group" aria-label="Гитарын аккордууд" data-i18n-aria="strikeChord">
+            <button type="button" class="selected" data-guitar-chord="em" aria-pressed="true">Em</button>
+            <button type="button" data-guitar-chord="g" aria-pressed="false">G</button>
+            <button type="button" data-guitar-chord="c" aria-pressed="false">C</button>
+            <button type="button" data-guitar-chord="am" aria-pressed="false">Am</button>
+            <button type="button" data-guitar-chord="d" aria-pressed="false">D</button>
+          </div>
+          <details class="strike-more-chords">
+            <summary data-i18n="strikeMoreChords">Бусад аккорд</summary>
+            <div class="drum-sizes strike-pads" role="group" data-i18n-aria="strikeChord">
+              <button type="button" data-guitar-chord="a" aria-pressed="false">A</button>
+              <button type="button" data-guitar-chord="e" aria-pressed="false">E</button>
+              <button type="button" data-guitar-chord="dm" aria-pressed="false">Dm</button>
+              <button type="button" data-guitar-chord="g7" aria-pressed="false">G7</button>
+              <button type="button" data-guitar-chord="c7" aria-pressed="false">C7</button>
+              <button type="button" data-guitar-chord="dsus4" aria-pressed="false">Dsus4</button>
+            </div>
+          </details>
+          <label class="field-title" for="strikeGuitarPattern" data-i18n="strikePatternTitle">Цохих арга</label>
+          <select id="strikeGuitarPattern">
+            <option value="down" data-i18n="strikePatternDown">Доош</option>
+            <option value="up" data-i18n="strikePatternUp">Дээш</option>
+            <option value="alternate" data-i18n="strikePatternAlternate">Доош–дээш</option>
+            <option value="arpeggio" data-i18n="strikePatternArpeggio">Арпеджио</option>
+            <option value="fingerpick" data-i18n="strikePatternFingerpick">Хуруугаар татах</option>
+          </select>
+          <p class="field-help" data-i18n="strikeChordHint">Аккордын товч бүр шууд нэг удаа дуугарна. Цохих аргаа сонгож, дахин товшоод хэмнэл үүсгээрэй.</p>
+        </div>
+
+        <div class="field-group" id="strikePitchGroup">
+          <div class="field-title">
+            <label for="strikeFrequencySlider" data-i18n="strikePitch">Чавхдасны давтамж</label>
+            <output id="strikeNote" class="note-badge">A3 · Ля3</output>
+          </div>
+          <div class="frequency-controls">
+            <input type="range" id="strikeFrequencySlider" min="0" max="1000" step="1" value="333" aria-label="Чавхдасны давтамжийн гулсуур">
+            <div class="number-wrap">
+              <input type="number" id="strikeFrequencyInput" min="110" max="880" step="any" inputmode="decimal" value="220" aria-label="Чавхдасны давтамжийг герцээр оруулах">
+              <span data-i18n="unitHz">Гц</span>
+            </div>
+          </div>
+          <div class="scale-row">
+            <span data-unit-hz="110">110 Гц</span>
+            <label class="check-label"><input id="strikeSnap" type="checkbox"> <span data-i18n="snap">Нотод тааруулах</span></label>
+            <span data-unit-hz="880">880 Гц</span>
+          </div>
+        </div>
+
+        <div class="field-group" id="strikePluckPositionGroup">
+          <div class="field-title"><label for="strikePluckPosition" data-i18n="strikePluckPosition">Татах байрлал</label><output id="strikePluckPositionValue">22%</output></div>
+          <input id="strikePluckPosition" type="range" min="8" max="50" step="1" value="22">
+          <p class="field-help" data-i18n="strikePluckPositionHint">Чавхдасны үзүүрт ойр татвал дээд гармоникууд илүү тод сонсогдоно.</p>
+        </div>
+
+        <div class="field-group" id="strikeDrumSizeGroup" hidden>
+          <label class="field-title" for="strikeDrumVoice" data-i18n="strikeDrumVoiceTitle">Цохивор хөгжмийн төрөл</label>
+          <select id="strikeDrumVoice">
+            <option value="membrane" data-i18n="strikeDrumMembrane">Басс бөмбөр</option>
+            <option value="snare" data-i18n="strikeDrumSnare">Бага бөмбөр</option>
+            <option value="cymbal" data-i18n="strikeDrumCymbal">Цан</option>
+            <option value="steelpan" data-i18n="strikeDrumSteelpan">Ган бөмбөр</option>
+            <option value="chimes" data-i18n="strikeDrumChimes">Хоолойт хонх</option>
+            <option value="woodblock" data-i18n="strikeDrumWoodblock">Модон товшуур</option>
+          </select>
+          <div class="field-title"><span data-i18n="strikeDrumSize">Бөмбөр цохих</span><output id="strikeDrumFrequencies">112 Гц</output></div>
+          <div class="drum-sizes strike-pads" role="group" id="strikeDrumSizes" aria-label="Бөмбөр цохих">
+            <button type="button" data-drum-size="large" aria-pressed="false" data-i18n="strikeLarge">Том</button>
+            <button type="button" class="selected" data-drum-size="medium" aria-pressed="true" data-i18n="strikeMedium">Дунд</button>
+            <button type="button" data-drum-size="small" aria-pressed="false" data-i18n="strikeSmall">Жижиг</button>
+          </div>
+          <p id="strikeDrumHint" class="field-help" data-i18n="strikeDrumHint">Том, дунд, жижиг бөмбөрийг шууд товшиж хэмнэл үүсгээрэй.</p>
+          <div id="strikeDrumTensionGroup">
+            <div class="field-title"><label for="strikeDrumTension" data-i18n="strikeDrumTension">Арьсны таталт</label><output id="strikeDrumTensionValue">100%</output></div>
+            <input id="strikeDrumTension" type="range" min="50" max="200" step="5" value="100">
+            <p class="field-help" data-i18n="strikeDrumTensionHint">Таталтыг чангалах тусам хэлбэлзлийн давтамж нэмэгдэнэ.</p>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-title">
+            <label for="strikeStrength" data-i18n="strikeStrength">Цохилтын хүч</label>
+            <output id="strikeStrengthValue">55%</output>
+          </div>
+          <input type="range" id="strikeStrength" min="0" max="100" step="1" value="55">
+        </div>
+        <div class="field-group volume-field">
+          <div class="field-title">
+            <label for="strikeDecay" data-i18n="strikeDecay">Намдах хугацаа</label>
+            <output id="strikeDecayValue">0.65 сек</output>
+          </div>
+          <input type="range" id="strikeDecay" min="0.12" max="1.2" step="0.01" value="0.65">
+          <p class="field-help" data-i18n="strikeSafety">Дуу өөрөө намдана. Эхэндээ аяархан сонсоорой.</p>
+        </div>
+      </section>
+
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="strike-wave-title">
+          <div class="chart-heading">
+            <div>
+              <h2 id="strike-wave-title" data-i18n="strikeWaveTitle">Дууны долгион</h2>
+              <p data-i18n="strikeWaveSubtitle">Бүхэлд нь хараад томруулбал нэг нэг хэлбэлзэл тодорно.</p>
+            </div>
+            <span class="chart-badge" id="strikeDurationBadge">τ = 0.65 сек</span>
+          </div>
+          <div class="plot-tools" role="group" aria-label="Долгионы графикийн удирдлага" id="strikePlotTools">
+            <button id="strikeViewZoomOut" type="button" data-i18n-aria="strikeZoomOutAria" aria-label="Томруулалтыг багасгах">−</button>
+            <button id="strikeViewZoomIn" type="button" data-i18n-aria="strikeZoomInAria" aria-label="Томруулах">+</button>
+            <button id="strikeViewLeft" type="button" data-i18n-aria="strikePanLeftAria" aria-label="Зүүн тийш">←</button>
+            <button id="strikeViewRight" type="button" data-i18n-aria="strikePanRightAria" aria-label="Баруун тийш">→</button>
+            <button id="strikeViewFit" type="button" data-i18n="strikeFit">Бүгд</button>
+            <label for="strikeViewPreset" class="sr-only" data-i18n="strikeViewPresetLabel">Хугацааны хуваарь</label>
+            <select id="strikeViewPreset" aria-label="Хугацааны хуваарь">
+              <option value="3" data-i18n="strikeFit">Бүгд</option>
+              <option value="1" data-i18n="strikePresetOneSecond">1 сек</option>
+              <option value="0.2" data-i18n="strikePreset200Ms">200 мсек</option>
+              <option value="0.02" data-i18n="strikePreset20Ms">20 мсек</option>
+              <option value="custom" hidden data-i18n="strikeCustom">Өөр</option>
+            </select>
+          </div>
+          <canvas id="strikeWaveCanvas" role="img" aria-label="Томруулж үзэх дууны долгионы математик загвар" width="740" height="265"></canvas>
+          <div class="cursor-control">
+            <div class="field-title">
+              <label for="strikeTimeSlider" data-i18n="strikeTime">Дууны хугацааг шинжлэх</label>
+              <output id="strikeTimeValue">t = 0.00 сек</output>
+            </div>
+            <input id="strikeTimeSlider" type="range" min="0" max="3000" step="5" value="0" aria-label="Сонгосон хугацаа">
+            <p class="field-help" data-i18n="strikeTimeHint">Цохиход спектр дууг дагана. Дараа нь гулсуураар хугацааг сонгоорой.</p>
+          </div>
+          <div class="chart-foot">
+            <span id="strikeWindowLabel">0–3 сек</span>
+            <span data-i18n="timeAxis">хугацаа →</span>
+          </div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="strike-spectrum-title">
+          <div class="chart-heading">
+            <div>
+              <h2 id="strike-spectrum-title" data-i18n="strikeLocalSpectrumTitle">Давтамжийн спектр</h2>
+              <p data-i18n="strikeLocalSpectrumSubtitle">Сонгосон хугацааны орчмын 128 мсек долгионы Фурье шинжилгээ</p>
+            </div>
+            <span class="chart-badge" id="strikeSpectrumBadge">t = 0.00 сек</span>
+          </div>
+          <div class="spectrum-modes" role="group" id="strikeSpectrumChoices" aria-label="Спектрийн төрөл">
+            <button type="button" class="selected" data-spectrum-view="local" aria-pressed="true" data-i18n="strikeSpectrumHere">Энэ мөчид</button>
+            <button type="button" data-spectrum-view="overall" aria-pressed="false" data-i18n="strikeSpectrumWhole">Бүх дуу</button>
+          </div>
+          <canvas id="strikeSpectrumCanvas" role="img" aria-label="Хугацаанаас хамаарсан Фурье спектр" width="740" height="215"></canvas>
+          <div class="chart-foot">
+            <span id="strikeSpectrumHint" data-i18n="strikeSpectrumHint">Өндөр гармоникууд хэр хурдан намдаж байгааг ажигла.</span>
+            <span data-i18n="frequencyAxis">давтамж →</span>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="sustainWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="sustain-controls-title">
+        <div class="section-top">
+          <h2 id="sustain-controls-title" data-i18n="sustainChoose">Үргэлжлэх дуу сонгох</h2>
+          <p id="sustainDescription" class="description">Үлээх эсвэл нумдах үед дуу үргэлжилж, зогсооход намдана.</p>
+        </div>
+        <div class="strike-choices" id="sustainChoices" role="group" aria-label="Үргэлжлэх авианы загвар">
+          <button class="strike-choice selected" type="button" data-sustain="flute" aria-pressed="true"><span class="strike-glyph" aria-hidden="true">🪈</span><span data-i18n="sustainFlute">Лимбэ</span></button>
+          <button class="strike-choice" type="button" data-sustain="violin" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">🎻</span><span data-i18n="sustainViolin">Хийл</span></button>
+          <button class="strike-choice" type="button" data-sustain="morin" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">♬</span><span data-i18n="sustainMorin">Морин хуур</span></button>
+        </div>
+        <div id="sustainPlayModes" class="ear-play-controls" role="group" data-i18n-aria="sustainGestureAria">
+          <button id="sustainHoldButton" class="sustain-button" type="button" aria-pressed="false">▶ Дарж барих</button>
+          <button id="sustainToggleButton" type="button" aria-pressed="false">▶ Товшиж асаах</button>
+        </div>
+        <p id="sustainStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Хуруу эсвэл товчлуур дээр дарж дуугаргана.</p>
+
+        <div class="field-group">
+          <div class="field-title"><label for="sustainFrequencySlider" data-i18n="sustainPitch">Нотын давтамж</label><output id="sustainNote" class="note-badge">A4 · Ля4</output></div>
+          <div class="frequency-controls">
+            <input id="sustainFrequencySlider" type="range" min="0" max="1000" step="1" value="667" aria-label="Нотын давтамжийн гулсуур">
+            <div class="number-wrap"><input id="sustainFrequencyInput" type="number" min="110" max="880" step="any" inputmode="decimal" value="440" aria-label="Давтамжийг герцээр оруулах"><span data-i18n="unitHz">Гц</span></div>
+          </div>
+          <div class="scale-row"><span data-unit-hz="110">110 Гц</span><label class="check-label"><input id="sustainSnap" type="checkbox"> <span data-i18n="snap">Нотод тааруулах</span></label><span data-unit-hz="880">880 Гц</span></div>
+        </div>
+        <div class="field-group" id="sustainBreathGroup">
+          <div class="field-title"><label for="sustainBreath" data-i18n="sustainBreath">Үлээлтийн хүч</label><output id="sustainBreathValue">60%</output></div>
+          <input id="sustainBreath" type="range" min="0" max="100" step="1" value="60">
+          <p class="field-help" data-i18n="sustainBreathHint">Илүү хүчтэй үлээхэд дуу чангарч, гармоникууд болон амьсгалын шуугиан өөрчлөгдөнө.</p>
+        </div>
+        <div class="field-group" id="sustainBowGroup" hidden>
+          <div class="field-title"><label for="sustainBowPressure" data-i18n="sustainBow">Нумын даралт</label><output id="sustainBowValue">60%</output></div>
+          <input id="sustainBowPressure" type="range" min="0" max="100" step="1" value="60">
+          <p class="field-help" data-i18n="sustainBowHint">Нумын даралтыг нэмэхэд авиа чангарч, дээд гармоникууд тодорно.</p>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="sustainAttack" data-i18n="sustainAttack">Эхлэх хугацаа</label><output id="sustainAttackValue">0.14 сек</output></div>
+          <input id="sustainAttack" type="range" min="0.02" max="0.6" step="0.01" value="0.14">
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="sustainRelease" data-i18n="sustainRelease">Намдах хугацаа</label><output id="sustainReleaseValue">0.18 сек</output></div>
+          <input id="sustainRelease" type="range" min="0.04" max="1.2" step="0.01" value="0.18">
+          <p class="field-help" data-i18n="sustainEnvelopeHelp">Эхлэх хугацаа дараагийн нотод, намдах хугацаа тавихад үйлчилнэ.</p>
+        </div>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="sustainVolume" data-i18n="volume">Дууны хэмжээ</label><output id="sustainVolumeValue">40%</output></div>
+          <input id="sustainVolume" type="range" min="0" max="100" step="1" value="40">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан дуугарна. Ялангуяа чихэвч хэрэглэвэл болгоомжтой нэмээрэй.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="sustain-envelope-title">
+          <div class="chart-heading">
+            <div><h2 id="sustain-envelope-title" data-i18n="sustainEnvelopeTitle">Дууны хүч хугацаанд</h2><p data-i18n="sustainEnvelopeHint">1.2 сек дараад тавьсан жишээ. Эхлэл, үргэлжлэх үе, намдалт.</p></div>
+            <span class="chart-badge" id="sustainEnvelopeBadge">0.14 / 0.18 сек</span>
+          </div>
+          <canvas id="sustainEnvelopeCanvas" width="740" height="260" role="img" aria-label="Дарах, барих, тавих үеийн дууны хүчний загвар"></canvas>
+          <div class="chart-foot"><span data-i18n="sustainEnvelopeFoot">Босоо шугам нь тавих мөч (1.2 сек).</span><span data-i18n="timeAxis">хугацаа →</span></div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="sustain-detail-title">
+          <div class="chart-heading">
+            <div><h2 id="sustain-detail-title" data-i18n="sustainDetailTitle">Долгион ба гармоникууд</h2><p id="sustainDetailHint" data-i18n="sustainDetailHint">20 мсек-ийн үелэх хэсэг. Амьсгаа, нумын зөөлөн шуугианыг энд зураагүй.</p></div>
+            <span class="chart-badge" id="sustainDetailBadge">440 Гц</span>
+          </div>
+          <div class="motion-mini-plots">
+            <div><h3 data-i18n="sustainWaveTitle">Долгион</h3><canvas id="sustainWaveCanvas" width="350" height="180" role="img" aria-label="20 мсек-ийн үелэх долгионы загвар"></canvas></div>
+            <div><h3 data-i18n="sustainSpectrumTitle">Гармоникууд</h3><canvas id="sustainSpectrumCanvas" width="350" height="180" role="img" aria-label="Үндсэн давтамж ба долоон дээд гармоникийн хүч"></canvas></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="motionWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="motion-controls-title">
+        <div class="section-top">
+          <h2 id="motion-controls-title" data-i18n="motionChoose">Хөдөлгөөнт дуу сонгох</h2>
+          <p class="description" id="motionDescription">Гараа хөдөлгөж давтамж ба дууны хэмжээг өөрчил.</p>
+        </div>
+        <div class="motion-choices" id="motionChoices" role="group" aria-label="Хөдөлгөөнт дууны төрөл">
+          <button type="button" class="motion-choice selected" data-motion="theremin" aria-pressed="true"><span aria-hidden="true">〰</span><span data-i18n="theremin">Теремин</span></button>
+          <button type="button" class="motion-choice" data-motion="siren" aria-pressed="false"><span aria-hidden="true">♫</span><span data-i18n="siren">Дохио</span></button>
+        </div>
+
+        <div id="thereminControls" class="motion-control-block">
+          <p class="motion-instruction" id="thereminHelp" data-i18n="thereminHelp">Талбар дээр дарж хөдөлгөнө: баруун тийш өндөр, дээш чанга дуугарна. Гараа авахад зогсоно.</p>
+          <div class="theremin-timbres">
+            <span class="field-help timbre-label" data-i18n="thereminTimbreLabel">Дууны өнгө</span>
+            <div class="timbre-choices" id="thereminTimbres" role="group" aria-label="Тереминий дууны өнгө">
+              <button type="button" class="selected" data-theremin-timbre="pure" aria-pressed="true" data-i18n="timbrePure">Цэвэр</button>
+              <button type="button" data-theremin-timbre="rich" aria-pressed="false" data-i18n="timbreRich">Баян</button>
+              <button type="button" data-theremin-timbre="voice" aria-pressed="false" data-i18n="timbreVoice">Эгшиг авиа</button>
+              <button type="button" data-theremin-timbre="overtones" aria-pressed="false" data-i18n="timbreOvertones">Дээд гармоник</button>
+            </div>
+            <p id="thereminTimbreHint" class="field-help">Цэвэр синус долгион зөвхөн үндсэн давтамжтай.</p>
+            <div id="thereminVowelGroup" class="theremin-subcontrol" hidden>
+              <span class="field-help timbre-label" data-i18n="thereminVowelLabel">Эгшиг сонгох</span>
+              <div class="timbre-choices vowel-choices" id="thereminVowels" role="group" aria-label="Эгшиг авиа сонгох">
+                <button type="button" class="selected" data-theremin-vowel="a" aria-pressed="true" data-i18n="vowelA">А</button>
+                <button type="button" data-theremin-vowel="e" aria-pressed="false" data-i18n="vowelE">Э</button>
+                <button type="button" data-theremin-vowel="i" aria-pressed="false" data-i18n="vowelI">И</button>
+                <button type="button" data-theremin-vowel="o" aria-pressed="false" data-i18n="vowelO">О</button>
+                <button type="button" data-theremin-vowel="u" aria-pressed="false" data-i18n="vowelU">У</button>
+              </div>
+              <p class="field-help" data-i18n="thereminVowelHint">Эгшгийн өнгө нь давтамжтай хамт хөдөлдөггүй амны хөндийн резонансаас үүснэ. 120–350 Гц-д турш.</p>
+            </div>
+            <div id="thereminOvertoneGroup" class="theremin-subcontrol" hidden>
+              <div class="field-title"><label for="thereminHarmonic" data-i18n="thereminHarmonicLabel">Онцлох гармоник</label><output id="thereminHarmonicValue">6f₀ = 2,640 Гц</output></div>
+              <input id="thereminHarmonic" type="range" min="2" max="12" step="1" value="6">
+              <p class="field-help" data-i18n="thereminOvertoneHint">Нэг эх үүсвэрийн f₀, 2f₀, 3f₀… гармоникуудаас нэгийг хүчтэй сонсгоно. Хөөмийн зарчмыг хялбарчилсан нь; хоёр тусдаа хоолой биш.</p>
+            </div>
+          </div>
+          <div class="theremin-pad" id="thereminPad" role="button" tabindex="0" aria-pressed="false" aria-describedby="thereminHelp thereminKeyboardHelp" aria-label="Теремин тоглох талбар">
+            <span class="theremin-cursor" id="thereminCursor" aria-hidden="true"></span>
+            <span class="pad-volume-label" data-i18n="padLoud">Чанга ↑</span>
+            <span class="pad-start-label" data-i18n="padStart">Дараад хөдөлгөөрэй</span>
+            <span class="pad-pitch-label" data-i18n="padHigh">Өндөр авиа →</span>
+          </div>
+          <div class="pad-range"><span data-unit-hz="120">120 Гц</span><span data-unit-hz="1,600">1,600 Гц</span></div>
+          <div class="pad-readout"><output id="motionCurrentHz">440 Гц</output><output id="motionCurrentLevel">50%</output></div>
+          <p id="thereminKeyboardHelp" class="field-help" data-i18n="thereminKeyboardHelp">Гарын товчлуураар: сумаар хөдөлгөж, Space/Enter-ээр дууг асааж эсвэл зогсооно. Escape зогсооно.</p>
+        </div>
+
+        <div id="sirenControls" class="motion-control-block" hidden>
+          <p class="field-help siren-trajectory-label" data-i18n="sirenPatternAria">Давтамжийн замнал</p>
+          <div class="siren-patterns" id="sirenPatterns" role="group" aria-label="Давтамжийн замнал">
+            <button type="button" class="selected" data-siren-pattern="two-tone" aria-pressed="true" data-i18n="sirenTwoTone">Огцом</button>
+            <button type="button" data-siren-pattern="sine-sweep" aria-pressed="false" data-i18n="sirenSineSweep">Аажим</button>
+            <button type="button" data-siren-pattern="pitch-sweep" aria-pressed="false" data-i18n="sirenPitchSweep">Шугаман</button>
+          </div>
+          <button id="sirenButton" type="button" class="play-button siren-button" aria-pressed="false">
+            <span class="play-icon" id="sirenPlayIcon" aria-hidden="true">▶</span>
+            <span id="sirenPlayLabel" data-i18n="sirenPlay">Дохио тоглуулах</span>
+            <span class="play-caption" data-i18n="sirenCaption">Дахин дарж зогсооно</span>
+          </button>
+          <div class="field-group">
+            <div class="field-title"><label for="sirenLow" data-i18n="sirenLow">Нам давтамж</label><output id="sirenLowValue">440 Гц</output></div>
+            <input id="sirenLow" type="range" min="120" max="1580" step="10" value="440">
+          </div>
+          <div class="field-group">
+            <div class="field-title"><label for="sirenHigh" data-i18n="sirenHigh">Өндөр давтамж</label><output id="sirenHighValue">880 Гц</output></div>
+            <input id="sirenHigh" type="range" min="140" max="1600" step="10" value="880">
+          </div>
+          <div class="field-group">
+            <div class="field-title"><label for="sirenRate" data-i18n="sirenRate">Давтах хурд</label><output id="sirenRateValue">0.8 удаа/сек</output></div>
+            <input id="sirenRate" type="range" min="0.2" max="2" step="0.1" value="0.8">
+          </div>
+          <div class="field-group volume-field">
+            <div class="field-title"><label for="sirenVolume" data-i18n="volume">Дууны хэмжээ</label><output id="sirenVolumeValue">40%</output></div>
+            <input id="sirenVolume" type="range" min="0" max="100" step="1" value="40">
+          </div>
+        </div>
+        <p id="motionStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Дуу гаргахын тулд дарна уу.</p>
+        <p class="field-help" data-i18n="motionSafety">Эхэндээ аяархан сонсоорой. Хуудас солих эсвэл Зогсоох дээр дарвал дуу намдана.</p>
+      </section>
+
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="motion-pitch-title">
+          <div class="chart-heading">
+            <div>
+              <h2 id="motion-pitch-title" data-i18n="motionPitchTitle">Давтамжийн өөрчлөлт</h2>
+              <p id="motionPitchSubtitle" data-i18n="motionPitchTheremin">Сүүлийн дөрвөн секундийн давтамжийг ажиглаарай.</p>
+            </div>
+            <span class="chart-badge" id="motionPitchBadge">440 Гц</span>
+          </div>
+          <canvas id="motionPitchCanvas" width="740" height="265" role="img" aria-label="Хугацаанд өөрчлөгдөх давтамжийн загвар"></canvas>
+          <div class="chart-foot"><span data-i18n="motionPitchScale">Логарифм давтамж · 120–1600 Гц</span><span data-i18n="timeAxis">хугацаа →</span></div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="motion-detail-title">
+          <div class="chart-heading">
+            <div>
+              <h2 id="motion-detail-title" data-i18n="motionDetailTitle">Энэ мөчийн дохио</h2>
+              <p data-i18n="motionDetailHint">Нэг үндсэн давтамжтай өөр өөр өнгийн долгион ба гармоникууд.</p>
+            </div>
+            <span class="chart-badge" id="motionDetailBadge">440 Гц</span>
+          </div>
+          <div class="motion-mini-plots">
+            <div><h3 data-i18n="motionWaveTitle">20 мсек-ийн долгион</h3><canvas id="motionWaveCanvas" width="350" height="180" role="img" aria-label="Тухайн мөчийн 20 миллисекундийн синус долгион"></canvas></div>
+            <div><h3 data-i18n="motionComponentTitle">Давтамжийн бүрэлдэхүүн</h3><canvas id="motionSpectrumCanvas" width="350" height="180" role="img" aria-label="Энэ мөчийн гармоникийн бүрэлдэхүүн"></canvas></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="mixWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="mix-controls-title">
+        <div class="section-top">
+          <h2 id="mix-controls-title" data-i18n="mixChoose">Хоёр авиа нийлүүлэх</h2>
+          <p class="description" data-i18n="mixDescription">Ойролцоо хоёр давтамж нийлээд дууны чанга сул нь ээлжлэн өөрчлөгдөнө.</p>
+        </div>
+        <div class="experiment-switch mix-experiment-switch" role="group" aria-label="Долгионы туршилт" data-i18n-aria="mixExperimentsAria">
+          <button type="button" data-mix-kind="beats" class="selected" aria-pressed="true" data-i18n="mixExperimentBeats">Хоёр давтамж</button>
+          <button type="button" data-mix-kind="harmonics" aria-pressed="false" data-i18n="mixExperimentHarmonics">Өнгө бүтээх</button>
+          <button type="button" data-mix-kind="noise" aria-pressed="false" data-i18n="mixExperimentNoise">Шуугиан</button>
+        </div>
+        <button id="mixButton" type="button" class="play-button" aria-pressed="false">
+          <span class="play-icon" id="mixPlayIcon" aria-hidden="true">▶</span>
+          <span id="mixPlayLabel" data-i18n="mixPlay">Тоглуулах</span>
+          <span class="play-caption" id="mixPlayCaption" data-i18n="playCaption">Сонсохын тулд товшино уу</span>
+        </button>
+        <p id="mixStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Хоёр авиа тоглуулах товчийг дарна уу.</p>
+
+        <div class="field-group">
+          <div class="field-title"><label for="mixBaseInput" data-i18n="mixBase">Эхний давтамж</label><output id="mixBaseValue">440 Гц</output></div>
+          <div class="frequency-controls">
+            <input id="mixBaseSlider" type="range" min="120" max="1000" step="1" value="440" aria-label="Эхний давтамжийн гулсуур">
+            <div class="number-wrap"><input id="mixBaseInput" type="number" min="120" max="1000" step="any" inputmode="decimal" value="440" aria-label="Эхний давтамжийг герцээр оруулах"><span data-i18n="unitHz">Гц</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="mixGapSlider" data-i18n="mixGap">Давтамжийн зөрүү (Δf)</label><output id="mixGapValue">4 Гц</output></div>
+          <input id="mixGapSlider" type="range" min="0" max="20" step="0.5" value="4">
+          <div class="mix-presets" role="group" aria-label="Давтамжийн зөрүүний жишээ" id="mixGapPresets">
+            <span data-i18n="mixTryGap">Туршиж үз:</span>
+            <button type="button" data-mix-gap="0" data-i18n="mixZeroGap">0 Гц</button>
+            <button type="button" data-mix-gap="2" data-i18n="mixTwoGap">2 Гц</button>
+            <button type="button" data-mix-gap="4" data-i18n="mixFourGap" class="selected" aria-pressed="true">4 Гц</button>
+            <button type="button" data-mix-gap="10" data-i18n="mixTenGap">10 Гц</button>
+          </div>
+        </div>
+        <div class="mix-comparison">
+          <div><span data-i18n="mixTwoFrequencies">Хоёр давтамж</span><strong id="mixPairValue">440 + 444 Гц</strong></div>
+          <div><span data-i18n="mixBeatRate">Чангарч, сулрах хурд</span><strong id="mixBeatValue">4 удаа/сек</strong></div>
+        </div>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="mixVolume" data-i18n="volume">Дууны хэмжээ</label><output id="mixVolumeValue">40%</output></div>
+          <input id="mixVolume" type="range" min="0" max="100" step="1" value="40">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан дуугарна. Ялангуяа чихэвч хэрэглэвэл болгоомжтой нэмээрэй.</p>
+        </div>
+      </section>
+
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="mix-wave-title">
+          <div class="chart-heading">
+            <div><h2 id="mix-wave-title" data-i18n="mixWaveTitle">Хоёр долгионы нийлбэр</h2><p id="mixWaveHint" data-i18n="mixWaveHint">Том цонхонд дууны чанга, сулын хүрээ харагдана. + дарж томруулбал жинхэнэ хэлбэлзлийг харна.</p></div>
+            <span class="chart-badge" id="mixWaveBadge">4 удаа/сек</span>
+          </div>
+          <div class="mix-plot-tools" id="mixPlotTools" role="group" aria-label="Хугацааны цонх">
+            <div class="mix-control-cluster">
+              <span data-i18n="mixZoomLabel">Томруулах</span>
+              <button type="button" id="mixZoomOut" aria-label="Томруулалтыг багасгах" title="Томруулалтыг багасгах">−</button>
+              <button type="button" id="mixZoomIn" aria-label="Томруулах" title="Томруулах">+</button>
+              <output id="mixZoomValue" aria-label="Харагдах хугацаа">1 сек</output>
+            </div>
+            <div class="mix-control-cluster mix-pan-group">
+              <span data-i18n="mixPanLabel">Шилжүүлэх</span>
+              <button type="button" id="mixViewLeft" aria-label="Өмнөх хугацааг харах">←</button>
+              <button type="button" id="mixViewRight" aria-label="Дараах хугацааг харах">→</button>
+            </div>
+          </div>
+          <canvas id="mixWaveCanvas" width="740" height="280" role="img" aria-label="Хоёр давтамжийн нийлбэрийн хугацааны график"></canvas>
+          <div class="chart-foot"><span id="mixWindowLabel">0–1 сек · 4 удаа</span><span data-i18n="timeAxis">хугацаа →</span></div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="mix-spectrum-title">
+          <div class="chart-heading">
+            <div><h2 id="mix-spectrum-title" data-i18n="mixSpectrumTitle">Давтамжийн бүрэлдэхүүнүүд</h2><p data-i18n="mixSpectrumHint">Чангарч, сулрах нь шинэ нам давтамж үүсгээгүй.</p></div>
+            <span class="chart-badge" id="mixSpectrumBadge">440 + 444 Гц</span>
+          </div>
+          <canvas id="mixSpectrumCanvas" width="740" height="225" role="img" aria-label="Хоёр цэвэр авианы идеал давтамжийн найрлага"></canvas>
+          <div class="chart-foot"><span id="mixSpectrumFoot" data-i18n="mixSpectrumFoot">Спектрт зөвхөн анхныхаа хоёр давтамж харагдана.</span><span data-i18n="frequencyAxis">давтамж →</span></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="intervalWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="interval-controls-title">
+        <div class="section-top">
+          <h2 id="interval-controls-title" data-i18n="intervalChoose">Хоёр нотын харьцаа</h2>
+          <p class="description" data-i18n="intervalDescription">Хоёр тусдаа авианы давтамжийг энгийн харьцаагаар тохируулж, гармоникууд нь хаана давхцахыг харьцуул.</p>
+        </div>
+        <div class="experiment-switch tuning-experiment-switch" role="group" aria-label="Хөгийн туршилтууд" data-i18n-aria="tuningExperimentsAria">
+          <button type="button" data-tuning-kind="intervals" class="selected" aria-pressed="true" data-i18n="intervalExperiment">Харьцаа</button>
+          <button type="button" data-tuning-kind="ear" aria-pressed="false" data-i18n="earExperiment">Тааруулах</button>
+          <button type="button" data-tuning-kind="scales" aria-pressed="false" data-i18n="scaleExperiment">3-хязгаар</button>
+          <button type="button" data-tuning-kind="limit5" aria-pressed="false" data-i18n="limit5Experiment">5-хязгаар</button>
+          <button type="button" data-tuning-kind="temperaments" aria-pressed="false" data-i18n="tempExperiment">Темперамент</button>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="intervalRatioSelect" data-i18n="intervalPresetsTitle">Давтамжийн харьцаа (дээд:доод)</label><output id="intervalName">Квинт · 3:2</output></div>
+          <select id="intervalRatioSelect" class="ear-task-select" data-i18n-aria="intervalPresetsAria">
+            <option value="1:1">Унисон · 1:1</option><option value="2:1">Октав · 2:1</option>
+            <option value="3:2" selected>Квинт · 3:2</option><option value="4:3">Кварт · 4:3</option>
+            <option value="5:4">Их терц · 5:4</option><option value="6:5">Бага терц · 6:5</option>
+          </select>
+        </div>
+        <div id="intervalPlayModes" class="ear-play-controls" role="group" data-i18n-aria="earCompareAria">
+          <button type="button" data-interval-play="alternating" aria-pressed="false">▶ Ээлжлэн</button>
+          <button type="button" data-interval-play="together" aria-pressed="false">▶ Хамт</button>
+        </div>
+        <p id="intervalStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Хоёр нотыг хамт сонсоорой.</p>
+        <div class="field-group">
+          <div class="field-title"><label for="intervalBaseInput" data-i18n="intervalBase">Доод нотын давтамж</label><output id="intervalBaseValue">220 Гц</output></div>
+          <div class="frequency-controls">
+            <input id="intervalBaseSlider" type="range" min="110" max="440" step="1" value="220">
+            <div class="number-wrap"><input id="intervalBaseInput" type="number" min="110" max="440" step="any" inputmode="decimal" value="220"><span data-i18n="unitHz">Гц</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="intervalTuningTitle">Хөг</span></div>
+          <div class="interval-toggles" id="intervalTunings" role="group" data-i18n-aria="intervalTuningAria" aria-label="Хоёр нотын хөг">
+            <button type="button" data-interval-tuning="just" class="selected" aria-pressed="true" data-i18n="intervalJust">Энгийн харьцаа</button>
+            <button type="button" data-interval-tuning="equal" aria-pressed="false" data-i18n="intervalEqual">12-TET</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="intervalColorTitle">Авианы найрлага</span></div>
+          <div class="interval-toggles" id="intervalColors" role="group" data-i18n-aria="intervalColorAria" aria-label="Авианы найрлага">
+            <button type="button" data-interval-color="pure" aria-pressed="false" data-i18n="intervalPure">Цэвэр</button>
+            <button type="button" data-interval-color="rich" class="selected" aria-pressed="true" data-i18n="intervalRich">Гармониктай</button>
+          </div>
+          <p class="field-help" data-i18n="intervalColorHint">Цэвэр авиа зөвхөн үндсэн давтамжтай; гармониктай авиа давхцах дээд давтамжуудыг сонсгоно.</p>
+        </div>
+        <div class="interval-facts" aria-live="off">
+          <div><span data-i18n="intervalNotes">Хоёр нот</span><strong id="intervalNotesValue">220 + 330 Гц</strong></div>
+          <div><span data-i18n="intervalActualRatio">Бодит харьцаа</span><strong id="intervalRatioValue">3:2 = 1.5</strong></div>
+          <div><span id="intervalPeriodLabel" data-i18n="intervalPeriod">Хамтын үе</span><strong id="intervalPeriodValue">9.09 мсек</strong></div>
+          <div><span data-i18n="intervalOverlap">Анхны давхцах гармоник</span><strong id="intervalOverlapValue">3f₁ = 2f₂ = 660 Гц</strong></div>
+        </div>
+        <p id="intervalCents" class="interval-micro-note" aria-live="polite">Яг тохирсон энгийн харьцаа</p>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="intervalVolume" data-i18n="volume">Дууны хэмжээ</label><output id="intervalVolumeValue">38%</output></div>
+          <input id="intervalVolume" type="range" min="0" max="100" step="1" value="38">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан дуугарна. Ялангуяа чихэвч хэрэглэвэл болгоомжтой нэмээрэй.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="interval-wave-title">
+          <div class="chart-heading">
+            <div><h2 id="interval-wave-title" data-i18n="intervalWaveTitle">Хоёр нотын долгион</h2><p data-i18n="intervalWaveHint">Доод, дээд нот ба тэдгээрийн нийлбэр. Энгийн харьцаанд нийтлэг үе харагдана.</p></div>
+            <span class="chart-badge" id="intervalWaveBadge">T = 9.09 мсек</span>
+          </div>
+          <canvas id="intervalWaveCanvas" width="740" height="295" role="img" aria-label="Хоёр нотын тусдаа болон нийлбэр долгионы загвар"></canvas>
+          <div class="chart-foot"><span id="intervalWaveFoot">2 ба 3 бүтэн хэлбэлзэл</span><span data-i18n="timeAxis">хугацаа →</span></div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="interval-spectrum-title">
+          <div class="chart-heading">
+            <div><h2 id="interval-spectrum-title" data-i18n="intervalSpectrumTitle">Хоёр нотын гармоникууд</h2><p id="intervalSpectrumHint" data-i18n="intervalSpectrumHint">Цэнхэр нь доод, улбар нь дээд нот. Давхцсан шугамыг хүрээлэв.</p></div>
+            <span class="chart-badge" id="intervalSpectrumBadge">3f₁ ↔ 2f₂</span>
+          </div>
+          <canvas id="intervalSpectrumCanvas" width="740" height="240" role="img" aria-label="Хоёр нотын эхний найман гармоник"></canvas>
+          <div class="chart-foot"><span id="intervalSpectrumFoot">3 × 220 = 2 × 330 Гц</span><span data-i18n="frequencyAxis">давтамж →</span></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="earWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="ear-controls-title">
+        <div class="section-top">
+          <h2 id="ear-controls-title" data-i18n="earChoose">Нот тааруулах</h2>
+          <p class="description" data-i18n="earDescription">Харьцаагаа сонгоод хоёр дахь нотыг чихээр тааруул. Доош алхам, октаваар шилжүүлэхийг ч бас туршаарай.</p>
+        </div>
+        <div class="experiment-switch tuning-experiment-switch" role="group" data-i18n-aria="tuningExperimentsAria" aria-label="Хөгийн туршилтууд">
+          <button type="button" data-tuning-kind="intervals" aria-pressed="false" data-i18n="intervalExperiment">Харьцаа</button>
+          <button type="button" data-tuning-kind="ear" class="selected" aria-pressed="true" data-i18n="earExperiment">Тааруулах</button>
+          <button type="button" data-tuning-kind="scales" aria-pressed="false" data-i18n="scaleExperiment">3-хязгаар</button>
+          <button type="button" data-tuning-kind="limit5" aria-pressed="false" data-i18n="limit5Experiment">5-хязгаар</button>
+          <button type="button" data-tuning-kind="temperaments" aria-pressed="false" data-i18n="tempExperiment">Темперамент</button>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="earTaskSelect" data-i18n="earTasksTitle">Даалгавар</label></div>
+          <select id="earTaskSelect" class="ear-task-select" data-i18n-aria="earTasksAria">
+            <option value="fifth" selected data-i18n="earTaskFifth">3:2 · Квинт</option>
+            <option value="third" data-i18n="earTaskThird">5:4 · Терц</option>
+            <option value="fourth" data-i18n="earTaskFourth">4:3 · Дөрөвт</option>
+            <option value="octaveUp" data-i18n="earTaskOctaveUp">2:1 · Дээш октав</option>
+            <option value="downFourth" data-i18n="earTaskDownFourth">3:4 · Доош дөрөвт</option>
+            <option value="downFifth" data-i18n="earTaskDownFifth">2:3 · Доош квинт</option>
+            <option value="octaveDown" data-i18n="earTaskOctaveDown">1:2 · Доош октав</option>
+          </select>
+        </div>
+        <div id="earPlayModes" class="ear-play-controls" role="group" data-i18n-aria="earCompareAria">
+          <button type="button" data-ear-play="alternating" aria-pressed="false">▶ Ээлжлэн</button>
+          <button type="button" data-ear-play="together" aria-pressed="false">▶ Хамт</button>
+        </div>
+        <div class="field-group ear-slider-group">
+          <div class="field-title"><label for="earAdjust" data-i18n="earAdjustTitle">Хоёр дахь нотыг тааруулах</label><output id="earAdjustLabel">← нам · өндөр →</output></div>
+          <input id="earAdjust" type="range" min="-60" max="60" step="0.5" value="0" data-i18n-aria="earAdjustAria">
+          <p class="field-help" id="earInstruction" aria-live="polite">До-оос Соль-г сонсож тааруулна.</p>
+        </div>
+        <p id="earStatus" class="audio-status" role="status" aria-live="polite">Дууг эхлүүлэхийн тулд дарна уу.</p>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="earSoundTitle">Авианы өнгө</span></div>
+          <div id="earSounds" class="ear-task-presets" role="group" data-i18n-aria="earSoundAria">
+            <button type="button" data-ear-sound="pure" aria-pressed="false" data-i18n="earSoundPure">Цэвэр синус</button>
+            <button type="button" data-ear-sound="rich" class="selected" aria-pressed="true" data-i18n="earSoundRich">Гармоник ихтэй</button>
+            <button type="button" data-ear-sound="guitar" aria-pressed="false" data-i18n="earSoundGuitar">Гитарын таталт</button>
+            <button type="button" data-ear-sound="piano" aria-pressed="false" data-i18n="earSoundPiano">Төгөлдөр хуур</button>
+          </div>
+          <p class="field-help" data-i18n="earSoundHint">Синусад дээд гармоник байхгүй. Гитар, төгөлдөр хуурын цохилтууд нь хялбаршуулсан загвар.</p>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="earHelpTitle">Тусламж</span></div>
+          <div id="earHelpModes" class="interval-toggles" role="group" data-i18n-aria="earHelpAria">
+            <button type="button" data-ear-help="guided" class="selected" aria-pressed="true" data-i18n="earGuided">Гармоник харах</button>
+            <button type="button" data-ear-help="blind" aria-pressed="false" data-i18n="earBlind">Зөвхөн сонсох</button>
+          </div>
+          <p class="field-help" data-i18n="earHelpHint">Графикт бүх гармоник жигд харагдана; аль нь давхцахыг заагаагүй. Дараа нь зөвхөн чихээрээ оролдоорой.</p>
+        </div>
+        <button type="button" id="earCheck" class="ear-action" data-i18n="earCheck">Шалгах</button>
+        <div class="ear-result" id="earResult" role="status" aria-live="polite" hidden></div>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="earVolume" data-i18n="volume">Дууны хэмжээ</label><output id="earVolumeValue">38%</output></div>
+          <input id="earVolume" type="range" min="0" max="100" step="1" value="38">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан сонсоорой.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="ear-harmonics-title">
+          <div class="chart-heading"><div>
+            <h2 id="ear-harmonics-title" data-i18n="earHarmonicsTitle">Хоёр нотын гармоникууд</h2>
+            <p data-i18n="earHarmonicsHint">Хоёр авианы 8 хүртэл гармоникийг харьцуул. Зорилтот давхцлыг заасан тэмдэглэгээ байхгүй.</p>
+          </div><span class="chart-badge" id="earHarmonicsBadge">8 f</span></div>
+          <canvas id="earHarmonicsCanvas" width="760" height="240" role="img" aria-label="Хоёр нотын гармоникуудын хоорондох зай"></canvas>
+          <div class="chart-foot"><span id="earHarmonicsFoot">Гармоникийн шугамуудыг ажиглаж эсвэл чихээрээ тааруул.</span><span data-i18n="frequencyAxis">давтамж →</span></div>
+        </section>
+        <section class="panel chart-panel" id="earOctavePanel" aria-labelledby="ear-octave-title" hidden>
+          <div class="chart-heading"><div>
+            <h2 id="ear-octave-title" data-i18n="earOctaveTitle">Нэг октавт буцаах</h2>
+            <p data-i18n="earOctaveHint">Улбар цэг нь тааруулсан нот; ногоон цэг нь түүнийг 2-оор үржүүлж эсвэл хувааж До4–До5 октавт оруулсан байрлал.</p>
+          </div><span class="chart-badge" id="earOctaveBadge">До4 · ?</span></div>
+          <canvas id="earOctaveCanvas" width="760" height="240" role="img" aria-label="Октавын дотор болон гаднах нотын байрлал"></canvas>
+          <div class="chart-foot"><span id="earOctaveFoot">Тасархай шугам нь нэг нотын октавын холбоо.</span><span data-i18n="earOctaveAxis">До3 · До4 · До5 →</span></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="scaleWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="scale-controls-title">
+        <div class="section-top">
+          <h2 id="scale-controls-title" data-i18n="scaleChoose">3:2 харьцаагаар шатлал бүтээх</h2>
+          <p class="description" data-i18n="scaleDescription">Эхлэх авианаас 3:2 алхмаар дээш, доош явж нот үүсгэ. Нэг октавт багтаагаад, дурын нотыг үндсэн нот болгон сонго.</p>
+        </div>
+        <div class="experiment-switch tuning-experiment-switch" role="group" aria-label="Хөгийн туршилтууд" data-i18n-aria="tuningExperimentsAria">
+          <button type="button" data-tuning-kind="intervals" aria-pressed="false" data-i18n="intervalExperiment">Харьцаа</button>
+          <button type="button" data-tuning-kind="ear" aria-pressed="false" data-i18n="earExperiment">Тааруулах</button>
+          <button type="button" data-tuning-kind="scales" class="selected" aria-pressed="true" data-i18n="scaleExperiment">3-хязгаар</button>
+          <button type="button" data-tuning-kind="limit5" aria-pressed="false" data-i18n="limit5Experiment">5-хязгаар</button>
+          <button type="button" data-tuning-kind="temperaments" aria-pressed="false" data-i18n="tempExperiment">Темперамент</button>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="scalePresetSelect" data-i18n="scalePresetsTitle">Шатлалын жишээ</label><output id="scaleCountValue">5 нот</output></div>
+          <select id="scalePresetSelect" class="ear-task-select" data-i18n-aria="scalePresetsAria">
+            <option value="five-up" selected data-i18n="scaleFiveUp">5 · Дээш</option>
+            <option value="five-center" data-i18n="scaleFiveCenter">5 · Дундаас</option>
+            <option value="five-down" data-i18n="scaleFiveDown">5 · Доош</option>
+            <option value="seven" data-i18n="scaleSeven">7 нот</option>
+            <option value="twelve" data-i18n="scaleTwelve">12 нот</option>
+            <option value="custom" data-i18n="scaleCustom" disabled>Өөрийн сонголт</option>
+          </select>
+        </div>
+        <div id="scalePlayModes" class="ear-play-controls" role="group" data-i18n-aria="scalePlaybackAria">
+          <button type="button" data-scale-play="melody" aria-pressed="false">▶ Ээлжлэн</button>
+          <button type="button" data-scale-play="chord" aria-pressed="false">▶ Хамт</button>
+        </div>
+        <p id="scaleStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Шатлалыг сонсоорой.</p>
+        <div class="field-group">
+          <label class="check-label scale-gap-switch" for="scaleGapToggle">
+            <input id="scaleGapToggle" type="checkbox">
+            <span data-i18n="scaleGapToggle">Буцах зөрүүг харуулах</span>
+          </label>
+          <p id="scaleGapInfo" class="field-help scale-gap-info" hidden></p>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="scaleGrowTitle">3:2 гинжийг сунгах</span><output id="scaleRangeValue">0 … +4</output></div>
+          <div class="scale-directions" role="group" aria-label="Алхам нэмэх, хасах" data-i18n-aria="scaleDirectionsAria">
+            <div><button type="button" id="scaleRemoveDown" data-i18n-aria="scaleRemoveDownAria" aria-label="Доод алхмыг хасах">−</button><button type="button" id="scaleAddDown" data-i18n="scaleAddDown">← Доош 3:2</button></div>
+            <div><button type="button" id="scaleAddUp" data-i18n="scaleAddUp">Дээш 3:2 →</button><button type="button" id="scaleRemoveUp" data-i18n-aria="scaleRemoveUpAria" aria-label="Дээд алхмыг хасах">−</button></div>
+          </div>
+          <p class="field-help" data-i18n="scaleGrowHint">Алхам бүрийг 2-ын зэрэгт үржүүлж эсвэл хуваагаад нэг октавт оруулна.</p>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="scaleBaseInput" data-i18n="scaleBase">Эхлэх давтамж</label><output id="scaleBaseValue">220 Гц</output></div>
+          <div class="frequency-controls">
+            <input type="range" id="scaleBaseSlider" min="110" max="330" step="1" value="220">
+            <div class="number-wrap"><input type="number" id="scaleBaseInput" min="110" max="330" step="any" inputmode="decimal" value="220"><span data-i18n="unitHz">Гц</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="scaleTonicTitle">Үндсэн нотыг сонгох</span></div>
+          <p class="field-help scale-tonic-hint" data-i18n="scaleTonicHint">Нотын аль нэгийг үндсэн нот болго. Авиа хэвээр, харин шатлалын эхлэл ба өнгө өөрчлөгдөнө.</p>
+          <div class="scale-tonic-grid" id="scaleTonicChoices" role="group" data-i18n-aria="scaleTonicAria" aria-label="Үндсэн нотын сонголт">
+            <button type="button" data-scale-tonic="0" aria-pressed="true">1</button>
+            <button type="button" data-scale-tonic="1" aria-pressed="false">2</button>
+            <button type="button" data-scale-tonic="2" aria-pressed="false">3</button>
+            <button type="button" data-scale-tonic="3" aria-pressed="false">4</button>
+            <button type="button" data-scale-tonic="4" aria-pressed="false">5</button>
+            <button type="button" data-scale-tonic="5" aria-pressed="false" hidden>6</button>
+            <button type="button" data-scale-tonic="6" aria-pressed="false" hidden>7</button>
+            <button type="button" data-scale-tonic="7" aria-pressed="false" hidden>8</button>
+            <button type="button" data-scale-tonic="8" aria-pressed="false" hidden>9</button>
+            <button type="button" data-scale-tonic="9" aria-pressed="false" hidden>10</button>
+            <button type="button" data-scale-tonic="10" aria-pressed="false" hidden>11</button>
+            <button type="button" data-scale-tonic="11" aria-pressed="false" hidden>12</button>
+          </div>
+        </div>
+        <div class="scale-facts" aria-live="off">
+          <div><span data-i18n="scaleTonicFact">Үндсэн нотын давтамж</span><strong id="scaleTonicValue">220 Гц</strong></div>
+          <div id="scaleClosureFact" hidden><span data-i18n="scaleReturnFact">Хамгийн ойр октаваас зөрөх зай</span><strong id="scaleClosureValue">−90.2 цент</strong></div>
+          <div><span data-i18n="scaleStepsFact">Зэргэлдээ нотын зай</span><strong id="scaleGapsValue">204, 294 цент</strong></div>
+          <div><span data-i18n="scaleOctaveFact">3:2 алхам · октав</span><strong id="scaleOctaveValue">5 · 3</strong></div>
+        </div>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="scaleVolume" data-i18n="volume">Дууны хэмжээ</label><output id="scaleVolumeValue">38%</output></div>
+          <input id="scaleVolume" type="range" min="0" max="100" step="1" value="38">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан сонсоорой.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="scale-spiral-title">
+          <div class="chart-heading">
+            <div><h2 id="scale-spiral-title" data-i18n="scaleSpiralTitle">3:2 алхмын октавын спираль</h2><p data-i18n="scaleSpiralHint">0-ээс эхэлж, дээш алхвал гадагш, доош алхвал дотогш эргэнэ. Бүдэг цацрагууд нэг октав дахь нотын эрэмбийг харуулна.</p></div>
+            <span class="chart-badge" id="scaleSpiralBadge">5 нот</span>
+          </div>
+          <canvas id="scaleSpiralCanvas" width="400" height="400" role="img" aria-label="3:2 алхмуудаас үүсэх олон октавын спираль"></canvas>
+          <div class="chart-foot"><span data-i18n="scaleSpiralFoot">Алхмын тоо квинтийн дарааллыг, төвөөс татсан цацрагууд нэг октав дахь давтамжийн эрэмбийг харуулна.</span><span data-i18n="scaleSpiralAxis">3:2 ↻ 210.6°</span></div>
+          <p id="scaleNowValue" class="scale-now" aria-live="off">Нот тоглуулаагүй байна</p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="scale-fourier-title">
+          <div class="chart-heading">
+            <div><h2 id="scale-fourier-title" data-i18n="scaleFourierTitle">Нот ба гармоникууд</h2><p data-i18n="scaleFourierHint">Дугуй нь үндсэн давтамж, ромбо нь үүсэж болох гармоник. Саарал нь октаваар шилжүүлсэн мөнөөх нот.</p></div>
+            <span class="chart-badge" id="scaleFourierBadge">0 … +4</span>
+          </div>
+          <canvas id="scaleFourierCanvas" width="740" height="370" role="img" aria-label="Үндсэн давтамж, гармоникууд ба октавын хийсвэр хуулбар"></canvas>
+          <div class="chart-foot"><span data-i18n="scaleFourierFoot">Ногоон нэг октав дахь цэгүүдийг зүүнээс баруун уншихад нотын эрэмбэ гарна. Саарал хуулбарыг октаваар шилжүүлэн тоглож болно.</span><span data-i18n="scaleFourierAxis">log₂ f →</span></div>
+          <div class="scale-gap-panel" id="scaleGapPanel" hidden>
+            <div class="scale-gap-header">
+              <div><h3 data-i18n="scaleGapTitle">Буцах нотын зөрүү</h3><p id="scaleGapSummary"></p></div>
+              <button type="button" id="scaleGapButton" aria-pressed="false" data-i18n="scaleGapPlay">Зөрүүг сонсох</button>
+            </div>
+            <canvas id="scaleGapCanvas" width="740" height="126" role="img" aria-label="Эхлэх нот ба октаваар буулгасан хийсвэр буцах нотын зай"></canvas>
+            <p class="field-help" data-i18n="scaleGapFoot">Энэ нь хоёр нотын зайг центээр томруулсан зураг. Товчлуур дээр дарахад хоёулаа 3.2 сек хамт дуугарна.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="limit5Workspace" hidden>
+      <section class="panel controls" aria-labelledby="limit5-controls-title">
+        <div class="section-top">
+          <h2 id="limit5-controls-title" data-i18n="limit5Choose">3:2 ба 5:4-өөр нот бүтээх</h2>
+          <p class="description" data-i18n="limit5Description">Хэвтээ алхам нь 3:2 квинт, ташуу алхам нь 5:4 их терц. Нэг октавт шилжүүлсэн цэгүүдээс өөрийн хөгийг сонго.</p>
+        </div>
+        <div class="experiment-switch tuning-experiment-switch" role="group" data-i18n-aria="tuningExperimentsAria" aria-label="Хөгийн туршилтууд">
+          <button type="button" data-tuning-kind="intervals" aria-pressed="false" data-i18n="intervalExperiment">Харьцаа</button>
+          <button type="button" data-tuning-kind="ear" aria-pressed="false" data-i18n="earExperiment">Тааруулах</button>
+          <button type="button" data-tuning-kind="scales" aria-pressed="false" data-i18n="scaleExperiment">3-хязгаар</button>
+          <button type="button" data-tuning-kind="limit5" class="selected" aria-pressed="true" data-i18n="limit5Experiment">5-хязгаар</button>
+          <button type="button" data-tuning-kind="temperaments" aria-pressed="false" data-i18n="tempExperiment">Темперамент</button>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="limit5PresetsTitle">Харьцаагаар бүтээсэн жишээнүүд</span><output id="limit5Count">3 нот</output></div>
+          <select id="limit5PresetSelect" class="ear-task-select" data-i18n-aria="limit5PresetsAria" aria-label="5-хязгаарын жишээнүүд">
+            <option value="major" data-i18n="limit5Major">До мажор</option>
+            <option value="minor" data-i18n="limit5Minor">Ми минор</option>
+            <option value="gmajor" data-i18n="limit5GMajor">Соль мажор</option>
+            <option value="dminor" data-i18n="limit5DMinor">Ре минор</option>
+            <option value="seven" data-i18n="limit5Seven">7 нот</option>
+            <option value="just12" data-i18n="limit5Just12">12 цэвэр нот (До төвтэй)</option>
+            <option value="fifths" data-i18n="limit5Fifths">Зөвхөн 3:2</option>
+            <option value="commaE" data-i18n="limit5CommaE">Ми: хоёр зам (81:80)</option>
+            <option value="commaD" data-i18n="limit5CommaD">Ре: хоёр зам (81:80)</option>
+            <option value="diaschisma" data-i18n="limit5Diaschisma">Хоёр дахь давхар (2048:2025)</option>
+            <option value="custom" data-i18n="limit5Custom">Миний сонголт</option>
+          </select>
+          <p id="limit5JustHint" class="field-help limit5-just-hint" data-i18n="limit5JustHint" hidden>12 нотоо яг цэвэр тороос сонголоо. Ля4 = 440 Гц бол До4 = 264 Гц. Энэ бол До төвтэй нэг сонголт: бүх тональд аккорд цэвэр болохгүй.</p>
+        </div>
+        <div id="limit5PlaybackModes" class="ear-play-controls" role="group" data-i18n-aria="limit5PlaybackAria">
+          <button type="button" data-limit5-play="melody" aria-pressed="false">▶ Ээлжлэн</button>
+          <button type="button" data-limit5-play="chord" aria-pressed="false">▶ Хамт</button>
+        </div>
+        <p id="limit5Status" class="audio-status" role="status" aria-live="polite">Бэлэн. Ээлжлэн эсвэл хамт сонсоно уу.</p>
+        <p class="field-help limit5-pick-hint" data-i18n="limit5PickHint">Тор дээрх цэгийг дарж нот нэмэх, хасах (ихдээ 12); сонгосон цэгийн давтамжийг харна.</p>
+        <div class="field-group">
+          <div class="field-title"><label for="limit5BaseInput" data-i18n="limit5BaseTitle">До (C) нотын давтамж</label><output id="limit5BaseValue">261.63 Гц</output></div>
+          <div class="frequency-controls">
+            <input id="limit5BaseSlider" type="range" min="110" max="330" step="0.01" value="261.63">
+            <div class="number-wrap"><input id="limit5BaseInput" type="number" min="110" max="330" step="any" inputmode="decimal" value="261.63"><span data-i18n="unitHz">Гц</span></div>
+          </div>
+          <p class="field-help" data-i18n="limit5BaseHint">261.63 Гц бол До4. Давтамжийг өөрчилбөл бүх шатлал хамт шилжинэ.</p>
+        </div>
+        <details class="limit5-details field-group">
+          <summary data-i18n="limit5DisplayOptions">Зам ба тэмдэглэгээ</summary>
+          <label class="check-label" for="limit5ShowRoutes"><input type="checkbox" id="limit5ShowRoutes"><span data-i18n="limit5Routes">Сонгосон хоёр нотын замыг харуулах</span></label>
+          <label class="check-label" for="limit5TetGuides"><input type="checkbox" id="limit5TetGuides"><span data-i18n="limit5TetGuides">12-TET-д ижил нэртэй цэгүүдийг холбох</span></label>
+          <p class="field-help" data-i18n="limit5TetHint">Тасархай шугамын үзүүрүүд ойролцоо боловч яг ижил давтамжтай биш.</p>
+        </details>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="limit5Volume" data-i18n="volume">Дууны хэмжээ</label><output id="limit5VolumeValue">38%</output></div>
+          <input id="limit5Volume" type="range" min="0" max="100" step="1" value="38">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан сонсоорой.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="limit5-lattice-title">
+          <div class="chart-heading"><div>
+            <h2 id="limit5-lattice-title" data-i18n="limit5LatticeTitle">3 ба 5-ын тор</h2>
+            <p data-i18n="limit5LatticeHint">→ нь 3:2, ↗ нь 5:4, гурав дахь тал нь 6:5. Тэмдэглэсэн цэгүүд тоглоход оролцоно.</p>
+          </div><span class="chart-badge" id="limit5LatticeBadge">3 нот</span></div>
+          <canvas id="limit5LatticeCanvas" width="760" height="440" role="button" tabindex="0" aria-label="3:2 ба 5:4 харьцааны цэгүүдтэй тор; дарж нот сонгоно"></canvas>
+          <div class="limit5-point-info" id="limit5PointInfo" aria-live="polite"></div>
+          <div class="chart-foot"><span data-i18n="limit5LatticeFoot">Давхар бүр 5:4-ийн нэмэлт алхам; цэгийг дарахад түүний октав дахь байрлал гарна.</span><span data-i18n="limit5GridAxis">→ 3:2 · ↗ 5:4</span></div>
+          <p class="scale-now" id="limit5Now">Нотуудын эгшиглэх ээлжийг тоглуулахад харна.</p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="limit5-fourier-title">
+          <div class="chart-heading"><div>
+            <h2 id="limit5-fourier-title" data-i18n="limit5FourierTitle">Нот ба гармоникийн мөрүүд</h2>
+            <p data-i18n="limit5FourierHint">Мөр бүр нэг сонгосон нот. Ногоон зурваст октавт оруулсан үндсэн давтамж, баруун талд гармоникууд.</p>
+          </div><span class="chart-badge" data-i18n="limit5FourierBadge">3:2 · 5:4</span></div>
+          <canvas id="limit5FourierCanvas" width="760" height="360" role="img" aria-label="Нот бүрийн гармоник болон давхцах цэгүүд"></canvas>
+          <div class="chart-foot"><span id="limit5FourierFact"></span><span data-i18n="scaleFourierAxis">log₂ f →</span></div>
+          <p class="field-help" data-i18n="limit5FourierFoot">Цэнхэр холбоос 3:2, ногоон холбоос 5:4-өөс үүдсэн гармоникийн давхцал. Саарал цэг нь октаваар шилжүүлсэн хувилбар бөгөөд шинэ гармоник биш.</p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="limit5-octave-title">
+          <div class="chart-heading"><div>
+            <h2 id="limit5-octave-title" data-i18n="limit5OctaveTitle">Нэг октав дахь нотын эрэмбэ</h2>
+            <p data-i18n="limit5OctaveHint">Сонгосон цэг бүрийг До4–До5 дотор оруулж, центээр байрлуулна.</p>
+          </div><span class="chart-badge" id="limit5OctaveBadge">C · E · G</span></div>
+          <canvas id="limit5OctaveCanvas" width="760" height="220" role="img" aria-label="Октав доторх сонгосон нотын центийн байрлал"></canvas>
+          <div class="chart-foot"><span data-i18n="limit5OctaveFoot">Ойролцоох хоёр цэг сонгогдвол ялгааг нь доор харуулна. Бусад нотонд коммаг хүчээр нэмэхгүй.</span><span data-i18n="scaleFourierAxis">log₂ f →</span></div>
+          <div id="limit5CommaRuler" class="limit5-comma-ruler" hidden>
+            <strong data-i18n="limit5RulerTitle">Сонгосон хоёр замын зөрүү</strong>
+            <p id="limit5CommaFact" class="field-help"></p>
+            <div class="limit5-ruler-line"><span id="limit5RulerJust">5:4</span><span id="limit5RulerPyth">81:64</span></div>
+            <p id="limit5RulerValue">81:80 ≈ 21.51 цент</p>
+            <p id="limit5BeatFact" class="field-help"></p>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="temperamentWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="temp-controls-title">
+        <div class="section-top">
+          <h2 id="temp-controls-title" data-i18n="tempChoose">Арван хоёр нотын хөг</h2>
+          <p class="description" data-i18n="tempDescription">Арван хоёр квинт нэг тойрог болоход 7 октаваас зөрдөг. Зөрөөг хэрхэн хуваарилснаас хөг бүрийн өнгө төрх өөрчлөгдөнө.</p>
+        </div>
+        <div class="experiment-switch tuning-experiment-switch" role="group" data-i18n-aria="tuningExperimentsAria" aria-label="Хөгийн туршилтууд">
+          <button type="button" data-tuning-kind="intervals" aria-pressed="false" data-i18n="intervalExperiment">Харьцаа</button>
+          <button type="button" data-tuning-kind="ear" aria-pressed="false" data-i18n="earExperiment">Тааруулах</button>
+          <button type="button" data-tuning-kind="scales" aria-pressed="false" data-i18n="scaleExperiment">3-хязгаар</button>
+          <button type="button" data-tuning-kind="limit5" aria-pressed="false" data-i18n="limit5Experiment">5-хязгаар</button>
+          <button type="button" data-tuning-kind="temperaments" class="selected" aria-pressed="true" data-i18n="tempExperiment">Темперамент</button>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="tempTaskSelect" data-i18n="tempTaskTitle">Юуг судлах вэ?</label></div>
+          <select id="tempTaskSelect" class="ear-task-select" aria-label="Темпераментийн туршилт">
+            <option value="build" data-i18n="tempTaskBuild">Квинтийг өөрчилж үзэх</option>
+            <option value="wolf" data-i18n="tempTaskWolf">Чоно квинтийг сонсох</option>
+            <option value="third" data-i18n="tempTaskThird">Цэвэр терцтэй харьцуулах</option>
+            <option value="chord" data-i18n="tempTaskChord">Аккорд ба тональ</option>
+          </select>
+          <p class="field-help" id="tempTaskHint"></p>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><label for="tempSystemSelect" data-i18n="tempSystemTitle">Хөгийн систем</label></div>
+          <select id="tempSystemSelect" class="ear-task-select" aria-label="Хөгийн систем">
+            <option value="equal" data-i18n="tempEqual">12-TET · Тэнцүү</option>
+            <option value="pythagorean" data-i18n="tempPythagorean">Пифагорын</option>
+            <option value="meantone" data-i18n="tempMeantone">1/4-комма дундаж</option>
+            <option value="werckmeister" data-i18n="tempWerckmeister">Веркмайстер III</option>
+            <option value="vallotti" data-i18n="tempVallotti">Валлотти</option>
+            <option value="just" data-i18n="tempJust">12 цэвэр нот (До төвтэй)</option>
+            <option value="adjustable" selected data-i18n="tempAdjustable">Өөрөө тохируулах</option>
+          </select>
+        </div>
+        <div id="tempAdjustGroup" class="field-group temp-adjust-group">
+          <div class="field-title"><label for="tempNarrowSlider" data-i18n="tempNarrowTitle">11 квинтийг нарийсгах хэмжээ</label><output id="tempNarrowValue">5.38 ¢</output></div>
+          <input id="tempNarrowSlider" type="range" min="0" max="6" step="0.01" value="5.38">
+          <div class="temp-narrow-presets" role="group" data-i18n-aria="tempPresetAria">
+            <button type="button" data-temp-narrow-preset="pythagorean" data-i18n="tempPythShort">Пифагор</button>
+            <button type="button" data-temp-narrow-preset="equal" data-i18n="tempEqualShort">Тэнцүү</button>
+            <button type="button" data-temp-narrow-preset="no-wolf" data-i18n="tempNoWolfShort">Чоногүй</button>
+            <button type="button" data-temp-narrow-preset="meantone" data-i18n="tempMeantoneShort">1/4-комма</button>
+          </div>
+          <p id="tempAdjustFact" class="temp-feature-fact"></p>
+        </div>
+        <div class="temp-key-row" id="tempChordFields">
+          <div class="field-group">
+            <div class="field-title"><label for="tempKeySelect" data-i18n="tempKeyTitle">Аккордын үндэс</label></div>
+            <select id="tempKeySelect" class="ear-task-select" aria-label="Аккордын үндсэн нот">
+              <option value="0">C</option><option value="1">C♯</option><option value="2">D</option>
+              <option value="3">E♭</option><option value="4">E</option><option value="5">F</option>
+              <option value="6">F♯</option><option value="7">G</option><option value="8">G♯</option>
+              <option value="9">A</option><option value="10">B♭</option><option value="11">B</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="field-title"><label for="tempQualitySelect" data-i18n="tempQualityTitle">Аккордын төрөл</label></div>
+            <select id="tempQualitySelect" class="ear-task-select" aria-label="Мажор эсвэл минор">
+              <option value="major" data-i18n="tempMajor">Мажор</option>
+              <option value="minor" data-i18n="tempMinor">Минор</option>
+            </select>
+          </div>
+        </div>
+        <p class="field-help" id="tempListenFact"></p>
+        <div id="tempPlayModes" class="ear-play-controls" role="group" data-i18n-aria="tempPlaybackAria">
+          <button type="button" data-temp-play="melody" aria-pressed="false">▶ Ээлжлэн</button>
+          <button type="button" data-temp-play="chord" aria-pressed="false">▶ Хамт</button>
+        </div>
+        <p id="tempStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Сонсох аргаа сонгоорой.</p>
+        <p class="field-help" data-i18n="tempReference">Ля4 = 440 Гц-ийг хэвээр барина. Өөр системд бусад нотын давтамж өөрчлөгдөнө.</p>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="tempVolume" data-i18n="volume">Дууны хэмжээ</label><output id="tempVolumeValue">38%</output></div>
+          <input id="tempVolume" type="range" min="0" max="100" step="1" value="38">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан сонсоорой.</p>
+        </div>
+      </section>
+      <div class="visuals temp-visuals">
+        <section class="panel chart-panel temp-lattice-panel" aria-labelledby="temp-lattice-title">
+          <div class="chart-heading"><div>
+            <h2 id="temp-lattice-title" data-i18n="tempLatticeTitle">3:2 ба 5:4-ийн гурвалжин тор</h2>
+            <p id="tempLatticeHint" data-i18n="tempLatticeHint">Цайвар цэгүүд нь цэвэр харьцааны тор. Өнгөт цэгүүд нь сонгосон хөгийн нотыг түүний Пифагорын жишигтэй харьцуулсан байрлал; зөрөөг харагдуулахын тулд томруулсан.</p>
+          </div><span class="chart-badge" id="tempLatticeBadge">C · E · G</span></div>
+          <canvas id="tempLatticeCanvas" width="920" height="300" role="button" tabindex="0" aria-label="Гурвалжин тор болон 12 нотын сонголт"></canvas>
+          <div id="tempJustGuide" class="temp-just-guide" hidden>
+            <p data-i18n="tempJustIntro">Эдгээр 12 нот 3:2 ба 5:4-ийн яг цэвэр торын цэгүүд. Ногоон хүрээ нь сонгосон аккордын нотууд; бүх тональд гурвалжин цэвэр байхгүй.</p>
+            <div id="tempJustRatioGrid" class="temp-just-ratio-grid" aria-label="12 нотын яг цэвэр харьцаа"></div>
+            <button id="tempOpenJustLattice" type="button" class="temp-just-link" data-i18n="tempOpenJustLattice">Эдгээр 12 цэгийг 5-хязгаарт үзэх</button>
+          </div>
+          <div class="temp-lattice-legend">
+            <span><i class="temp-grid-dot"></i><span data-i18n="tempExactLegend">Яг цэвэр тор</span></span>
+            <span><i class="temp-tuned-dot"></i><span id="tempTunedLegend" data-i18n="tempTunedLegend">Сонгосон хөг</span></span>
+            <span><i class="temp-ideal-line"></i><span data-i18n="tempTriangleLegend">Цэвэр аккордын гурвалжин</span></span>
+          </div>
+          <p id="tempLatticeFact" class="temp-feature-fact"></p>
+          <p id="tempLatticeConstructionFact" class="field-help"></p>
+          <div class="chart-foot"><span id="tempLatticeFoot" data-i18n="tempLatticeFoot">→ 3:2 · ↗ 5:4. Нэг нэртэй нотын өөр замууд нь 81:80, харин 12 квинтийн төгсгөл 23.46 центээр зөрнө.</span><span id="tempLatticeScale" data-i18n="tempLatticeScale">Зөрөөг дүрслэлд ×8 томруулав</span></div>
+        </section>
+        <div class="temp-lower-visuals">
+        <section class="panel chart-panel" aria-labelledby="temp-circle-title">
+          <div class="chart-heading"><div>
+            <h2 id="temp-circle-title" data-i18n="tempCircleTitle">Квинтийн тойрог</h2>
+            <p id="tempCircleHint" data-i18n="tempCircleHint">Нот дээр товшиж өөр үндэс сонго. Өнгөт холбоос бүрийн квинт 3:2-оос хэрхэн зөрж байгааг доорх тооноос хар.</p>
+          </div><span id="tempCircleBadge" class="chart-badge">C мажор</span></div>
+          <canvas id="tempCircleCanvas" width="760" height="440" role="button" tabindex="0" aria-label="Квинтийн тойргоос үндсэн нот сонгох"></canvas>
+          <div class="temp-legend" aria-label="Квинтийн төрлүүд">
+            <span><i class="temp-legend-pure"></i><span data-i18n="tempPure">Цэвэр</span></span>
+            <span><i class="temp-legend-narrow"></i><span data-i18n="tempNarrow">Бага зэрэг нарийссан</span></span>
+            <span><i class="temp-legend-wolf"></i><span id="tempWolfLegend" data-i18n="tempWolfLegend">Чоно квинт</span></span>
+          </div>
+          <p id="tempWolfFact" class="temp-feature-fact"></p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="temp-fifths-title">
+          <div class="chart-heading"><div>
+            <h2 id="temp-fifths-title" data-i18n="tempFifthsTitle">Квинт бүрийн зөрүү</h2>
+            <p data-i18n="tempFifthsHint">Босоо утга нь цэвэр 3:2-оос хэдэн центээр зөрснийг харуулна. Хэвтээ шугам 0 цент.</p>
+          </div><span class="chart-badge" id="tempCommaBadge">23.46 цент</span></div>
+          <canvas id="tempFifthsCanvas" width="760" height="240" role="img" aria-label="Цэвэр квинтээс зөрөх 12 багана"></canvas>
+          <details class="temp-fifths-details"><summary data-i18n="tempFifthsTable">12 квинтийн хүснэгт</summary>
+            <div class="temp-table-scroll"><table class="temp-table">
+              <thead><tr><th data-i18n="tempTableFifth">Квинт</th><th data-i18n="tempTableSize">Хэмжээ (цент)</th><th data-i18n="tempTableDeviation">3:2-оос (цент)</th></tr></thead>
+              <tbody id="tempFifthsBody"></tbody>
+            </table></div>
+          </details>
+        </section>
+        </div>
+        <section class="panel chart-panel temp-partial-panel" aria-labelledby="temp-partial-title">
+          <div class="chart-heading"><div>
+            <h2 id="temp-partial-title" data-i18n="tempPartialTitle">Давхцах гармоникууд ба цохилт</h2>
+            <p id="tempPartialHint" data-i18n="tempPartialHint">3:2 квинтэд доод нотын 3f, дээд нотын 2f давхцана. Зөрвөл цохилт үүснэ.</p>
+          </div><span class="chart-badge" id="tempPartialBadge">3f ≈ 2f</span></div>
+          <canvas id="tempPartialCanvas" width="920" height="210" role="img" aria-label="Хоёр нотын гармоникийн давхцал"></canvas>
+          <p id="tempBeatFact" class="temp-feature-fact"></p>
+        </section>
+        <section class="panel chart-panel" id="tempChordPanel" aria-labelledby="temp-chord-title">
+          <div class="chart-heading"><div>
+            <h2 id="temp-chord-title" data-i18n="tempChordTitle">Аккордын давтамж</h2>
+            <p data-i18n="tempChordHint">Бүх хөгт Ля4 = 440 Гц. Доорх зөрүү нь яг ижил нэртэй 12-TET нотоос хэдэн центээр өөр байгааг харуулна.</p>
+          </div><span class="chart-badge" id="tempChordBadge">C · E · G</span></div>
+          <div class="temp-note-grid" id="tempNoteGrid">
+            <div><strong id="tempNoteName0">C4</strong><span id="tempNoteHz0">261.63 Гц</span><small id="tempNoteDev0">+0.0 цент</small></div>
+            <div><strong id="tempNoteName1">E4</strong><span id="tempNoteHz1">329.63 Гц</span><small id="tempNoteDev1">+0.0 цент</small></div>
+            <div><strong id="tempNoteName2">G4</strong><span id="tempNoteHz2">392.00 Гц</span><small id="tempNoteDev2">+0.0 цент</small></div>
+          </div>
+          <p class="temp-feature-fact" id="tempChordFact"></p>
+          <p class="field-help" data-i18n="tempChordFoot">Ижил аккордыг өөр өнгөөр сонсохын тулд хөгийн системийг солих, эсвэл үндсэн нотоо өөрчлөх боломжтой.</p>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="harmonicWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="harmonic-controls-title">
+        <div class="section-top">
+          <h2 id="harmonic-controls-title" data-i18n="harmonicChoose">Гармоникуудыг нэмэх</h2>
+          <p class="description" data-i18n="harmonicDescription">Нэг давтамжийн бүхэл тоон үржвэрүүдийг нийлүүлж шинэ авиа бүтээнэ.</p>
+        </div>
+        <div class="experiment-switch mix-experiment-switch" role="group" aria-label="Долгионы туршилт" data-i18n-aria="mixExperimentsAria">
+          <button type="button" data-mix-kind="beats" aria-pressed="false" data-i18n="mixExperimentBeats">Хоёр давтамж</button>
+          <button type="button" data-mix-kind="harmonics" class="selected" aria-pressed="true" data-i18n="mixExperimentHarmonics">Өнгө бүтээх</button>
+          <button type="button" data-mix-kind="noise" aria-pressed="false" data-i18n="mixExperimentNoise">Шуугиан</button>
+        </div>
+        <button id="harmonicButton" type="button" class="play-button" aria-pressed="false">
+          <span class="play-icon" id="harmonicPlayIcon" aria-hidden="true">▶</span>
+          <span id="harmonicPlayLabel" data-i18n="harmonicPlay">Тоглуулах</span>
+          <span class="play-caption" id="harmonicPlayCaption" data-i18n="playCaption">Сонсохын тулд товшино уу</span>
+        </button>
+        <p id="harmonicStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Авиа тоглуулах товчийг дарна уу.</p>
+
+        <div class="field-group">
+          <div class="field-title"><label for="harmonicBaseInput" data-i18n="harmonicBase">Үндсэн давтамж</label><output id="harmonicNote">A3 · Ля3</output></div>
+          <div class="frequency-controls">
+            <input id="harmonicBaseSlider" type="range" min="120" max="1000" step="1" value="220">
+            <div class="number-wrap"><input id="harmonicBaseInput" type="number" min="120" max="1000" step="any" inputmode="decimal" value="220"><span data-i18n="unitHz">Гц</span></div>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="harmonicPresetsTitle">Бэлэн найрлагууд</span></div>
+          <div class="harmonic-presets" id="harmonicPresets" role="group" aria-label="Гармоникийн бэлэн найрлага">
+            <button type="button" data-harmonic-preset="pure" class="selected" aria-pressed="true" data-i18n="harmonicPure">Цэвэр</button>
+            <button type="button" data-harmonic-preset="odd" aria-pressed="false" data-i18n="harmonicOdd">Сондгой</button>
+            <button type="button" data-harmonic-preset="rich" aria-pressed="false" data-i18n="harmonicRich">Олон гармоник</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-title"><span data-i18n="harmonicStrengths">Гармоник бүрийн хүч</span><span class="field-help" data-i18n="harmonicNotation">f, 2f, 3f…</span></div>
+          <div class="harmonic-sliders" id="harmonicSliders" role="group" aria-label="Найман гармоникийн далайц">
+            <div class="harmonic-row"><label for="harmonicLevel1">f</label><input id="harmonicLevel1" data-harmonic-level="1" type="range" min="10" max="100" step="1" value="100"><output id="harmonicLevelValue1">100%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel2">2f</label><input id="harmonicLevel2" data-harmonic-level="2" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue2">0%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel3">3f</label><input id="harmonicLevel3" data-harmonic-level="3" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue3">0%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel4">4f</label><input id="harmonicLevel4" data-harmonic-level="4" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue4">0%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel5">5f</label><input id="harmonicLevel5" data-harmonic-level="5" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue5">0%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel6">6f</label><input id="harmonicLevel6" data-harmonic-level="6" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue6">0%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel7">7f</label><input id="harmonicLevel7" data-harmonic-level="7" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue7">0%</output></div>
+            <div class="harmonic-row"><label for="harmonicLevel8">8f</label><input id="harmonicLevel8" data-harmonic-level="8" type="range" min="0" max="100" step="1" value="0"><output id="harmonicLevelValue8">0%</output></div>
+          </div>
+        </div>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="harmonicVolume" data-i18n="volume">Дууны хэмжээ</label><output id="harmonicVolumeValue">35%</output></div>
+          <input id="harmonicVolume" type="range" min="0" max="100" step="1" value="35">
+          <p class="field-help" data-i18n="safeVolume">Эхэндээ аяархан сонсоорой.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="harmonic-wave-title">
+          <div class="chart-heading">
+            <div><h2 id="harmonic-wave-title" data-i18n="harmonicWaveTitle">Нийлбэр долгион</h2><p data-i18n="harmonicWaveHint">Гармоник нэмж, долгионы хэлбэр хэрхэн өөрчлөгдөхийг хараарай.</p></div>
+            <span class="chart-badge" id="harmonicWaveBadge">f = 220 Гц</span>
+          </div>
+          <canvas id="harmonicWaveCanvas" width="740" height="265" role="img" aria-label="Гармоникуудаас бүтсэн долгионы загвар"></canvas>
+          <div class="chart-foot"><span id="harmonicWaveFoot">0–20 мсек</span><span data-i18n="timeAxis">хугацаа →</span></div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="harmonic-spectrum-title">
+          <div class="chart-heading">
+            <div><h2 id="harmonic-spectrum-title" data-i18n="harmonicSpectrumTitle">Гармоникийн найрлага</h2><p data-i18n="harmonicSpectrumHint">Багананууд нь f, 2f, 3f… давтамжийн хэмжээг харуулна.</p></div>
+            <span class="chart-badge" id="harmonicSpectrumBadge">8 гармоник</span>
+          </div>
+          <canvas id="harmonicSpectrumCanvas" width="740" height="220" role="img" aria-label="Найман гармоникийн далайц ба давтамж"></canvas>
+          <div class="chart-foot"><span data-i18n="harmonicSpectrumFoot">Давтамжийг өөрчлөхөд оргилууд хамт шилжинэ.</span><span data-i18n="frequencyAxis">давтамж →</span></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="noiseWorkspace" hidden>
+      <section class="panel controls" aria-labelledby="noise-controls-title">
+        <div class="section-top">
+          <h2 id="noise-controls-title" data-i18n="noiseChoose">Шуугианы өнгө сонгох</h2>
+          <p class="description" data-i18n="noiseDescription">Олон давтамж санамсаргүй нийлсэн авиаг сонсож, давтамжийн найрлагыг ажиглаарай.</p>
+        </div>
+        <div class="experiment-switch mix-experiment-switch" role="group" aria-label="Долгионы туршилт" data-i18n-aria="mixExperimentsAria">
+          <button type="button" data-mix-kind="beats" aria-pressed="false" data-i18n="mixExperimentBeats">Хоёр давтамж</button>
+          <button type="button" data-mix-kind="harmonics" aria-pressed="false" data-i18n="mixExperimentHarmonics">Өнгө бүтээх</button>
+          <button type="button" data-mix-kind="noise" class="selected" aria-pressed="true" data-i18n="mixExperimentNoise">Шуугиан</button>
+        </div>
+        <div class="noise-choices" id="noiseChoices" role="group" aria-label="Шуугианы өнгө">
+          <button type="button" data-noise-color="white" class="selected" aria-pressed="true" data-i18n="noiseWhite">Цагаан</button>
+          <button type="button" data-noise-color="pink" aria-pressed="false" data-i18n="noisePink">Ягаан</button>
+          <button type="button" data-noise-color="brown" aria-pressed="false" data-i18n="noiseBrown">Бор</button>
+        </div>
+        <button id="noiseButton" type="button" class="play-button" aria-pressed="false">
+          <span class="play-icon" id="noisePlayIcon" aria-hidden="true">▶</span>
+          <span id="noisePlayLabel" data-i18n="noisePlay">Тоглуулах</span>
+          <span class="play-caption" id="noisePlayCaption" data-i18n="playCaption">Сонсохын тулд товшино уу</span>
+        </button>
+        <p id="noiseStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Сонсох товчийг дарна уу.</p>
+        <p id="noiseColorDescription" class="description">Бүх давтамжид ойролцоогоор ижил чадалтай.</p>
+        <div class="field-group">
+          <div class="field-title"><label for="noiseCutoff" data-i18n="noiseCutoff">Өндөр давтамжийг шүүх</label><output id="noiseCutoffValue">8,000 Гц</output></div>
+          <input id="noiseCutoff" type="range" min="250" max="8000" step="50" value="8000">
+          <p class="field-help" data-i18n="noiseCutoffHint">Багасгахад дээд давтамжууд суларч, шуугиан бүдгэрнэ.</p>
+        </div>
+        <div class="field-group volume-field">
+          <div class="field-title"><label for="noiseVolume" data-i18n="volume">Дууны хэмжээ</label><output id="noiseVolumeValue">25%</output></div>
+          <input id="noiseVolume" type="range" min="0" max="100" step="1" value="25">
+          <p class="field-help" data-i18n="noiseSafety">Шуугиан хурц сонсогдож болно. Чихэвчтэй бол багаас эхлээрэй.</p>
+        </div>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel" aria-labelledby="noise-wave-title">
+          <div class="chart-heading">
+            <div><h2 id="noise-wave-title" data-i18n="noiseWaveTitle">Шуугианы долгион</h2><p data-i18n="noiseWaveHint">40 мсек үргэлжлэх нэг санамсаргүй хэсэг. Үелэхгүй.</p></div>
+            <span class="chart-badge" id="noiseWaveBadge">40 мсек</span>
+          </div>
+          <canvas id="noiseWaveCanvas" width="740" height="265" role="img" aria-label="Үелдэггүй шуугианы долгионы жишээ"></canvas>
+          <div class="chart-foot"><span id="noiseWaveFoot">0–40 мсек</span><span data-i18n="timeAxis">хугацаа →</span></div>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="noise-spectrum-title">
+          <div class="chart-heading">
+            <div><h2 id="noise-spectrum-title" data-i18n="noiseSpectrumTitle">Давтамжийн тархалт</h2><p data-i18n="noiseSpectrumHint">Нэг нэг оргил биш, олон давтамжийн ерөнхий чиг хандлага.</p></div>
+            <span class="chart-badge" id="noiseSpectrumBadge">Цагаан</span>
+          </div>
+          <canvas id="noiseSpectrumCanvas" width="740" height="220" role="img" aria-label="Шуугианы өнгө ба шүүлтүүрийн идеал давтамжийн чиг хандлага"></canvas>
+          <div class="chart-foot"><span data-i18n="noiseSpectrumFoot">Энэ нь хэмжилт биш, хүлээгдэх ерөнхий хэлбэр юм.</span><span data-i18n="frequencyAxis">давтамж →</span></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace" id="composeWorkspace" hidden>
+      <section class="panel controls compose-controls" aria-labelledby="compose-controls-title">
+        <div class="section-top">
+          <h2 id="compose-controls-title" data-compose-i18n="title">Аялгуу зохиох</h2>
+          <p class="description" data-compose-i18n="intro">ABC тэмдэглэгээгээр богино ая бичиж, нэг хөгжмөөр тоглуулаарай.</p>
+        </div>
+        <div class="field-group">
+          <label class="field-title" for="composeExample" data-compose-i18n="example">Жишээ ая</label>
+          <select id="composeExample">
+            <optgroup label="Нот бичих дасгал" data-compose-group-i18n="exampleStudies">
+              <option value="first" data-compose-i18n="exampleFirst">Энгийн аялгуу</option>
+              <option value="rests" data-compose-i18n="exampleRests">Нот ба завсарлага</option>
+              <option value="waltz" data-compose-i18n="exampleWaltz">Соль мажор вальс</option>
+              <option value="minor" data-compose-i18n="exampleMinor">Минор аялгуу</option>
+            </optgroup>
+            <optgroup label="Аялгуу ба сонгодог бүтээлийн хэсгүүд" data-compose-group-i18n="exampleMelodies">
+              <option value="ode" data-compose-i18n="exampleOde">Бетховен · Баяр баясгалангийн магтуу (16 такт)</option>
+              <option value="minuetG" data-compose-i18n="exampleMinuetG">Петцольд · Соль мажор менуэт (32 такт)</option>
+              <option value="lightly" data-compose-i18n="exampleLightly">Lightly Row · ардын дуу (16 такт)</option>
+              <option value="mozart40" data-compose-i18n="exampleMozart40">Моцарт · 40-р симфони (20 тактын сэдэв)</option>
+              <option value="frere" data-compose-i18n="exampleFrere">Фрэр Жак · ардын дуу (8 такт)</option>
+              <option value="twinkle" data-compose-i18n="exampleTwinkle">Гялалзах одод · ардын дуу (12 такт)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="compose-options">
+          <div class="field-group">
+            <label class="field-title" for="composeInstrument" data-compose-i18n="instrument">Хөгжмийн зэмсэг</label>
+            <select id="composeInstrument">
+              <option value="flute" data-compose-i18n="flute">Лимбэ</option>
+              <option value="violin" data-compose-i18n="violin">Хийл</option>
+              <option value="morin" data-compose-i18n="morin">Морин хуур</option>
+              <option value="guitar" data-compose-i18n="guitar">Гитар</option>
+              <option value="piano" data-compose-i18n="piano">Төгөлдөр хуур</option>
+              <option value="chimes" data-compose-i18n="chimes">Хоолойт хонх</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-title" for="composeTuning" data-compose-i18n="tuning">Хөг</label>
+            <select id="composeTuning">
+              <option value="equal" data-compose-i18n="equal">Тэнцүү (12-TET)</option>
+              <option value="pythagorean" data-compose-i18n="pythagorean">Пифагорын</option>
+              <option value="just" data-compose-i18n="just">Цэвэр · До төвтэй</option>
+            </select>
+          </div>
+        </div>
+        <div class="compose-play-row">
+          <button id="composePlayPause" class="compose-play" type="button">▶ Тоглуулах</button>
+          <button id="composeStop" class="compose-stop" type="button">■ Зогсоох</button>
+        </div>
+        <p id="composeStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Аяыг өөрчлөх эсвэл тоглуулаарай.</p>
+        <div class="field-group">
+          <div class="field-title"><label for="composeVolume" data-compose-i18n="volume">Дууны хэмжээ</label><output id="composeVolumeValue">38%</output></div>
+          <input id="composeVolume" type="range" min="0" max="100" step="1" value="38">
+        </div>
+        <div class="field-group compose-score-editor">
+          <label class="field-title" for="composeText" data-compose-i18n="score">ABC нотын бичиг</label>
+          <textarea id="composeText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-describedby="composeScoreHint"></textarea>
+          <p id="composeScoreHint" class="field-help" data-compose-i18n="scoreHint">L:1/4 үед C D E G нь дөрөвт нотууд; C2 нь хоёр дахин урт, z нь завсарлага.</p>
+          <p class="field-help" data-compose-i18n="limitsHint">32 такт, 256 нот/завсарлага, 90 секунд хүртэл. Эхний такт дутуу байж болно; C2-C нь ижил өндөртэй нотуудыг залгуулна.</p>
+          <label class="compose-file-button" for="composeLoad" data-compose-i18n="load">.abc / .txt файл нээх</label>
+          <input id="composeLoad" class="sr-only" type="file" accept=".abc,.txt,text/plain" aria-label="ABC text score">
+        </div>
+      </section>
+      <div class="visuals compose-visuals">
+        <section class="panel chart-panel" aria-labelledby="compose-staff-title">
+          <div class="chart-heading">
+            <div><h2 id="compose-staff-title" data-compose-i18n="staff">Нотын мөр ба тоглуулах тэмдэг</h2>
+              <p data-compose-i18n="staffHint">Тоглож буй нот тодорно. Завсарлагыг жижиг дөрвөлжнөөр харуулна.</p></div>
+            <span class="chart-badge" id="composeMeta">4 такт</span>
+          </div>
+          <div id="composeScoreScroll" class="compose-score-scroll" tabindex="0" aria-label="Scrollable musical staff">
+            <svg id="composeScoreSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Нотын мөр"></svg>
+          </div>
+          <p id="composeNow" class="compose-now" aria-live="off"></p>
+          <p id="composePresetInfo" class="field-help" hidden><span id="composePresetDescription"></span><a id="composeSource" target="_blank" rel="noopener noreferrer" data-compose-i18n="source">Нотын эх сурвалж</a></p>
+          <p class="field-help" data-compose-i18n="tuningHint">Ижил нотыг өөр хөгөөр тоглуулахад өндөр нь бага зэрэг өөрчлөгдөнө.</p>
+        </section>
+        <section class="panel chart-panel compose-help-panel" aria-labelledby="compose-help-title">
+          <h2 id="compose-help-title" data-compose-i18n="model">Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ</h2>
+          <p data-compose-i18n="footer">C1-д нэг аялгуу тоглоно. Дараа нь олон хөгжмийн хоолой, аккорд, цохивор хэмнэл нэмж болно.</p>
+        </section>
+      </div>
+    </div>
+
+    <section class="challenge" id="pureChallenge" aria-labelledby="challenge-heading">
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy">
+        <h2 id="challenge-heading" data-i18n="tryThis">TRY THIS</h2>
+        <p id="challengeText">Double the frequency. How do pitch and the period change?</p>
+      </div>
+      <button type="button" id="resetButton" class="reset-button" data-i18n="reset">↺ Reset</button>
+    </section>
+
+    <section class="challenge" id="strikeChallenge" aria-labelledby="strike-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy">
+        <h2 id="strike-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2>
+        <p data-i18n="strikeChallenge">Намдах хугацааг өөрчил. Дуу болон график хэрхэн өөрчлөгдөж байна вэ?</p>
+      </div>
+      <button type="button" id="strikeReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+
+    <section class="challenge" id="sustainChallenge" aria-labelledby="sustain-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="sustain-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p id="sustainChallengeText" data-i18n="sustainChallenge">Ижил нот дээр лимбэ, хийл, морин хуурыг сонсож, эхлэл ба гармоникуудыг харьцуул.</p></div>
+      <button type="button" id="sustainReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+
+    <section class="challenge" id="motionChallenge" aria-labelledby="motion-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="motion-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p id="motionChallengeText">Нэг өндөртэй авиа гаргах байрлалаа олоорой.</p></div>
+      <button type="button" id="motionReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="mixChallenge" aria-labelledby="mix-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="mix-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="mixChallenge">Зөрүүг 0, 2, 4, 10 Гц болгож сонсоод, хэлбэлзлийн хээ хэрхэн өөрчлөгдөхийг ажиглаарай.</p></div>
+      <button type="button" id="mixReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="harmonicChallenge" aria-labelledby="harmonic-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="harmonic-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="harmonicChallenge">Үндсэн давтамжийг хэвээр үлдээгээд 3f, 5f гармоникуудыг нэм. Өнгө нь хэрхэн өөрчлөгдөв?</p></div>
+      <button type="button" id="harmonicReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="intervalChallenge" aria-labelledby="interval-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="interval-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="intervalChallenge">4:3 сонгоод хамтын үе, давхцах гармоникийг таа. Дараа нь 12-TET хөгтэй харьцуул.</p></div>
+      <button type="button" id="intervalReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="earChallenge" aria-labelledby="ear-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="ear-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="earChallenge">3:4 ба 2:3-ыг доош тааруулж, дараа нь ×2-оор До4-ийн октавт оруул. Ямар дээш харьцаануудтай ижил нот гарав?</p></div>
+      <button type="button" id="earReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="scaleChallenge" aria-labelledby="scale-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="scale-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="scaleChallenge">Таван нотыг бүтээ. Дараа нь доош нэг, дээш нэг алхам нэмээд долоон нот болго. Үндсэн нотыг өөрчилж сонсоорой.</p></div>
+      <button type="button" id="scaleReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="limit5Challenge" aria-labelledby="limit5-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="limit5-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="limit5Challenge">До–Ми–Соль мажор аккордыг сонсоод, Ми нотын хоёр хувилбарыг хамт эгшиглүүл. Дараа нь Ре-ийн хоёр хувилбарыг харьцуул.</p></div>
+      <button type="button" id="limit5Reset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="tempChallenge" aria-labelledby="temp-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="temp-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="tempChallengeText">До мажор, Ми мажор аккордыг Веркмайстер III ба тэнцүү хөгт ээлжлэн сонсоорой. Ялгааг нь ажигла.</p></div>
+      <button type="button" id="tempReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+    <section class="challenge" id="noiseChallenge" aria-labelledby="noise-challenge-heading" hidden>
+      <div class="challenge-icon" aria-hidden="true">✧</div>
+      <div class="challenge-copy"><h2 id="noise-challenge-heading" data-i18n="tryThis">ТУРШИЖ ҮЗ</h2><p data-i18n="noiseChallenge">Цагаан, ягаан, бор шуугианыг ижил дууны хэмжээгээр харьцуул.</p></div>
+      <button type="button" id="noiseReset" class="reset-button" data-i18n="reset">↺ Эхнээс нь</button>
+    </section>
+
+    <details class="explanation" id="pureExplanation">
+      <summary data-i18n="learnMore">Дууны долгион яагаад өөр өөр сонсогддог вэ?</summary>
+      <p data-i18n="lessonOne">Үелэх долгионд хамгийн нам давтамж гэж байх ба үүнийг нь үндсэн давтамж гэдэг. Энэ нь дууны өндрийг тодорхойлно. Үүнээс өндөр давтамжууд буюу дээд гармоникууд нь үндсэн давтамжаасаа үргэлж бүхэл тоо дахин их: 2f, 3f, 4f гэх мэт.</p>
+      <p data-i18n="lessonTwo">Долгионы хэлбэрээс хамааран гармоникуудын найрлага өөрчлөгдөнө. Жишээ нь, цэвэр синусоид долгионд үндсэн давтамжаас өөр найрлага байхгүй. Өөр өөр хөгжмийн зэмсгүүд ижил өндөртэй авиа гаргасан ч ялгаатай сонсогддог нь гармоникуудынх нь найрлага өөр байгаа хэрэг.</p>
+    </details>
+    <details class="explanation" id="strikeExplanation" hidden>
+      <summary data-i18n="strikeLearnMore">Яагаад эдгээр дуу намддаг вэ?</summary>
+      <p data-i18n="strikeLessonOne">Чавхдас олон давтамжаар хэлбэлзэж, өндөр гармоникууд нь хурдан намдана.</p>
+      <p data-i18n="strikeLessonTwo">Басс бөмбөрийн цохилтын давтамж эхлээд хурдан буурч, далайц нь аажмаар намдана. Эдгээрийн долгионы график ерөнхийдөө төстэй харагдах боловч давтамжийн найрлага нь тэс өөр. 20 мсек болгон томруулж эсвэл спектрийг нь харьцуулж ялгааг нь хараарай.</p>
+    </details>
+    <details class="explanation" id="sustainExplanation" hidden>
+      <summary data-i18n="sustainLearnMore">Эдгээр дуу яагаад үргэлжилдэг вэ?</summary>
+      <p data-i18n="sustainLessonOne">Лимбэ үлээх, хийл болон морин хуур нумдах үед энерги тасралтгүй өгөгдөнө. Энэ нь татаж тавьсан чавхдаснаас ялгаатай.</p>
+      <p data-i18n="sustainLessonTwo">Эдгээр нь гармоник, бага хэмжээний шуугианаар бүтээсэн хялбаршуулсан загвар. Жинхэнэ зэмсгийн их бие, нум болон амьсгалын нарийн хөдөлгөөнийг дуурайгаагүй.</p>
+    </details>
+    <details class="explanation" id="motionExplanation" hidden>
+      <summary data-i18n="motionLearnMore">Давтамж өөрчлөгдөхөд яагаад авиа өөр сонсогддог вэ?</summary>
+      <p data-i18n="motionLessonOne">Давтамж өсөхөд авиа өндөр, буурахад нам сонсогдоно. Теремины талбар дээр хуруугаа хөдөлгөхөд энэ өөрчлөлтийг сонсоно.</p>
+      <p data-i18n="motionLessonTwo">Дохио нь хоёр давтамжийг ээлжлэн тоглуулах эсвэл давтамжийг аажмаар өсгөж бууруулдаг. Дээд график энэ замыг, доод графикууд тухайн агшны долгион ба давтамжийг харуулна.</p>
+    </details>
+    <details class="explanation" id="mixExplanation" hidden>
+      <summary data-i18n="mixLearnMore">Хоёр авиа нийлээд яагаад чангарч, сулардаг вэ?</summary>
+      <p data-i18n="mixLessonOne">Ойролцоо давтамжтай хоёр синус долгион зарим үед бие биеэ дэмжиж, зарим үед бие биеэ сулруулна. Дууны чанга, сул ээлжлэхийг биение буюу цохилт гэнэ.</p>
+      <p data-i18n="mixLessonTwo">Чангарч, сулрах хурд нь хоёр давтамжийн зөрүү: Δf = |f₂ − f₁|. Жишээ нь, 440 ба 444 Гц-д секундэд 4 удаа чангарч сонсогдоно. Спектрт харин 4 Гц-ийн гурав дахь авиа шинээр үүсэхгүй.</p>
+    </details>
+    <details class="explanation" id="harmonicExplanation" hidden>
+      <summary data-i18n="harmonicLearnMore">Гармоникууд дууны өнгийг хэрхэн бүтээдэг вэ?</summary>
+      <p data-i18n="harmonicLessonOne">Үндсэн давтамж f дээр 2f, 3f, 4f… долгионуудыг нэмэхэд нийлбэр долгионы хэлбэр, дууны өнгө өөрчлөгдөнө.</p>
+      <p data-i18n="harmonicLessonTwo">Гармоник тус бүрийн хүч өөр боловч тэдгээрийн давтамж нь үндсэн давтамжийн бүхэл тоон үржвэр байна. Хүүхэд өөрөө найрлагыг нь сонгож болно.</p>
+    </details>
+    <details class="explanation" id="intervalExplanation" hidden>
+      <summary data-i18n="intervalLearnMore">Хоёр нотын харьцаа ба гармоникууд юугаараа ялгаатай вэ?</summary>
+      <p data-i18n="intervalLessonOne">3:2 бол хоёр нотын үндсэн давтамжийн харьцаа. Харин нэг нотын гармоникууд нь өөрийн үндсэн давтамжийн 2, 3, 4… дахин их хэсгүүд юм.</p>
+      <p data-i18n="intervalLessonTwo">3:2 үед доод нотын 3 дахь, дээд нотын 2 дахь гармоник давхцана. 12-TET хөгтэй бол ойртож, бага зэрэг зөрнө; зөвхөн гармониктай авианд энэ зөрөөний биение илэрч болно.</p>
+    </details>
+    <details class="explanation" id="earExplanation" hidden>
+      <summary data-i18n="earLearnMore">Яагаад биениеийг сонсож тааруулж болдог вэ?</summary>
+      <p data-i18n="earLessonOne">3:2 үед эхний авианы 3f ба хоёр дахь авианы 2f гармоник давхцана. 5:4-д 5f ба 4f, харин 3:4-д 3f ба 4f давхцана. Хэрэв эдгээр гармоник сонсогдож байвал зөрүүгээс биение үүснэ. Цэвэр синусад дээд гармоник байхгүй, төгөлдөр хуурын чавхдасны гармоник бага зэрэг зөрдөг.</p>
+      <p data-i18n="earLessonTwo">До4-ийг 3/4, 2/3, 1/2-оор үржүүлбэл До4-өөс нам болно. Үр дүнг 2-оор үржүүлбэл нотын нэр өөрчлөгдөхгүй, До4–До5 октавт орно: 3/4 × 2 = 3/2, 2/3 × 2 = 4/3. Дараагийн 3-хязгаар, 5-хязгаар туршилтад ийм алхмыг давтана.</p>
+    </details>
+    <details class="explanation" id="scaleExplanation" hidden>
+      <summary data-i18n="scaleLearnMore">Тав, долоо, арван хоёр нот яагаад үүсдэг вэ?</summary>
+      <p data-i18n="scaleLessonOne">3:2 алхам бүрийг нэг октавт (1–2 дахин давтамж) буцааж оруулахад таван дараалсан алхам пентатоник шатлал үүсгэнэ. Нэг алхмыг доош, нөгөөг дээш нэмэхэд долоон ноттой диатоник шатлал гарна.</p>
+      <p data-i18n="scaleLessonTwo">(3/2)^5 нь 2^3-аас ойролцоогоор 90 центээр, (3/2)^12 нь 2^7-оос 23.46 центээр зөрнө. Цэвэр 3:2 харьцааны гинж хэзээ ч яг тойрог болж хаагдахгүй. Үндсэн нотыг өөрчлөх нь шинэ давтамж үүсгэхгүй, харин нэг цуглуулгын өөр хэлбэрийг сонсгоно.</p>
+    </details>
+    <details class="explanation" id="limit5Explanation" hidden>
+      <summary data-i18n="limit5LearnMore">Яагаад нэг нотоос хоёр өөр давтамж үүсэв?</summary>
+      <p data-i18n="limit5LessonOne">3-хязгаарын хөгт 2 ба 3-ын зэрэг хангалттай. 5-хязгаарын хөгт 5:4 их терцийг нэмж, торын нөгөө чиглэлд алхана. Нотуудаа сонгох нь зөвхөн математикийн биш, хөгжмийн шийдвэр.</p>
+      <p data-i18n="limit5LessonTwo">Дөрвөн цэвэр квинтээс 81:64, нэг цэвэр их терцээс 5:4 гарна. Тэдний харьцаа 81:80 буюу 21.51 цент — синтоник комма. Үүнийг 12-TET тэнцүү нот болгож авдаг бол цэвэр харьцаанд хоёр өөр цэг хэвээр үлдэнэ.</p>
+    </details>
+    <details class="explanation" id="tempExplanation" hidden>
+      <summary data-i18n="tempLearnMore">Яагаад квинтийн тойрогт янз бүрийн хөг хэрэгтэй вэ?</summary>
+      <p data-i18n="tempLessonOne">Цэвэр квинт 3:2 нь 701.955 цент боловч арван хоёр квинт долоон октаваас 23.46 центээр их. Арван хоёр нотыг тойрог болгож хаахын тулд энэ Пифагорын коммаг өөр өөр квинтэд хуваарилдаг.</p>
+      <p data-i18n="tempLessonTwo">Тэнцүү хөг бүх квинтийг 700 цент болгоно. Пифагорын болон дундаж хөг ихэнх квинтийг ижилхэн байлгаж нэг чоно квинттэй үлдэнэ. Веркмайстер III, Валлотти системүүд зөрүүг сонгосон хэдэн квинтэд тараадаг. Энэ бол 12 ноттой, тогтмол Ля4=440 Гц авсан түүхэн хялбаршуулсан загвар юм.</p>
+    </details>
+    <details class="explanation" id="noiseExplanation" hidden>
+      <summary data-i18n="noiseLearnMore">Шуугиан яагаад цэвэр авианаас өөр вэ?</summary>
+      <p data-i18n="noiseLessonOne">Цэвэр авиа нэг давтамжтай. Харин шуугиан олон давтамжийн санамсаргүй хэлбэлзлээс бүтдэг тул тогтмол давтагдах үе байхгүй.</p>
+      <p data-i18n="noiseLessonTwo">Цагаан шуугианд давтамж бүрийн нэгж зурваст чадал ойролцоогоор ижил. Ягаан, бор шуугианд нам давтамжууд харьцангуй хүчтэй. Дээд давтамжийг шүүхэд авиа бүдгэрнэ.</p>
+    </details>
+  </main>
+
+  <footer class="footer">
+    <span data-i18n="footer">Дууны лаборатори · Дуу, бичлэг зөвхөн таны төхөөрөмж дээр байна. Хаашаа ч илгээхгүй.</span>
+    <span data-i18n="future">More sounds and music-making are planned.</span>
+  </footer>
+</body>
+</html>
