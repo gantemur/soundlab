@@ -1702,11 +1702,14 @@
       const now = this.contextOwner.context.currentTime;
       const gain = voice.gain.gain;
       gain.cancelScheduledValues(now);
-      if (immediate) gain.setValueAtTime(0, now);
-      else gain.setTargetAtTime(0, now, 0.012);
+      // Reach exactly zero before stopping the oscillator. In particular, do not
+      // leave a setTargetAtTime tail on Safari if oscillator.onended is delayed.
+      const fade = immediate ? 0.004 : 0.025;
+      gain.setValueAtTime(gain.value, now);
+      gain.linearRampToValueAtTime(0, now + fade);
       if (voice.stopping) return;
       voice.stopping = true;
-      try { voice.oscillator.stop(now + (immediate ? 0.002 : 0.09)); }
+      try { voice.oscillator.stop(now + fade + 0.008); }
       catch (_) { /* An earlier stop may already be scheduled. */ }
     }
 
@@ -2659,6 +2662,8 @@
   }
 
   let motionFrame = null;
+  let motionStarting = false;
+  let motionStartGeneration = 0;
   let motionStartedAt = 0;
   let motionLastDraw = -1;
   let motionPointerId = null;
@@ -4129,6 +4134,8 @@
   }
 
   function stopMotionSound(immediate = false, message = "motionStopped") {
+    motionStartGeneration++;
+    motionStarting = false;
     motionAudio.stop(immediate);
     stopMotionFrame();
     motionPointerId = null;
@@ -4140,6 +4147,7 @@
 
   function renderMotionControls() {
     const isTheremin = state.motionKind === "theremin";
+    const sirenActive = !isTheremin && (state.motionPlaying || motionStarting);
     $("thereminControls").hidden = !isTheremin;
     $("sirenControls").hidden = isTheremin;
     $("motionDescription").textContent = text("motionDesc")[state.motionKind];
@@ -4189,10 +4197,10 @@
     $("sirenHighValue").textContent = hzText(state.sirenHigh);
     $("sirenRateValue").textContent = frequencyText(state.sirenRate) + " " + text("sirenRateUnit");
     $("sirenVolumeValue").textContent = state.sirenVolume + "%";
-    $("sirenButton").classList.toggle("playing", !isTheremin && state.motionPlaying);
-    $("sirenButton").setAttribute("aria-pressed", String(!isTheremin && state.motionPlaying));
-    $("sirenPlayIcon").textContent = state.motionPlaying ? "■" : "▶";
-    $("sirenPlayLabel").textContent = text(state.motionPlaying ? "sirenStop" : "sirenPlay");
+    $("sirenButton").classList.toggle("playing", sirenActive);
+    $("sirenButton").setAttribute("aria-pressed", String(sirenActive));
+    $("sirenPlayIcon").textContent = sirenActive ? "■" : "▶";
+    $("sirenPlayLabel").textContent = text(sirenActive ? "sirenStop" : "sirenPlay");
   }
 
   function setMotionKind(kind) {
@@ -4267,11 +4275,20 @@
   }
 
   async function startMotionSound() {
-    if (state.motionPlaying || state.mode !== "motion") return;
+    if (state.motionPlaying || motionStarting || state.mode !== "motion") return;
+    const ticket = ++motionStartGeneration;
+    motionStarting = true;
     setMotionStatus("motionStarting");
+    renderMotionControls();
     try {
       const info = await motionAudio.start();
-      if (!info) return;
+      if (ticket !== motionStartGeneration) return;
+      motionStarting = false;
+      if (!info) {
+        setMotionStatus("motionReady");
+        renderMotionControls();
+        return;
+      }
       motionStartedAt = info.startedAt;
       motionLastDraw = -1;
       state.motionElapsed = 0;
@@ -4281,7 +4298,7 @@
       renderMotionControls();
       drawMotionPlots();
       const advance = () => {
-        if (!state.motionPlaying || state.mode !== "motion") return;
+        if (ticket !== motionStartGeneration || !state.motionPlaying || state.mode !== "motion") return;
         const elapsed = Math.max(0, info.context.currentTime - motionStartedAt);
         state.motionElapsed = elapsed;
         if (state.motionKind === "siren") {
@@ -4303,6 +4320,7 @@
       };
       motionFrame = window.requestAnimationFrame(advance);
     } catch (error) {
+      if (ticket !== motionStartGeneration) return;
       stopMotionSound(true, error.message === "unsupported" ? "motionUnsupported" : "motionBlocked");
       $("motionStatus").classList.toggle("error", true);
       state.motionError = true;
@@ -7292,7 +7310,7 @@
       setPadPosition(state.motionX + dx, state.motionY + dy);
     } else if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
-      if (state.motionPlaying) stopMotionSound();
+      if (state.motionPlaying || motionStarting) stopMotionSound(true);
       else return startMotionSound();
     } else if (event.key === "Escape") {
       event.preventDefault();
@@ -7300,7 +7318,7 @@
     }
   });
   $("sirenButton").addEventListener("click", () => {
-    if (state.motionPlaying) stopMotionSound();
+    if (state.motionPlaying || motionStarting) stopMotionSound(true);
     else return startMotionSound();
   });
   $("sirenLow").addEventListener("input", event => {
@@ -7548,7 +7566,7 @@
   window.addEventListener("blur", () => {
     if (recorder.state === "recording") stopRecording();
     if (state.sustainPlaying || sustainPointerId !== null || sustainKeyboardHeld ||
-        state.motionPlaying || state.mixPlaying || state.intervalPlaying || state.earPlaying || state.scalePlaying || state.limit5Playing || state.limit5Starting || state.tempPlaying || state.tempStarting ||
+        state.motionPlaying || motionStarting || state.mixPlaying || state.intervalPlaying || state.earPlaying || state.scalePlaying || state.limit5Playing || state.limit5Starting || state.tempPlaying || state.tempStarting ||
         state.harmonicPlaying || state.noisePlaying || (compose && compose.isPlaying())) {
       stopAllAudio(true, "hidden");
     }

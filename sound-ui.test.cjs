@@ -53,7 +53,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-abc\.js\?v=s040a"/);
   assert.match(html, /src="sound-score-player\.js\?v=s040a"/);
   assert.match(html, /src="sound-compose\.js\?v=s040a"/);
-  assert.match(html, /src="sound-lab\.js\?v=s039a"/);
+  assert.match(html, /src="sound-lab\.js\?v=s041"/);
   assert.match(html, /href="sound-lab\.css\?v=s040a"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
@@ -1424,6 +1424,59 @@ test("siren changes two-tone/sweep pitch with its clock; Stop and mode switch ca
   app.fire("modePure", "click");
   assert.equal(context.oscillators[1].stopped, true);
   assert.equal(app.elements.get("motionWorkspace").hidden, true);
+});
+
+test("Siren Stop cancels a Safari-style delayed start and mutes even if onended is delayed", async () => {
+  const app = fakePage();
+  app.fire("modeMotion", "click");
+  app.motionButtons[1].events.click();
+
+  let releaseResume;
+  const resumeGate = new Promise(resolve => { releaseResume = resolve; });
+  const BaseAudioContext = app.window.AudioContext;
+  app.window.AudioContext = class DelayedAudioContext extends BaseAudioContext {
+    async resume() {
+      await resumeGate;
+      return super.resume();
+    }
+  };
+
+  // The second tap must be Stop, even before an asynchronous Safari resume finishes.
+  const pending = app.fire("sirenButton", "click");
+  assert.equal(app.contexts.length, 1);
+  assert.equal(app.elements.get("sirenButton").getAttribute("aria-pressed"), "true");
+  assert.equal(app.elements.get("sirenPlayIcon").textContent, "■");
+  assert.match(app.elements.get("sirenPlayLabel").textContent, /зогсоох/);
+  app.fire("sirenButton", "click");
+  assert.equal(app.elements.get("sirenButton").getAttribute("aria-pressed"), "false");
+  releaseResume();
+  await pending;
+  assert.equal(app.contexts[0].oscillators.length, 0, "Cancelled resume cannot start a ghost siren");
+
+  await app.fire("sirenButton", "click");
+  const context = app.contexts[0];
+  assert.equal(context.oscillators.length, 1);
+  const voice = context.oscillators[0];
+  const gain = context.gains.at(-1).gain;
+  const rampCalls = [];
+  const ramp = gain.linearRampToValueAtTime;
+  gain.linearRampToValueAtTime = function (value, time) {
+    rampCalls.push({ value, time });
+    return ramp.call(this, value, time);
+  };
+  // On some engines onended can arrive late. Audio must be muted independently.
+  voice.stop = time => { voice.scheduledStop = time; };
+  app.fire("sirenButton", "click");
+  assert.equal(app.elements.get("sirenButton").getAttribute("aria-pressed"), "false");
+  assert.equal(gain.value, 0);
+  assert.deepEqual(rampCalls, [{ value: 0, time: 0.004 }]);
+  assert.equal(voice.scheduledStop, 0.012);
+  assert.equal(app.animationFrames.size, 0, "Stopped siren has no queued animation frame");
+
+  await app.fire("sirenButton", "click");
+  assert.equal(context.oscillators.length, 2, "Siren can restart after a cancelled start and stop");
+  app.fire("sirenButton", "click");
+  assert.equal(context.gains.at(-1).gain.value, 0);
 });
 
 test("three siren trajectories change both the ideal readout and the playing oscillator without restarting audio", async () => {
