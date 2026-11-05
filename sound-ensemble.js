@@ -10,10 +10,12 @@
     require("./sound-ensemble-presets.js") : root.SoundLabEnsemblePresets;
   const drums = typeof module === "object" && module.exports ?
     require("./sound-drum-abc.js") : root.SoundLabDrumABC;
-  const api = factory(abc, score, player, presets, drums);
+  const drumPatterns = typeof module === "object" && module.exports ?
+    require("./sound-drum-patterns.js") : root.SoundLabDrumPatterns;
+  const api = factory(abc, score, player, presets, drums, drumPatterns);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemble = api;
-})(typeof window !== "undefined" ? window : null, function (abc, scoreModel, playerModel, presets, drums) {
+})(typeof window !== "undefined" ? window : null, function (abc, scoreModel, playerModel, presets, drums, drumPatterns) {
   "use strict";
   const VOICES = Object.freeze({
     en: { flute: "Flute", violin: "Violin", morin: "Morin khuur", guitar: "Guitar",
@@ -42,6 +44,16 @@
       gridBar: "Bar", gridStep: "Spacing", gridStrength: "Hit strength", gridSoft: "Soft", gridNormal: "Normal", gridAccent: "Accent",
       gridEighth: "Eighths", gridSixteenth: "Sixteenths", gridFine: "Sixteenth notes present; showing all 16th steps.",
       gridError: "Grid unavailable for this text; the ABC has not been changed: ",
+      patternsTitle: "Rhythm patterns", patternsEnable: "Find repeats", patternsIntro: "Edit a pattern once to change every linked use. Make a copy for a one-off fill.",
+      patternsBar: "Song bar", patternsChoice: "Pattern", patternsUnique: "Make unique", patternsRepeat: "Repeat to end",
+      patternsAdvanced: "Other arrangement actions", patternsLength: "Bars", patternsGroup: "New pattern here",
+      patternsFrom: "From", patternsTo: "Through", patternsRange: "Fill range",
+      patternsView: "ABC view", patternsPatternABC: "Selected pattern ABC", patternsFullABC: "Whole song ABC",
+      patternsRevert: "Restore last valid pattern",
+      patternsInactive: "This is a full ABC score. Find repeats to create linked patterns without changing the score.",
+      patternsTextHint: "Editing whole-song ABC removes pattern links. You can find repeats again afterward.",
+      patternsTextError: "Correct the pattern ABC before changing patterns: ",
+      patternsNotGrid: "This ABC uses rhythms outside the sixteenth-note grid; it stays editable as text.",
       now: "Beat", selected: "Selected", maxTracks: "Four tracks is the current maximum.",
       minTracks: "Keep at least one track.", fileError: "Choose a .abc / .txt score up to 8 KB.",
       error: "Score error", trackError: "Track", noAudio: "Sound could not start. Check audio settings." },
@@ -63,6 +75,16 @@
       gridBar: "Такт", gridStep: "Алхам", gridStrength: "Цохилтын хүч", gridSoft: "Зөөлөн", gridNormal: "Энгийн", gridAccent: "Хүчтэй",
       gridEighth: "Наймт", gridSixteenth: "Арван зургаат", gridFine: "Арван зургаатын цохилт байна; бүх алхмыг харуулж байна.",
       gridError: "Энэ бичигт тор нээх боломжгүй. ABC-г өөрчлөөгүй: ",
+      patternsTitle: "Хэмнэлийн загвар", patternsEnable: "Давталт таних", patternsIntro: "Загварыг нэг засахад бүх давталт өөрчлөгдөнө. Нэг удаагийн ялгаанд тусад нь хувилна.",
+      patternsBar: "Дууны такт", patternsChoice: "Загвар", patternsUnique: "Тусад нь хувилах", patternsRepeat: "Төгсгөл хүртэл давтах",
+      patternsAdvanced: "Бусад байрлуулах үйлдэл", patternsLength: "Такт", patternsGroup: "Эндээс шинэ загвар",
+      patternsFrom: "Эхлэх", patternsTo: "Дуусах", patternsRange: "Хэсэгт давтах",
+      patternsView: "ABC харагдац", patternsPatternABC: "Загварын ABC", patternsFullABC: "Бүтэн ABC",
+      patternsRevert: "Сүүлийн зөв загварыг сэргээх",
+      patternsInactive: "Энэ нь бүтэн ABC нот. Давталт таньж, загваруудыг холбоотой болгохдоо нотуудыг өөрчлөхгүй.",
+      patternsTextHint: "Бүтэн ABC-г засвал загварын холбоос сална. Дараа нь давталтыг дахин таньж болно.",
+      patternsTextError: "Өөр загварт шилжихээс өмнө ABC алдааг засна уу: ",
+      patternsNotGrid: "ABC-д арван зургаатын торонд багтахгүй хэмнэл байна. Эх бичиг хэвээр үлдэнэ.",
       now: "Цохилт", selected: "Сонгосон", maxTracks: "Одоогоор дээд тал нь дөрвөн хөгжим.",
       minTracks: "Ядаж нэг хөгжмийг үлдээнэ.", fileError: "8 КБ-аас бага .abc эсвэл .txt файл сонгоно уу.",
       error: "Нотын алдаа", trackError: "Хөгжим", noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу." }
@@ -103,12 +125,7 @@
       this.$("ensembleGridStep").value = "16";
       this.$("ensembleGridStrength").value = "normal";
       this.$("ensembleText").value = this.tracks[0].abc;
-      this.$("ensembleText").addEventListener("input", () => {
-        this.selected().abc = this.$("ensembleText").value;
-        this.player.stop();
-        if (this.parseTimer !== null) clearTimeout(this.parseTimer);
-        this.parseTimer = setTimeout(() => { this.parseTimer = null; this.parse(); }, 180);
-      });
+      this.$("ensembleText").addEventListener("input", () => this.textInput());
       this.$("ensembleTuning").addEventListener("change", () => this.parse());
       this.$("ensembleApplyPreset").addEventListener("click", () => this.loadPreset());
       this.$("ensembleAdd").addEventListener("click", () => this.addTrack());
@@ -117,6 +134,39 @@
         this.gridBar = Number(this.$("ensembleGridBar").value); this.renderDrumGrid();
       });
       this.$("ensembleGridStep").addEventListener("change", () => this.renderDrumGrid());
+      this.$("ensemblePatternEnable").addEventListener("click", () => this.activatePatterns());
+      this.$("ensemblePatternBar").addEventListener("change", () => this.chooseSongBar(Number(this.$("ensemblePatternBar").value)));
+      this.$("ensemblePatternChoice").addEventListener("change", () => {
+        const track = this.selected();
+        if (track.patternDraft) return this.renderPatternPanel();
+        track.patternId = Number(this.$("ensemblePatternChoice").value);
+        this.gridBar = 1; this.setEditorText(); this.renderPatternPanel(); this.renderDrumGrid();
+      });
+      this.$("ensemblePatternUnique").addEventListener("click", () => this.applyPatternOperation(() =>
+        drumPatterns.makeUnique(this.selected().patterns, this.selected().patternBar)));
+      this.$("ensemblePatternRepeat").addEventListener("click", () => this.applyPatternOperation(() => ({
+        project: drumPatterns.replaceRange(this.selected().patterns, this.selected().patternId,
+          this.selected().patternBar, this.selected().patterns.sequence.length),
+        patternId: this.selected().patternId, startBar: this.selected().patternBar })));
+      this.$("ensemblePatternGroup").addEventListener("click", () => this.applyPatternOperation(() =>
+        drumPatterns.groupBars(this.selected().patterns, this.selected().patternBar,
+          Number(this.$("ensemblePatternLength").value))));
+      this.$("ensemblePatternRange").addEventListener("click", () => this.applyPatternOperation(() => ({
+        project: drumPatterns.replaceRange(this.selected().patterns, this.selected().patternId,
+          Number(this.$("ensemblePatternFrom").value), Number(this.$("ensemblePatternTo").value)),
+        patternId: this.selected().patternId, startBar: Number(this.$("ensemblePatternFrom").value) })));
+      this.$("ensemblePatternTextMode").addEventListener("change", () => {
+        const track = this.selected();
+        if (track.patternDraft) { this.$("ensemblePatternTextMode").value = track.textMode; return; }
+        track.textMode = this.$("ensemblePatternTextMode").value;
+        this.gridBar = 1; this.setEditorText(); this.renderPatternPanel(); this.renderDrumGrid();
+      });
+      this.$("ensemblePatternRevert").addEventListener("click", () => {
+        const track = this.selected();
+        if (!track.patternDraft) return;
+        track.patternDraft = null;
+        this.setEditorText(); this.parse();
+      });
       this.$("ensembleStop").addEventListener("click", () => this.stop());
       // On Safari, pointerdown often arrives before a delayed/suppressed click.
       // Pause immediately, and consume the corresponding click to avoid Resume.
@@ -151,6 +201,75 @@
     resetTimer() {
       if (this.parseTimer !== null) { clearTimeout(this.parseTimer); this.parseTimer = null; }
     }
+    textInput() {
+      const track = this.selected(), text = this.$("ensembleText").value;
+      if (track.instrument === "drums" && track.patterns && track.textMode === "pattern") {
+        try {
+          const next = drumPatterns.updatePatternABC(track.patterns, track.patternId, text);
+          track.abc = drumPatterns.toABC(next);
+          track.patterns = next;
+          track.patternDraft = null;
+        } catch (error) {
+          track.patternDraft = { id: track.patternId, text, error: error.message };
+          this.$("ensemblePlayPause").disabled = true;
+        }
+      } else {
+        // A raw score may be edited freely. Links are only removed on an actual edit.
+        track.abc = text;
+        track.patterns = null;
+        track.patternDraft = null;
+        track.textMode = "full";
+      }
+      this.player.stop(); this.resetTimer();
+      this.parseTimer = setTimeout(() => { this.parseTimer = null; this.parse(); }, 180);
+    }
+    setEditorText() {
+      const track = this.selected();
+      this.$("ensembleText").value = track.instrument === "drums" && track.patterns && track.textMode === "pattern" ?
+        (track.patternDraft?.text || drumPatterns.patternABC(track.patterns, track.patternId)) : track.abc;
+      this.renderEditorLabel();
+    }
+    activatePatterns() {
+      const track = this.selected();
+      if (track.instrument !== "drums") return;
+      try {
+        track.patterns = drumPatterns.fromABC(track.abc);
+        track.patternBar = 1;
+        track.patternId = drumPatterns.atBar(track.patterns, 1).pattern.id;
+        track.textMode = "pattern";
+        track.patternDraft = null;
+        this.gridBar = 1;
+        this.setEditorText(); this.renderPatternPanel(); this.renderDrumGrid();
+      } catch (error) {
+        this.$("ensemblePatternMessage").textContent = this.t("patternsNotGrid") + " (" + error.message + ")";
+      }
+    }
+    chooseSongBar(bar) {
+      const track = this.selected();
+      if (!track.patterns || track.patternDraft) return this.renderPatternPanel();
+      try {
+        const found = drumPatterns.atBar(track.patterns, bar);
+        track.patternBar = bar;
+        track.patternId = found.pattern.id;
+        this.gridBar = found.offset + 1;
+        this.setEditorText(); this.renderPatternPanel(); this.renderDrumGrid();
+      } catch (error) { this.$("ensemblePatternMessage").textContent = error.message; }
+    }
+    applyPatternOperation(action) {
+      const track = this.selected();
+      if (!track.patterns || track.patternDraft) {
+        this.$("ensemblePatternMessage").textContent = this.t("patternsTextError") +
+          (track.patternDraft?.error || ""); return;
+      }
+      try {
+        const { project, patternId, startBar } = action();
+        track.patterns = project; track.abc = drumPatterns.toABC(project);
+        track.patternId = patternId;
+        track.patternBar = startBar;
+        this.gridBar = 1;
+        this.player.stop(); this.setEditorText(); this.parse();
+      } catch (error) { this.$("ensemblePatternMessage").textContent = error.message; }
+    }
     loadPreset() {
       const choice = this.$("ensemblePreset").value;
       if (choice !== "starter" && !presets.CATALOG.some(item => item.id === choice)) return;
@@ -160,13 +279,15 @@
         presets.create(choice, this.language);
       this.selectedId = this.tracks[0].id;
       this.nextId = Math.max(...this.tracks.map(track => track.id)) + 1;
-      this.$("ensembleText").value = this.selected().abc;
+      this.setEditorText();
       this.gridBar = 1;
       this.parse();
     }
     parse() {
       this.resetTimer();
       try {
+        const incomplete = this.tracks.find(track => track.patternDraft);
+        if (incomplete) throw new Error(this.t("patternsTextError") + incomplete.patternDraft.error);
         const { prepared, summary } = parseTracks(this.tracks, this.$("ensembleTuning").value, this.temperamentModel);
         this.player.configure({ tracks: prepared, tuning: this.$("ensembleTuning").value });
         this.summary = summary;
@@ -183,6 +304,7 @@
       this.renderTracks();
       this.renderTimeline();
       this.renderTransport();
+      this.renderPatternPanel();
       this.renderDrumGrid();
     }
     addTrack() {
@@ -223,8 +345,10 @@
       }
       catch (error) { this.setStatus(this.t("error") + ": " + error.message, true); return; }
       this.nextId++;
+      const project = drumPatterns.fromABC(text);
       this.tracks.push({ id, name: this.t("drums"), instrument: "drums", volume: 65,
-        mute: false, solo: false, abc: text });
+        mute: false, solo: false, abc: text, patterns: project, textMode: "pattern",
+        patternBar: 1, patternId: drumPatterns.atBar(project, 1).pattern.id });
       this.gridBar = 1;
       this.selectTrack(id);
       this.parse();
@@ -233,7 +357,7 @@
       if (this.tracks.length <= 1) { this.setStatus(this.t("minTracks"), true); return; }
       this.tracks = this.tracks.filter(track => track.id !== id);
       if (this.selectedId === id) this.selectedId = this.tracks[0].id;
-      this.$("ensembleText").value = this.selected().abc;
+      this.setEditorText();
       this.parse();
     }
     selectTrack(id) {
@@ -241,13 +365,17 @@
       this.resetTimer();
       this.selectedId = id;
       this.gridBar = 1;
-      this.$("ensembleText").value = this.selected().abc;
+      this.setEditorText();
       this.renderTracks();
       this.renderEditorLabel();
+      this.renderPatternPanel();
       this.renderDrumGrid();
     }
     renderEditorLabel() {
-      this.$("ensembleEditorTitle").textContent = this.t("score") + " · " + this.selected().name;
+      const track = this.selected();
+      const title = track.patterns && track.textMode === "pattern" ?
+        this.t("patternsPatternABC") + " · " + drumPatterns.getPattern(track.patterns, track.patternId).name : this.t("score");
+      this.$("ensembleEditorTitle").textContent = title + " · " + track.name;
     }
     renderTracks() {
       const list = this.$("ensembleTrackList");
@@ -359,6 +487,61 @@
       if (this.error) return;
       this.$("ensembleStatus").textContent = this.t(this.status) || this.t("ready");
     }
+    renderPatternPanel() {
+      const track = this.selected(), panel = this.$("ensemblePatternPanel");
+      panel.hidden = track.instrument !== "drums";
+      if (panel.hidden) return;
+      const active = Boolean(track.patterns);
+      this.$("ensemblePatternEnable").hidden = active;
+      this.$("ensemblePatternTools").hidden = !active;
+      this.$("ensemblePatternHint").textContent = this.t(active ?
+        track.textMode === "full" ? "patternsTextHint" : "patternsIntro" : "patternsInactive");
+      const message = this.$("ensemblePatternMessage");
+      message.textContent = track.patternDraft ? this.t("patternsTextError") + track.patternDraft.error : "";
+      if (!active) return;
+      const project = track.patterns;
+      if (!Number.isInteger(track.patternBar) || track.patternBar > project.sequence.length) track.patternBar = 1;
+      if (!project.patterns.some(pattern => pattern.id === track.patternId)) {
+        track.patternId = drumPatterns.atBar(project, track.patternBar).pattern.id;
+      }
+      const fillSelect = (id, items, selectedValue) => {
+        const el = this.$(id);
+        el.replaceChildren();
+        for (const item of items) {
+          const option = this.make("option", "", item.label, el);
+          option.value = String(item.value);
+        }
+        el.value = String(selectedValue);
+      };
+      const barItems = project.sequence.map((slot, i) => ({ value: i + 1,
+        label: (i + 1) + " · " + drumPatterns.getPattern(project, slot.id).name }));
+      fillSelect("ensemblePatternBar", barItems, track.patternBar);
+      fillSelect("ensemblePatternChoice", project.patterns.map(p => ({ value: p.id,
+        label: p.name + " (" + p.bars.length + ")" })), track.patternId);
+      const from = Number(this.$("ensemblePatternFrom").value);
+      const to = Number(this.$("ensemblePatternTo").value);
+      fillSelect("ensemblePatternFrom", barItems, Number.isInteger(from) && from >= 1 &&
+        from <= project.sequence.length ? from : track.patternBar);
+      fillSelect("ensemblePatternTo", barItems, Number.isInteger(to) && to >= 1 &&
+        to <= project.sequence.length ? to : project.sequence.length);
+      this.$("ensemblePatternTextMode").value = track.textMode || "full";
+      this.$("ensemblePatternRevert").hidden = !track.patternDraft;
+      const occurrence = drumPatterns.atBar(project, track.patternBar);
+      this.$("ensemblePatternRepeat").disabled = occurrence.offset !== 0;
+      this.$("ensemblePatternUnique").disabled = track.patternId !== occurrence.pattern.id;
+      const arrangement = this.$("ensemblePatternArrangement");
+      arrangement.replaceChildren();
+      for (const run of drumPatterns.runs(project)) {
+        const button = this.make("button", "ensemble-pattern-chip" +
+          (track.patternBar >= run.startBar && track.patternBar <= run.endBar ? " selected" : ""),
+          run.name + (run.repeats > 1 ? " ×" + run.repeats : ""), arrangement);
+        button.type = "button";
+        button.title = this.t("patternsBar") + " " + run.startBar + "–" + run.endBar;
+        button.setAttribute("aria-label", run.name + " · " + button.title);
+        button.setAttribute("aria-pressed", String(track.patternBar >= run.startBar && track.patternBar <= run.endBar));
+        button.addEventListener("click", () => this.chooseSongBar(run.startBar));
+      }
+    }
     renderDrumGrid() {
       const panel = this.$("ensembleDrumGrid");
       const isDrum = this.selected()?.instrument === "drums";
@@ -370,7 +553,11 @@
       container.replaceChildren();
       info.textContent = "";
       let bars;
-      try { bars = drums.gridOf(drums.parse(this.selected().abc)); }
+      const track = this.selected();
+      if (track.patternDraft) { info.textContent = this.t("patternsTextError") + track.patternDraft.error; return; }
+      const inPattern = Boolean(track.patterns && track.textMode === "pattern");
+      try { bars = drums.gridOf(drums.parse(inPattern ?
+        drumPatterns.patternABC(track.patterns, track.patternId) : track.abc)); }
       catch (error) { info.textContent = this.t("gridError") + error.message; return; }
       const barSelect = this.$("ensembleGridBar");
       barSelect.replaceChildren();
@@ -406,9 +593,15 @@
           button.addEventListener("click", () => {
             try {
               const velocity = drums.VELOCITIES[this.$("ensembleGridStrength").value];
-              const next = drums.toggleGridHit(drums.parse(this.selected().abc), this.gridBar, i, drum.id, velocity);
-              this.selected().abc = next;
-              this.$("ensembleText").value = next;
+              if (inPattern) {
+                track.patterns = drumPatterns.toggleHit(track.patterns, track.patternId, this.gridBar, i, drum.id, velocity);
+                track.abc = drumPatterns.toABC(track.patterns);
+              } else {
+                track.abc = drums.toggleGridHit(drums.parse(track.abc), this.gridBar, i, drum.id, velocity);
+                // A raw-score edit has no live links. Re-extract patterns explicitly.
+                track.patterns = null; track.textMode = "full";
+              }
+              this.setEditorText();
               this.player.stop(); this.parse();
             } catch (error) { info.textContent = this.t("gridError") + error.message; }
           });
@@ -439,8 +632,12 @@
       try {
         const data = await file.text();
         if (data.length > 8192) throw new RangeError("Oversized ABC file");
-        this.selected().abc = data;
-        this.$("ensembleText").value = data;
+        const track = this.selected();
+        track.abc = data;
+        track.patterns = null;
+        track.patternDraft = null;
+        track.textMode = "full";
+        this.setEditorText();
         this.parse();
       } catch (_) { this.setStatus(this.t("fileError"), true); }
       finally { this.$("ensembleLoad").value = ""; }
@@ -459,6 +656,7 @@
       this.renderTracks();
       this.renderTransport();
       this.updatePlayhead(this.player.currentBeat);
+      this.renderPatternPanel();
       this.renderDrumGrid();
     }
   }

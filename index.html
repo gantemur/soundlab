@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s047">
+  <link rel="stylesheet" href="sound-lab.css?v=s048">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -27,10 +27,11 @@
   <script src="sound-score.js?v=s040a" defer></script>
   <script src="sound-abc.js?v=s040a" defer></script>
   <script src="sound-drum-abc.js?v=s047" defer></script>
+  <script src="sound-drum-patterns.js?v=s048" defer></script>
   <script src="sound-score-player.js?v=s047" defer></script>
   <script src="sound-compose.js?v=s045b" defer></script>
   <script src="sound-ensemble-presets.js?v=s046" defer></script>
-  <script src="sound-ensemble.js?v=s047" defer></script>
+  <script src="sound-ensemble.js?v=s048" defer></script>
   <script src="sound-lab.js?v=s045" defer></script>
 </head>
 <body>
@@ -1459,6 +1460,42 @@
         <section class="panel chart-panel" aria-labelledby="ensembleEditorTitle">
           <div class="compose-score-editor">
             <h2 id="ensembleEditorTitle">Сонгосон хөгжмийн ABC нот</h2>
+            <section id="ensemblePatternPanel" class="ensemble-pattern-panel" hidden aria-label="Drum pattern arrangement">
+              <div class="ensemble-pattern-heading">
+                <h3 data-ensemble-i18n="patternsTitle">Хэмнэлийн загвар</h3>
+                <button id="ensemblePatternEnable" type="button" data-ensemble-i18n="patternsEnable" hidden>Давталт таних</button>
+              </div>
+              <p id="ensemblePatternHint" class="field-help" data-ensemble-i18n="patternsIntro">Нэг загварын бүх давталт хамт өөрчлөгдөнө.</p>
+              <div id="ensemblePatternTools" hidden>
+                <div id="ensemblePatternArrangement" class="ensemble-pattern-arrangement" role="group" aria-label="Drum pattern timeline"></div>
+                <div class="ensemble-pattern-controls">
+                  <label><span data-ensemble-i18n="patternsBar">Дууны такт</span><select id="ensemblePatternBar"></select></label>
+                  <label><span data-ensemble-i18n="patternsChoice">Загвар</span><select id="ensemblePatternChoice"></select></label>
+                  <button type="button" id="ensemblePatternUnique" data-ensemble-i18n="patternsUnique">Тусад нь хувилах</button>
+                  <button type="button" id="ensemblePatternRepeat" data-ensemble-i18n="patternsRepeat">Төгсгөл хүртэл давтах</button>
+                </div>
+                <details class="ensemble-pattern-advanced">
+                  <summary data-ensemble-i18n="patternsAdvanced">Бусад байрлуулах үйлдэл</summary>
+                  <div class="ensemble-pattern-controls">
+                    <label><span data-ensemble-i18n="patternsLength">Урт</span><select id="ensemblePatternLength">
+                      <option value="1">1</option><option value="2">2</option><option value="4">4</option>
+                    </select></label>
+                    <button type="button" id="ensemblePatternGroup" data-ensemble-i18n="patternsGroup">Эндээс шинэ загвар</button>
+                    <label><span data-ensemble-i18n="patternsFrom">Эхлэх</span><select id="ensemblePatternFrom"></select></label>
+                    <label><span data-ensemble-i18n="patternsTo">Дуусах</span><select id="ensemblePatternTo"></select></label>
+                    <button type="button" id="ensemblePatternRange" data-ensemble-i18n="patternsRange">Хэсэгт давтах</button>
+                  </div>
+                </details>
+                <label class="ensemble-pattern-view"><span data-ensemble-i18n="patternsView">ABC харагдац</span>
+                  <select id="ensemblePatternTextMode">
+                    <option value="pattern" data-ensemble-i18n="patternsPatternABC">Загварын ABC</option>
+                    <option value="full" data-ensemble-i18n="patternsFullABC">Бүтэн ABC</option>
+                  </select>
+                </label>
+                <button id="ensemblePatternRevert" type="button" class="ensemble-pattern-revert" data-ensemble-i18n="patternsRevert" hidden>Сүүлийн зөв загварыг сэргээх</button>
+              </div>
+              <p id="ensemblePatternMessage" class="field-help" role="status" aria-live="polite"></p>
+            </section>
             <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-labelledby="ensembleEditorTitle" aria-describedby="ensembleHelp"></textarea>
             <p class="field-help" id="ensembleHelp" data-ensemble-i18n="help">Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. M: хэмжээ ба Q: хурд ижил байх ёстой.</p>
             <p class="field-help" id="ensembleDrumHint" data-ensemble-i18n="drumHelp" hidden>C их бөмбөр, D жижиг бөмбөр, E хаалттай цан, F нээлттэй цан, G модон цохилуур.</p>
