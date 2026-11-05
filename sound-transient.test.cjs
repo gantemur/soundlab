@@ -3,6 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const sound = require("./sound-transient.js");
 const spectrum = require("./sound-spectrum.js");
+const fm = require("./sound-fm.js");
 
 test("pluck, kick and modeled piano are distinct bounded decaying mathematical signals", () => {
   for (const kind of sound.KINDS) {
@@ -124,7 +125,36 @@ test("invalid or unbounded transient recipes are rejected", () => {
   assert.throws(() => sound.makeSamples("piano", 440, .3, 44100, "medium", { velocity: 1.1 }), RangeError);
   assert.throws(() => sound.makeSamples("piano", 440, .3, 44100, "medium", { velocity: NaN }), RangeError);
   assert.throws(() => sound.makeSamples("piano", 440, .3, 44100, "medium", { touch: "unknown" }), RangeError);
+  assert.throws(() => sound.makeSamples("piano", 440, .3, 44100, "medium", { pianoVoice: "unknown" }), RangeError);
   assert.ok(sound.duration(sound.MAX_DECAY) <= 3);
+});
+
+test("electric strike piano uses Compose's FM formula for sound, waveform and spectrum", () => {
+  const rate = 16000;
+  const options = { pianoVoice: "electric", velocity: .62, touch: "press" };
+  const electric = sound.makeSamples("piano", 440, .8, rate, "medium", options);
+  const reference = fm.makeElectricPianoSamples(440, rate);
+  const acoustic = sound.makeSamples("piano", 440, .8, rate, "medium",
+    { pianoVoice: "acoustic", velocity: .62, touch: "press" });
+  for (const i of [160, 1000, 5000, 15000, 30000]) {
+    assert.ok(Math.abs(electric[i] - reference[i]) < 1e-7,
+      "Strike and Compose must play identical FM samples at default decay/strength");
+    assert.ok(Math.abs(electric[i] - sound.plottedSampleAt("piano", i / rate,
+      440, .8, "medium", { ...options, sampleRate: rate })) < 1e-7);
+  }
+  assert.notDeepEqual(electric.slice(150, 250), acoustic.slice(150, 250));
+  const tap = sound.makeSamples("piano", 440, .8, rate, "medium",
+    { ...options, touch: "tap" });
+  const highStrength = sound.makeSamples("piano", 440, .8, rate, "medium",
+    { ...options, velocity: .9 });
+  assert.ok(Math.abs(electric[700] - highStrength[700]) > .005,
+    "Electric piano strength changes FM modulation and brightness");
+  const rms = (samples, begin, end) => Math.sqrt(samples.slice(begin, end)
+    .reduce((sum, sample) => sum + sample ** 2, 0) / (end - begin));
+  assert.ok(rms(tap, 10000, 11000) < .01 * rms(electric, 10000, 11000));
+  const electricSpectrum = spectrum.spectrumAt(sound, {
+    kind: "piano", pitchHz: 440, decaySec: .8, options }, .03);
+  assert.ok(electricSpectrum.magnitudes.some(value => value > .1));
 });
 
 test("modeled piano overtones are slightly inharmonic, unlike an ideal string", () => {

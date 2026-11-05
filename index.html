@@ -10,7 +10,8 @@
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
-  <script src="sound-transient.js?v=s039" defer></script>
+  <script src="sound-fm.js?v=s044" defer></script>
+  <script src="sound-transient.js?v=s044" defer></script>
   <script src="sound-sustain.js?v=s020b" defer></script>
   <script src="sound-spectrum.js?v=s017" defer></script>
   <script src="sound-motion.js?v=s020c" defer></script>
@@ -25,10 +26,9 @@
   <script src="sound-recorder.js" defer></script>
   <script src="sound-score.js?v=s040a" defer></script>
   <script src="sound-abc.js?v=s040a" defer></script>
-  <script src="sound-fm.js?v=s043" defer></script>
-  <script src="sound-score-player.js?v=s043" defer></script>
-  <script src="sound-compose.js?v=s043" defer></script>
-  <script src="sound-lab.js?v=s041" defer></script>
+  <script src="sound-score-player.js?v=s044" defer></script>
+  <script src="sound-compose.js?v=s044" defer></script>
+  <script src="sound-lab.js?v=s044" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -221,6 +221,13 @@
           <button type="button" data-strike-play="single">▶ Татах</button>
           <button type="button" data-strike-play="strum">▶ Цохих</button>
         </div>
+        <div class="field-group" id="strikePianoTypeGroup" hidden>
+          <label class="field-title" for="strikePianoType" data-i18n="strikePianoTypeTitle">Хуурын төрөл</label>
+          <select id="strikePianoType">
+            <option value="acoustic" data-i18n="strikePianoAcoustic">Төгөлдөр хуур</option>
+            <option value="electric" data-i18n="strikePianoElectric">Цахилгаан хуур</option>
+          </select>
+        </div>
         <div id="strikePianoPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikePianoTouchTitle" hidden>
           <button type="button" data-strike-play="press">▶ Товчлуур дарах</button>
           <button type="button" data-strike-play="tap">▶ Товших</button>
@@ -231,7 +238,7 @@
           <span class="play-caption" data-i18n="strikeCaption">Дарж сонсоод, дахин дарж давтаарай</span>
         </button>
         <p id="strikeStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Дарахад л дуу гарна.</p>
-        <p id="strikePianoHint" class="field-help" data-i18n="strikePianoTouchHint" hidden>Дарах нь товчлуурыг барьсан үеийн чөлөөт намдлыг, товших нь зөөлөн богино даралт ба намжаагч эрт буцахыг загварчилна.</p>
+        <p id="strikePianoHint" class="field-help" hidden>Дарах нь товчлуурыг барьсан үеийн чөлөөт намдлыг, товших нь зөөлөн богино даралт ба намжаагч эрт буцахыг загварчилна.</p>
 
         <div class="field-group" id="strikeChordGroup" hidden>
           <div class="field-title"><span data-i18n="strikeChord">Аккорд цохих</span></div>
@@ -1339,7 +1346,7 @@
                 <option value="triangle" data-compose-i18n="triangle">Гурвалжин долгион</option>
                 <option value="square" data-compose-i18n="square">Дөрвөлжин долгион</option>
                 <option value="sawtooth" data-compose-i18n="sawtooth">Хөрөө долгион</option>
-                <option value="fmep" data-compose-i18n="fmep">FM цахилгаан төгөлдөр хуур · 80-аад</option>
+                <option value="fmep" data-compose-i18n="fmep">Цахилгаан хуур</option>
               </optgroup>
             </select>
           </div>

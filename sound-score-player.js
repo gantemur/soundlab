@@ -108,11 +108,15 @@
     stopVoices() {
       const now = this.context ? this.context.currentTime : 0;
       for (const voice of this.voices) {
+        // Disconnect synchronously: a browser may reject stop() for an
+        // already-ended or future-scheduled source. The gain must still go
+        // silent immediately, including in Safari's delayed onended case.
         try {
           voice.gain.gain.cancelScheduledValues(now);
           voice.gain.gain.setValueAtTime(0, now);
-          voice.source.stop(now + .002);
-        } catch (_) { /* A scheduled one-shot may already have ended. */ }
+        } catch (_) { /* AudioParam may already have been disconnected. */ }
+        try { voice.gain.disconnect(); } catch (_) { /* Already disconnected. */ }
+        try { voice.source.stop(now + .002); } catch (_) { /* Already stopped. */ }
       }
       this.voices.clear();
     }
@@ -128,8 +132,8 @@
     }
 
     pause() {
-      if (this.status !== "playing") return;
-      this.positionBeat = this.currentBeat;
+      if (this.status !== "playing" && this.status !== "starting") return;
+      if (this.status === "playing") this.positionBeat = this.currentBeat;
       this.generation++;
       if (this.interval !== null) clearInterval(this.interval);
       this.interval = null;

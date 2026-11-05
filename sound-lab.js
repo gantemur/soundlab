@@ -401,7 +401,11 @@
       strikePluckButton: "Pluck", strikeStrumButton: "Strum", strikeKickButton: "Strike",
       strikePianoButton: "Press a key", strikePianoTapButton: "Tap",
       strikePianoTouchTitle: "How to play", strikePianoPress: "Press", strikePianoTap: "Tap",
+      strikePianoTypeTitle: "Piano type", strikePianoAcoustic: "Acoustic piano",
+      strikePianoElectric: "Electric piano",
       strikePianoTouchHint: "Press models a held key with free decay. Tap is gentler and brings the damper back after a short press.",
+      strikePianoElectricHint: "A bright FM attack settles into a warmer tone. Tap returns a modeled damper early; Strength also changes brightness.",
+      strikeDescElectric: "Electronic frequency modulation gives a metallic attack and a mellow, beating tail. Compare it with the acoustic piano model.",
       strikeGuitarPlay: "Play guitar", strikeSingle: "One string", strikeStrum: "Several strings",
       strikeChord: "Strum a chord", strikeMoreChords: "More chords",
       strikePatternTitle: "Strumming pattern", strikePatternDown: "Downstroke", strikePatternUp: "Upstroke",
@@ -955,7 +959,11 @@
       strikePluckButton: "Татах", strikeStrumButton: "Цохих", strikeKickButton: "Цохих",
       strikePianoButton: "Товчлуур дарах", strikePianoTapButton: "Товших",
       strikePianoTouchTitle: "Тоглох арга", strikePianoPress: "Дарах", strikePianoTap: "Товших",
+      strikePianoTypeTitle: "Хуурын төрөл", strikePianoAcoustic: "Төгөлдөр хуур",
+      strikePianoElectric: "Цахилгаан хуур",
       strikePianoTouchHint: "Дарахад товчлуурыг барьсан үеийн авиа чөлөөтэй намдана. Товшиход алх зөөлөн цохиж, намжаагч удахгүй буцна.",
+      strikePianoElectricHint: "FM загварын эхний авиа тод, төмөрлөг, дараа нь зөөлөн болно. Товшиход намжаагч эрт буцна; цохилтын хүч нь дууны өнгийг ч өөрчилнө.",
+      strikeDescElectric: "Давтамжийн модуляцтай цахим авиа эхэндээ тод, сүүлдээ зөөлөрч намдана. Ердийн төгөлдөр хууртай харьцуулаарай.",
       strikeGuitarPlay: "Гитар тоглуулах", strikeSingle: "Нэг чавхдас", strikeStrum: "Олон чавхдас",
       strikeChord: "Аккорд цохих", strikeMoreChords: "Бусад аккорд",
       strikePatternTitle: "Цохих арга", strikePatternDown: "Доош цохих", strikePatternUp: "Дээш цохих",
@@ -1151,6 +1159,7 @@
     strikeChord: "em",
     strikeGuitarPattern: "down",
     strikePluckPosition: .22,
+    strikePianoVoice: "acoustic",
     strikePianoTouch: "press",
     strikeStrength: 55,
     strikeStrengthByKind: { pluck: 55, kick: 78, piano: 55 },
@@ -2685,7 +2694,8 @@
         drumVoice: state.strikeDrumVoice,
         drumTension: state.strikeDrumTension,
         ...(state.strikeKind === "piano" ?
-          { velocity: state.strikeStrength / 100, touch: state.strikePianoTouch } : {}),
+          { velocity: state.strikeStrength / 100, touch: state.strikePianoTouch,
+            pianoVoice: state.strikePianoVoice } : {}),
         ...(state.strikeKind === "pluck" && state.strikeGuitarPlay === "strum" ?
           { strumChord: state.strikeChord, strumPattern: state.strikeGuitarPattern } : {})
       } };
@@ -4600,8 +4610,12 @@
     $("strikePitchGroup").hidden = state.strikeKind === "kick" ||
       (state.strikeKind === "pluck" && state.strikeGuitarPlay === "strum");
     $("strikeGuitarPlayModes").hidden = state.strikeKind !== "pluck";
+    $("strikePianoTypeGroup").hidden = state.strikeKind !== "piano";
+    $("strikePianoType").value = state.strikePianoVoice;
     $("strikePianoPlayModes").hidden = state.strikeKind !== "piano";
     $("strikePianoHint").hidden = state.strikeKind !== "piano";
+    $("strikePianoHint").textContent = text(state.strikePianoVoice === "electric" ?
+      "strikePianoElectricHint" : "strikePianoTouchHint");
     $("strikeButton").hidden = state.strikeKind !== "kick";
     $("strikeChordGroup").hidden = state.strikeKind !== "pluck";
     $("strikeGuitarPattern").value = state.strikeGuitarPattern;
@@ -4625,7 +4639,9 @@
     $("strikeStrengthValue").textContent = state.strikeStrength + "%";
     $("strikeDecay").value = String(state.strikeDecay);
     $("strikeDecayValue").textContent = secondsText(state.strikeDecay);
-    $("strikeDescription").textContent = text("strikeDesc")[state.strikeKind];
+    $("strikeDescription").textContent = state.strikeKind === "piano" &&
+      state.strikePianoVoice === "electric" ? text("strikeDescElectric") :
+      text("strikeDesc")[state.strikeKind];
     $("strikeButtonLabel").textContent = text("strikeKickButton");
     const strikePlayLabels = { single: "strikePluckButton", strum: "strikeStrumButton",
       press: "strikePianoButton", tap: "strikePianoTapButton" };
@@ -4968,6 +4984,7 @@
     state.strikeChord = "em";
     state.strikeGuitarPattern = "down";
     state.strikePluckPosition = .22;
+    state.strikePianoVoice = "acoustic";
     state.strikePianoTouch = "press";
     state.strikeStrength = 55;
     state.strikeStrengthByKind = { pluck: 55, kick: 78, piano: 55 };
@@ -7473,6 +7490,15 @@
     if (!transientModel.STRUM_PATTERNS.includes(event.target.value)) return;
     stopStrikeForEdit();
     state.strikeGuitarPattern = event.target.value;
+    renderStrikeControls();
+    drawPlots();
+  });
+  $("strikePianoType").addEventListener("change", event => {
+    const voice = event.target.value;
+    if (!["acoustic", "electric"].includes(voice) || voice === state.strikePianoVoice) return;
+    stopStrikeForEdit();
+    state.strikePianoVoice = voice;
+    setStrikeStatus("strikeReady");
     renderStrikeControls();
     drawPlots();
   });

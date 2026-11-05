@@ -38,7 +38,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="fixedTimeCheck" checked/);
   assert.match(html, /src="sound-string\.js\?v=s037"/);
   assert.match(html, /src="sound-piano\.js\?v=s019"/);
-  assert.match(html, /src="sound-transient\.js\?v=s039"/);
+  assert.match(html, /src="sound-transient\.js\?v=s044"/);
   assert.match(html, /src="sound-sustain\.js\?v=s020b"/);
   assert.match(html, /src="sound-spectrum\.js\?v=s017"/);
   assert.match(html, /src="sound-motion\.js\?v=s020c"/);
@@ -52,10 +52,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-temperaments\.js\?v=s036"/);
   assert.match(html, /src="sound-score\.js\?v=s040a"/);
   assert.match(html, /src="sound-abc\.js\?v=s040a"/);
-  assert.match(html, /src="sound-fm\.js\?v=s043"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s043"/);
-  assert.match(html, /src="sound-compose\.js\?v=s043"/);
-  assert.match(html, /src="sound-lab\.js\?v=s041"/);
+  assert.match(html, /src="sound-fm\.js\?v=s044"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s044"/);
+  assert.match(html, /src="sound-compose\.js\?v=s044"/);
+  assert.match(html, /src="sound-lab\.js\?v=s044"/);
+  assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
+    "FM must load before the shared transient synthesizer");
   assert.match(html, /href="sound-lab\.css\?v=s041b"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
@@ -2286,6 +2288,8 @@ test("modeled piano has press and gentle tap gestures with matching audio and UI
   assert.equal(app.elements.get("strikePitchGroup").hidden, false);
   assert.equal(app.elements.get("strikeDrumSizeGroup").hidden, true);
   assert.equal(app.elements.get("strikePianoPlayModes").hidden, false);
+  assert.equal(app.elements.get("strikePianoTypeGroup").hidden, false);
+  assert.equal(app.elements.get("strikePianoType").value, "acoustic");
   assert.match(app.pianoTouchButtons[0].textContent, /Товчлуур дарах/);
   assert.equal(app.pianoTouchButtons[0].getAttribute("aria-pressed"), undefined);
   assert.match(app.elements.get("strikeDescription").textContent, /Алх цохиход/);
@@ -2330,8 +2334,49 @@ test("modeled piano has press and gentle tap gestures with matching audio and UI
   assert.equal(app.elements.get("strikePianoPlayModes").hidden, false);
   app.strikeButtons[1].events.click();
   assert.equal(app.elements.get("strikePianoPlayModes").hidden, true);
+  assert.equal(app.elements.get("strikePianoTypeGroup").hidden, true);
   app.fire("stopAll", "click");
   assert.equal(context.sources[0].stopped, true);
+});
+
+test("electric piano dropdown shares the FM voice, preserves tap/press and updates its plots", async () => {
+  const app = fakePage();
+  app.fire("modeStrike", "click");
+  app.strikeButtons.find(button => button.dataset.strike === "piano").events.click();
+  const type = app.elements.get("strikePianoType");
+  const hint = app.elements.get("strikePianoHint");
+  assert.equal(type.value, "acoustic");
+  assert.equal(app.contexts.length, 0);
+
+  await app.pianoTouchButtons[0].click();
+  const context = app.contexts[0];
+  const acoustic = context.buffers[0].getChannelData();
+  type.value = "electric";
+  app.fire("strikePianoType", "change");
+  assert.equal(type.value, "electric");
+  assert.equal(context.buffers.length, 1, "Selecting an instrument does not autoplay");
+  assert.match(hint.textContent, /FM/);
+  assert.match(app.elements.get("strikeDescription").textContent, /модуляц/);
+  await app.pianoTouchButtons[0].click();
+  const electric = context.buffers[1].getChannelData();
+  assert.notDeepEqual(electric.slice(100, 200), acoustic.slice(100, 200),
+    "Electric and acoustic models must actually sound different");
+  assert.ok(electric.some(sample => Math.abs(sample) > .01));
+  assert.ok(app.elements.get("strikeSpectrumCanvas").drawnText.length > 0);
+  await app.pianoTouchButtons[1].click();
+  const tap = context.buffers[2].getChannelData();
+  assert.ok(Math.abs(tap[1000] - electric[1000]) > .00001,
+    "Electric Tap is a distinct modeled gesture");
+  app.fire("langEn", "click");
+  assert.equal(type.value, "electric");
+  assert.equal(hint.textContent.includes("FM"), true);
+  assert.equal(app.elements.get("strikePianoTypeGroup").hidden, false);
+  type.value = "acoustic";
+  app.fire("strikePianoType", "change");
+  assert.match(app.elements.get("strikeDescription").textContent, /Hammer/);
+  app.fire("strikeReset", "click");
+  app.strikeButtons.find(button => button.dataset.strike === "piano").events.click();
+  assert.equal(type.value, "acoustic", "Reset restores acoustic as the default piano");
 });
 
 test("S031 ratio dropdown and two interval play buttons switch without overlapping voices", async () => {
@@ -2557,6 +2602,29 @@ test("Compose C1 renders a four-bar staff, stays silent until Play and responds 
   assert.equal(app.contexts.length, 1, "Language switching doesn't start audio");
 });
 
+test("Compose Pause during delayed Safari audio startup cancels the note and then resumes", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  let unlock;
+  const gate = new Promise(resolve => { unlock = resolve; });
+  const BaseAudioContext = app.window.AudioContext;
+  app.window.AudioContext = class DelayedAudioContext extends BaseAudioContext {
+    async resume() { await gate; return super.resume(); }
+  };
+  const pending = app.fire("composePlayPause", "click");
+  assert.equal(app.contexts.length, 1);
+  assert.match(app.elements.get("composePlayPause").textContent, /Түр зогсоох/,
+    "Pause must be available even while AudioContext is unlocking");
+  app.fire("composePlayPause", "click");
+  assert.match(app.elements.get("composeStatus").textContent, /Түр зогслоо/);
+  unlock();
+  await pending;
+  assert.equal(app.contexts[0].oscillators.length, 0, "Pause prevents a late ghost note");
+  await app.fire("composePlayPause", "click");
+  assert.equal(app.contexts[0].oscillators.length, 1);
+  app.fire("composeStop", "click");
+});
+
 test("Compose C1 validates edits and loads local ABC scores without autoplay", async () => {
   const app = fakePage();
   app.fire("modeCompose", "click");
@@ -2607,7 +2675,8 @@ test("Compose electronic voices switch without autoplay and follow MN/EN labels"
   }
   app.fire("langEn", "click");
   assert.equal(app.elements.get("composeInstrument").value, "fmep");
-  assert.equal(composeModel.UI.en.fmep, "FM electric piano · '80s style");
+  assert.equal(composeModel.UI.en.fmep, "FM electric piano");
+  assert.equal(composeModel.UI.mn.fmep, "Цахилгаан хуур");
   assert.equal(composeModel.UI.mn.square, "Дөрвөлжин долгион");
   await app.fire("composePlayPause", "click");
   assert.equal(app.contexts.length, 1);

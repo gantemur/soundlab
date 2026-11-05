@@ -116,6 +116,42 @@ test("pause and resume preserve playback position, while Stop returns to bar one
   assert.ok(context.sources.every(source => Number.isFinite(source.stoppedAt)));
 });
 
+test("Pause silences a scheduled voice even when Safari-style stop/gain calls throw", async () => {
+  const { player, context } = audioFixture();
+  player.configure({ score: melody, instrument: "piano" });
+  await player.play();
+  const voiceGain = context.gains[0];
+  const source = context.sources[0];
+  voiceGain.disconnect = () => { voiceGain.disconnected = true; };
+  voiceGain.gain.cancelScheduledValues = () => { throw new Error("unsupported"); };
+  source.stop = () => { throw new Error("already ended"); };
+  context.currentTime = .3;
+  assert.doesNotThrow(() => player.pause());
+  assert.equal(player.status, "paused");
+  assert.equal(voiceGain.disconnected, true, "Disconnect guarantees silence even if stop() fails");
+  assert.equal(player.voices.size, 0);
+  player.stop();
+});
+
+test("Pause during asynchronous audio startup cancels late notes; Resume can start normally", async () => {
+  const { owner, player, context } = audioFixture();
+  let unlock;
+  owner.readyContext = () => new Promise(resolve => { unlock = resolve; });
+  player.configure({ score: melody, instrument: "fmep" });
+  const pending = player.play();
+  assert.equal(player.status, "starting");
+  player.pause();
+  assert.equal(player.status, "paused");
+  unlock(context);
+  assert.equal(await pending, false);
+  assert.equal(context.sources.length, 0, "A canceled startup cannot produce a late sound");
+  owner.readyContext = async () => context;
+  await player.play();
+  assert.equal(player.status, "playing");
+  assert.equal(context.sources.length, 1);
+  player.stop();
+});
+
 test("guitar, piano and chime scores delegate to existing sound models", async () => {
   for (const instrument of ["guitar", "piano", "chimes"]) {
     const { player, context, recipes } = audioFixture();

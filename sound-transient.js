@@ -6,14 +6,16 @@
   "use strict";
   const strings = typeof module === "object" && module.exports ? require("./sound-string.js") : root.SoundLabString;
   const piano = typeof module === "object" && module.exports ? require("./sound-piano.js") : root.SoundLabPiano;
-  const model = makeModel(strings, piano);
+  const fm = typeof module === "object" && module.exports ? require("./sound-fm.js") : root.SoundLabFM;
+  const model = makeModel(strings, piano, fm);
   if (typeof module === "object" && module.exports) module.exports = model;
   if (root) root.SoundLabTransientModel = model;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm) {
   "use strict";
 
   if (!strings) throw new Error("String synthesis must load before transient synthesis");
   if (!piano) throw new Error("Piano synthesis must load before transient synthesis");
+  if (!fm) throw new Error("FM synthesis must load before transient synthesis");
 
   const TAU = 2 * Math.PI;
   const KINDS = Object.freeze(["pluck", "kick", "piano"]);
@@ -71,14 +73,17 @@
       throw new RangeError("Unknown pluck position or guitar chord");
     }
     if (kind === "piano" && (!piano.validVelocity(options.velocity ?? .55) ||
-        !piano.validTouch(options.touch ?? "press"))) {
+        !piano.validTouch(options.touch ?? "press") ||
+        !["acoustic", "electric"].includes(options.pianoVoice ?? "acoustic"))) {
       throw new RangeError("Piano hammer velocity or touch outside the supported range");
     }
   }
 
   function envelope(kind, time, decaySec, options = {}) {
     if (time <= 0) return 0;
-    if (kind === "piano") return piano.envelope(time, decaySec, options.touch ?? "press");
+    if (kind === "piano") return options.pianoVoice === "electric" ?
+      fm.envelopeAt(time, decaySec, options.velocity ?? .55, options.touch ?? "press") :
+      piano.envelope(time, decaySec, options.touch ?? "press");
     const attack = kind === "kick" ? 0.0015 : 0.0025;
     const effectiveDecay = kind === "kick" && (options.drumVoice === "cymbal" ||
       options.drumVoice === "steelpan") ? decaySec * 1.3 : decaySec;
@@ -217,6 +222,9 @@
         strings.strumAt(time, options.strumChord, decaySec, position, options.strumPattern ?? "down") :
         strings.pluckAt(time, pitchHz, decaySec, position);
     }
+    if (options.pianoVoice === "electric") return fm.sampleAt(time, pitchHz,
+      options.sampleRate ?? 48000, { decaySec, velocity: options.velocity ?? .55,
+        touch: options.touch ?? "press" });
     return piano.sampleAt(time, pitchHz, decaySec, options.velocity ?? .55,
       options.touch ?? "press");
   }
@@ -246,9 +254,13 @@
     const seconds = duration(decaySec);
     const count = Math.ceil(seconds * sampleRate);
     const samples = new Float32Array(count);
+    // Supply the playback sample rate to FM's anti-alias factor; ordinary
+    // plotted waves use the same analytic model at a reference 48 kHz.
+    const modelOptions = kind === "piano" && options.pianoVoice === "electric" ?
+      { ...options, sampleRate } : options;
     for (let i = 0; i < count; i++) {
       const time = i / sampleRate;
-      samples[i] = plottedSampleAt(kind, time, pitchHz, decaySec, kickSize, options);
+      samples[i] = plottedSampleAt(kind, time, pitchHz, decaySec, kickSize, modelOptions);
     }
     return samples;
   }

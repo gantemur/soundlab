@@ -137,7 +137,7 @@
       flute: "Flute", violin: "Violin", morin: "Morin khuur",
       guitar: "Guitar", piano: "Piano", chimes: "Chimes",
       sine: "Sine wave", triangle: "Triangle wave", square: "Square wave",
-      sawtooth: "Sawtooth wave", fmep: "FM electric piano · '80s style",
+      sawtooth: "Sawtooth wave", fmep: "FM electric piano",
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean",
       just: "Just · C-centred", tuningHint: "The same written notes can sound different in another tuning. The just preset is centred on C; enharmonic spellings share a key in C1.",
       volume: "Volume", score: "ABC score", load: "Open .abc / .txt file",
@@ -177,7 +177,7 @@
       guitar: "Гитар", piano: "Төгөлдөр хуур", chimes: "Хоолойт хонх",
       sine: "Синус долгион", triangle: "Гурвалжин долгион",
       square: "Дөрвөлжин долгион", sawtooth: "Хөрөө долгион",
-      fmep: "FM цахилгаан төгөлдөр хуур · 80-аад",
+      fmep: "Цахилгаан хуур",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын",
       just: "Цэвэр · До төвтэй", tuningHint: "Ижил нотыг өөр хөгөөр тоглуулахад өндөр нь бага зэрэг өөрчлөгдөнө. Цэвэр хувилбар нь До төвтэй; C1-д диез ба бемол ижил товчлуурт хамаарна.",
       volume: "Дууны хэмжээ", score: "ABC нотын бичиг", load: ".abc / .txt файл нээх",
@@ -274,7 +274,7 @@
           node.label = this.t(node.getAttribute("data-compose-group-i18n"));
         });
       }
-      this.$("composePlayPause").textContent = this.t(this.player.status === "playing" ? "pause" :
+      this.$("composePlayPause").textContent = this.t(["playing", "starting"].includes(this.player.status) ? "pause" :
         this.player.status === "paused" ? "resume" : "play");
       this.$("composeStop").textContent = this.t("stop");
       this.$("composeVolumeValue").textContent = this.$("composeVolume").value + "%";
@@ -343,9 +343,11 @@
     }
 
     async togglePlay() {
+      // A second tap while Safari is still unlocking AudioContext must also
+      // cancel the pending start. Pause should not reparse into a fresh Play.
+      if (["playing", "starting"].includes(this.player.status)) { this.player.pause(); return; }
       this.parsePending();
       if (!this.score) return;
-      if (this.player.status === "playing") { this.player.pause(); return; }
       try { await this.player.play(); }
       catch (error) {
         this.$("composeStatus").textContent = this.t("noAudio") + " (" + error.message + ")";
@@ -383,7 +385,7 @@
       if (this.$("composeStatus")) {
         this.$("composeStatus").textContent = this.t(this.lastStatus);
         this.$("composeStatus").classList.toggle("error", false);
-        this.$("composePlayPause").textContent = this.t(status === "playing" ? "pause" :
+        this.$("composePlayPause").textContent = this.t(["playing", "starting"].includes(status) ? "pause" :
           status === "paused" ? "resume" : "play");
       }
       this.highlight(beat);
