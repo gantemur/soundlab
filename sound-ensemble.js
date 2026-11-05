@@ -37,6 +37,10 @@
       stopped: "Stopped. Play starts from the beginning.",
       track: "Track", name: "Name", choose: "Edit", remove: "Remove", mute: "Mute", unmute: "Unmute",
       solo: "Solo", unsolo: "Unsolo", volume: "Volume", instrument: "Instrument",
+      guitarTechnique: "Guitar technique", guitarPluck: "Pluck together",
+      guitarDown: "↓ Downstroke", guitarUp: "↑ Upstroke", guitarAlternate: "↓↑ Alternating strokes",
+      guitarSpacing: "Between notes", milliseconds: "ms",
+      guitarHint: "Chords such as [C,E,G,CE] are strummed; single notes stay individually picked. Downstrokes go low to high, upstrokes in reverse. Short chords use a shorter sweep.",
       score: "ABC for the selected track", import: "Open .abc / .txt", timeline: "Shared timeline",
       inspect: "Notes in each track; the gold line marks the current beat.",
       help: "Edit one track at a time; the other tracks remain in place. Different keys are allowed, but every track needs the same M: and Q:.",
@@ -70,6 +74,10 @@
       stopped: "Зогслоо. Дахин тоглуулахад эхнээсээ эхэлнэ.",
       track: "Хөгжим", name: "Нэр", choose: "Засах", remove: "Хасах", mute: "Дуугүй", unmute: "Дуутай",
       solo: "Ганцаар", unsolo: "Хамт", volume: "Чанга", instrument: "Зэмсэг",
+      guitarTechnique: "Гитар тоглох арга", guitarPluck: "Зэрэг татах",
+      guitarDown: "↓ Доош цохих", guitarUp: "↑ Дээш цохих", guitarAlternate: "↓↑ Ээлжлэн цохих",
+      guitarSpacing: "Нот хоорондын зай", milliseconds: "мсек",
+      guitarHint: "[C,E,G,CE] зэрэг аккордыг цохино; дан нот тусдаа татагдана. Доош цохиход нам нотоос өндөр рүү, дээш цохиход эсрэг чиглэлээр дуугарна. Богино аккордын зай автоматаар багасна.",
       score: "Сонгосон хөгжмийн ABC нот", import: ".abc / .txt файл нээх", timeline: "Нэгдсэн цагийн шугам",
       inspect: "Мөр бүрийн нотууд; шар зураас нь тоглож буй цохилт.",
       help: "Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. Хөг өөр байж болно, харин M: хэмжээ ба Q: хурд ижил байх ёстой.",
@@ -297,7 +305,7 @@
       this.gridBar = 1;
       this.parse();
     }
-    parse() {
+    parse({ updateTracks = true } = {}) {
       this.resetTimer();
       try {
         const incomplete = this.tracks.find(track => track.patternDraft);
@@ -315,7 +323,7 @@
         this.$("ensemblePlayPause").disabled = true;
         this.setStatus(this.t("error") + ": " + error.message, true);
       }
-      this.renderTracks();
+      if (updateTracks) this.renderTracks();
       this.renderTimeline();
       this.renderTransport();
       this.renderPatternPanel();
@@ -341,6 +349,7 @@
             "z" + (length * 4) + (i === emptyBars.length - 1 ? " |]" : " |"))].join("\n") : DEFAULTS[0].abc;
       const next = { ...(source || DEFAULTS[0]), id, name: this.t("track") + " " + id, instrument,
         volume: 38, mute: false, solo: false, abc: source ? source.abc.replace(/^X:.*$/m, "X:" + id) : emptyMelody };
+      if (next.guitar) next.guitar = { ...next.guitar };
       this.tracks.push(next);
       this.selectTrack(id);
       this.parse();
@@ -428,6 +437,7 @@
           instrument.value = track.instrument;
           instrument.addEventListener("change", () => { track.instrument = instrument.value; this.parse(); });
         }
+        if (track.instrument === "guitar") this.renderGuitarControls(track, row);
         const mixRow = this.make("div", "ensemble-mix-row", undefined, row);
         const mute = this.make("button", track.mute ? "ensemble-mix active" : "ensemble-mix", this.t(track.mute ? "unmute" : "mute"), mixRow);
         mute.type = "button";
@@ -461,6 +471,46 @@
       this.$("ensembleAddDrums").disabled = this.tracks.length >= playerModel.MAX_PARTS;
       this.renderEditorLabel();
     }
+    renderGuitarControls(track, row) {
+      const settings = { mode: "pluck", spacingMs: 20, ...track.guitar };
+      const controls = this.make("div", "guitar-technique", undefined, row);
+      const label = this.make("label", "field-title", this.t("guitarTechnique"), controls);
+      const mode = this.make("select", "ensemble-guitar-mode", undefined, controls);
+      mode.id = "ensembleGuitarMode-" + track.id;
+      label.htmlFor = mode.id;
+      mode.setAttribute("aria-label", this.t("guitarTechnique") + " · " + track.name);
+      for (const [value, key] of [["pluck", "guitarPluck"], ["down", "guitarDown"],
+        ["up", "guitarUp"], ["alternate", "guitarAlternate"]]) {
+        this.make("option", "", this.t(key), mode).value = value;
+      }
+      mode.value = settings.mode;
+      mode.addEventListener("change", () => {
+        settings.mode = mode.value;
+        track.guitar = { ...settings };
+        group.hidden = settings.mode === "pluck";
+        this.parse({ updateTracks: false });
+      });
+      const group = this.make("div", "guitar-spacing", undefined, controls);
+      group.hidden = settings.mode === "pluck";
+      const title = this.make("div", "field-title", undefined, group);
+      const spacingLabel = this.make("label", "", this.t("guitarSpacing"), title);
+      const readout = this.make("output", "", settings.spacingMs + " " + this.t("milliseconds"), title);
+      const spacing = this.make("input", "ensemble-guitar-spacing", undefined, group);
+      spacing.id = "ensembleGuitarSpacing-" + track.id;
+      spacingLabel.htmlFor = spacing.id;
+      readout.setAttribute("for", spacing.id);
+      spacing.type = "range"; spacing.min = "0"; spacing.max = "60"; spacing.step = "1";
+      spacing.value = String(settings.spacingMs);
+      spacing.setAttribute("aria-label", this.t("guitarSpacing") + " · " + track.name);
+      spacing.addEventListener("input", () => {
+        track.guitar = { ...settings, spacingMs: Number(spacing.value) };
+        settings.spacingMs = track.guitar.spacingMs;
+        readout.textContent = spacing.value + " " + this.t("milliseconds");
+        // Keep the focused control in place throughout pointer and key edits.
+        this.parse({ updateTracks: false });
+      });
+      if (track.id === this.selectedId) this.make("p", "field-help", this.t("guitarHint"), controls);
+    }
     renderTimeline() {
       const panel = this.$("ensembleTimeline");
       panel.replaceChildren();
@@ -476,7 +526,8 @@
         try {
           const isDrum = track.instrument === "drums";
           const parsed = isDrum ? drums.parse(track.abc) : abc.parse(track.abc);
-          const events = isDrum ? drums.scheduledEvents(parsed) : playerModel.scheduledEvents(parsed);
+          const events = isDrum ? drums.scheduledEvents(parsed) : playerModel.scheduledEvents(parsed, 0,
+            track.instrument === "guitar" ? track.guitar : undefined);
           for (const event of events) {
             const note = this.make("span", isDrum ? "ensemble-note ensemble-drum-hit" : "ensemble-note", undefined, lane);
             note.style.left = (100 * event.startBeat / max) + "%";

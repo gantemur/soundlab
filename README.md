@@ -6,6 +6,31 @@ Standalone browser-based music and acoustics laboratory. Open [index.html](index
 
 **License and sources:** Independently authored Sound Lab code is made available under the [MIT license](LICENSE). The underlying traditional/public-domain compositions, source editions and transcriptions have independent rights and provenance; see [third-party and score notes](THIRD_PARTY_NOTICES.md) and each preset's source metadata. A source recording or a modern score edition is not implicitly included in the MIT grant.
 
+## Compose guitar strumming
+
+Guitar remains an ordinary pitched ABC part in both **One instrument** and **Many instruments**. Selecting guitar reveals a **Guitar technique / Гитар тоглох арга** control:
+
+- **Pluck together / Зэрэг татах:** each written chord begins together, as before.
+- **Downstroke / Доош цохих:** the written chord notes enter from lowest to highest pitch.
+- **Upstroke / Дээш цохих:** the same notes enter from highest to lowest pitch.
+- **Alternating strokes / Ээлжлэн цохих:** successive chords alternate down and up, beginning with down. Rests and single notes do not advance the alternation.
+
+The **Between notes** slider sets 0–60 milliseconds between attacks (default 20 ms). The complete sweep is limited to half the chord's written duration, so a short chord at a fast tempo cannot spill its attacks into the next event. The beat grid, bar lengths and other instrument parts keep their timing. Each chord still has one written end; guitar samples ring naturally through their decaying tails. Pause/resume seeks each string's own attack, while Stop, tab changes and the existing recording controls retain the shared audio path.
+
+Write individual notes to pick a line and bracketed notes to play a chord, for example:
+
+```abc
+M:4/4
+L:1/4
+Q:1/4=100
+K:C
+C, E, [C,E,G,CE] [C,E,G,CE] |]
+```
+
+The two bass notes are picked individually; the two chords use the selected technique. The model plays the pitches written in ABC using the existing plucked-string synthesis. It does not infer a six-string fingering from a chord name, add missing chord tones, or check fretboard playability. Guitar score playback accepts 80–880 Hz, including the open low E; other instrument ranges are unchanged. Per-chord direction marks and independent durations inside a chord are not part of this first implementation.
+
+Try **Guitar · Pick and strum** under **Writing exercises**: a four-bar solo study or an eight-bar ensemble study with quiet bass and a reusable drum pattern. Both are original Sound Lab exercises with no imported song, recording or outside arrangement. Guitar settings belong to their own track and survive track/language changes; selecting a preset restores that preset's technique. Changing technique or spacing stops playback and does not autoplay. The current ABC file input loads notes; it does not store the separate instrument/technique controls.
+
 ## Shipped in P1
 
 - Sine, triangle, square and sawtooth using Web Audio's built-in oscillators.

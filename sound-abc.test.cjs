@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const abc = require("./sound-abc.js");
 const score = require("./sound-score.js");
 const temperaments = require("./sound-temperaments.js");
-const { EXAMPLES } = require("./sound-compose.js");
+const { EXAMPLES, EXAMPLE_INFO } = require("./sound-compose.js");
 
 const piece = (body, options = {}) => [
   "X:1", "T:A short piece", `M:${options.meter || "4/4"}`,
@@ -31,10 +31,13 @@ test("all Compose examples are valid measured single-part scores", () => {
     assert.equal(parsed.parts[0].events.at(-1).startBeat +
       parsed.parts[0].events.at(-1).durationBeats, parsed.totalBeats, name);
     assert.ok(parsed.totalBeats * score.secondsPerBeat(parsed) <= 90, name);
-    for (const note of parsed.parts[0].events.filter(e => e.type === "note")) {
-      const hz = score.frequency(note.pitch);
-      assert.ok(hz >= score.MIN_NOTE_HZ && hz <= score.MAX_NOTE_HZ,
-        `${name}: ${score.pitchName(note.pitch)} is in range for every Compose instrument`);
+    const lower = EXAMPLE_INFO[name]?.instrument === "guitar" ? 80 : score.MIN_NOTE_HZ;
+    const pitches = parsed.parts[0].events.flatMap(event => event.type === "chord" ? event.pitches :
+      event.type === "note" ? [event.pitch] : []);
+    for (const pitch of pitches) {
+      const hz = score.frequency(pitch);
+      assert.ok(hz >= lower && hz <= score.MAX_NOTE_HZ,
+        `${name}: ${score.pitchName(pitch)} is in range for the example's instrument`);
     }
     assert.equal(score.validate(parsed), parsed);
   }

@@ -18,6 +18,9 @@
     rests: "X:2\nT:Listen to the rests\nM:4/4\nL:1/8\nQ:1/4=104\nK:C\nC2 z2 E2 G2 | A4 z G2 z | F2 E2 D2 C2 | C8 |]",
     waltz: "X:3\nT:Little waltz\nM:3/4\nL:1/4\nQ:1/4=108\nK:G\nG A B | d2 B | A G F | G3 |]",
     minor: "X:4\nT:Minor melody\nM:4/4\nL:1/4\nQ:1/4=88\nK:Am\nA B c d | e2 d2 | c B A G | A4 |]",
+    strum: "X:15\nT:Pick and strum - original exercise\nM:4/4\nL:1/4\nQ:1/4=100\nK:C\n" +
+      "C, E, [C,E,G,CE] [C,E,G,CE] | A,, E, [A,,E,A,CE] [A,,E,A,CE] |\n" +
+      "F, A, [F,A,CF] [F,A,CF] | G,, D, [G,,B,,D,G,B,G] [C,E,G,CE] |]",
     ode: "X:5\nT:Ode to Joy - Beethoven\nM:4/4\nL:1/4\nQ:1/4=112\nK:G\n" +
       "B B c d | d c B A | G G A B | B3/2 A/2 A2 |\n" +
       "B B c d | d c B A | G G A B | A3/2 G/2 G2 |\n" +
@@ -73,6 +76,11 @@
   });
 
   const EXAMPLE_INFO = Object.freeze({
+    strum: { instrument: "guitar", guitar: { mode: "alternate", spacingMs: 20 },
+      composer: "Sound Lab original exercise", originalKey: "C major",
+      source: "https://github.com/gantemur/soundlab#compose-guitar-strumming",
+      en: "An original four-bar exercise mixing picked bass notes and strummed chords. Try changing the stroke direction and spacing.",
+      mn: "Дан бас нотыг татаж, аккордыг цохих дөрвөн тактын дасгал. Цохих чиглэл ба нот хоорондын зайг өөрчилж үзээрэй." },
     ode: { instrument: "flute", composer: "Ludwig van Beethoven", originalKey: "D major",
       source: "https://abcnotation.com/tunePage?a=trillian.mit.edu%2F~jc%2Fmusic%2Fabc%2Fsong%2FOde_To_Joy%2F0000",
       en: "Choral theme, transposed from D to G major.",
@@ -131,6 +139,7 @@
       intro: "Write a short ABC score, choose one instrument and hear it follow your notes. No sound plays until you press Play.",
       example: "Example score", exampleFirst: "First melody", exampleRests: "Notes and rests",
       exampleWaltz: "Waltz in G", exampleMinor: "Minor tune",
+      exampleStrum: "Guitar · Pick and strum (4 bars)",
       exampleStudies: "Writing exercises", exampleClassics: "Classical music",
       exampleRussian: "Russian folk and historical songs", exampleWestern: "European folk songs",
       exampleOde: "Beethoven · Ode to Joy (16 bars)",
@@ -147,6 +156,10 @@
       instrumentElectronic: "Electronic sounds",
       flute: "Flute", violin: "Violin", morin: "Morin khuur",
       guitar: "Guitar", piano: "Piano", chimes: "Chimes",
+      guitarTechnique: "Guitar technique", guitarPluck: "Pluck together",
+      guitarDown: "↓ Downstroke", guitarUp: "↑ Upstroke", guitarAlternate: "↓↑ Alternating strokes",
+      guitarSpacing: "Between notes", milliseconds: "ms",
+      guitarHint: "Strum chords such as [C,E,G,CE]; single notes stay individually picked. Downstrokes run from low to high notes, upstrokes in reverse. Short chords use a shorter sweep.",
       sine: "Sine wave", triangle: "Triangle wave", square: "Square wave",
       sawtooth: "Sawtooth wave", fmep: "FM electric piano",
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean",
@@ -172,6 +185,7 @@
       intro: "ABC тэмдэглэгээгээр богино ая бичиж, нэг хөгжмөөр тоглуулаарай. «Тоглуулах»-ыг дарахаас өмнө дуу гарахгүй.",
       example: "Жишээ ая", exampleFirst: "Энгийн аялгуу", exampleRests: "Нот ба завсарлага",
       exampleWaltz: "Соль мажор вальс", exampleMinor: "Минор аялгуу",
+      exampleStrum: "Гитар · Цохих/татах (4 такт)",
       exampleStudies: "Нот бичих дасгал", exampleClassics: "Сонгодог хөгжим",
       exampleRussian: "Орос ардын болон түүхэн дуунууд", exampleWestern: "Европ ардын дуунууд",
       exampleOde: "Бетховен · Баяр баясгалангийн магтуу (16 такт)",
@@ -188,6 +202,10 @@
       instrumentElectronic: "Электрон авиа",
       flute: "Лимбэ", violin: "Хийл", morin: "Морин хуур",
       guitar: "Гитар", piano: "Төгөлдөр хуур", chimes: "Хоолойт хонх",
+      guitarTechnique: "Гитар тоглох арга", guitarPluck: "Зэрэг татах",
+      guitarDown: "↓ Доош цохих", guitarUp: "↑ Дээш цохих", guitarAlternate: "↓↑ Ээлжлэн цохих",
+      guitarSpacing: "Нот хоорондын зай", milliseconds: "мсек",
+      guitarHint: "[C,E,G,CE] зэрэг аккордыг цохино; дан нот тусдаа татагдана. Доош цохиход нам нотоос өндөр рүү, дээш цохиход эсрэг чиглэлээр дуугарна. Богино аккордын зай автоматаар багасна.",
       sine: "Синус долгион", triangle: "Гурвалжин долгион",
       square: "Дөрвөлжин долгион", sawtooth: "Хөрөө долгион",
       fmep: "Цахилгаан хуур",
@@ -254,6 +272,8 @@
       this.$("composeTuning").value = "equal";
       this.$("composeVolume").value = "38";
       this.$("composeExample").value = "first";
+      this.$("composeGuitarMode").value = "pluck";
+      this.$("composeGuitarSpacing").value = "20";
       this.$("composeText").addEventListener("input", () => {
         this.player.stop();
         if (this.parseTimer !== null) clearTimeout(this.parseTimer);
@@ -263,11 +283,15 @@
         const id = this.$("composeExample").value;
         this.$("composeText").value = EXAMPLES[id] || EXAMPLES.first;
         if (EXAMPLE_INFO[id]) this.$("composeInstrument").value = EXAMPLE_INFO[id].instrument;
+        this.$("composeGuitarMode").value = EXAMPLE_INFO[id]?.guitar?.mode || "pluck";
+        this.$("composeGuitarSpacing").value = String(EXAMPLE_INFO[id]?.guitar?.spacingMs ?? 20);
         this.parseScore();
       });
       this.$("composeInstrument").addEventListener("change", () => this.parseScore());
       this.$("composeTuning").addEventListener("change", () => this.parseScore());
       this.$("composeVolume").addEventListener("input", () => this.parseScore());
+      this.$("composeGuitarMode").addEventListener("change", () => this.parseScore());
+      this.$("composeGuitarSpacing").addEventListener("input", () => this.parseScore());
       // Safari may postpone or drop the click generated by a tap while audio
       // is running. Pause on pointerdown; consume its subsequent click so it
       // cannot immediately Resume. Keyboard activation still uses click.
@@ -309,6 +333,7 @@
       this.$("composeScoreSvg").setAttribute("aria-label", this.t("staff"));
       if (!this.score) this.$("composeNow").textContent = this.t("empty");
       this.renderMeta();
+      this.renderGuitarControls();
       this.lastHighlighted = -2;
       this.highlight(this.player.currentBeat);
     }
@@ -318,13 +343,20 @@
         this.t("rangeError") + ": " + error.message;
     }
 
+    renderGuitarControls() {
+      this.$("composeGuitarControls").hidden = this.$("composeInstrument").value !== "guitar";
+      this.$("composeGuitarSpacingGroup").hidden = this.$("composeGuitarMode").value === "pluck";
+      this.$("composeGuitarSpacingValue").textContent = this.$("composeGuitarSpacing").value + " " + this.t("milliseconds");
+    }
+
     parseScore() {
       if (this.parseTimer !== null) { clearTimeout(this.parseTimer); this.parseTimer = null; }
       this.player.stop();
       try {
         const score = abc.parse(this.$("composeText").value);
         this.player.configure({ score, instrument: this.$("composeInstrument").value,
-          tuning: this.$("composeTuning").value, volume: Number(this.$("composeVolume").value) });
+          tuning: this.$("composeTuning").value, volume: Number(this.$("composeVolume").value),
+          guitar: { mode: this.$("composeGuitarMode").value, spacingMs: Number(this.$("composeGuitarSpacing").value) } });
         this.score = score;
         this.lastError = null;
         this.lastStatus = "ready";
@@ -346,6 +378,7 @@
         this.$("composeNow").textContent = this.t("empty");
       }
       this.renderMeta();
+      this.renderGuitarControls();
       this.$("composeVolumeValue").textContent = this.$("composeVolume").value + "%";
       this.$("composePlayPause").textContent = this.t("play");
     }

@@ -32,6 +32,16 @@ test("acoustic piano can synthesize low and high score chords beyond the guitar'
   assert.throws(() => sound.makeSamples("piano", 2000, .4, 8000), /supported range/);
 });
 
+test("guitar score voicings synthesize the low E and G strings without clipping", () => {
+  for (const pitchHz of [80, 82.4069, 97.9989]) {
+    const samples = sound.makeSamples("pluck", pitchHz, .65, 16000, "medium", { position: .22 });
+    assert.ok(samples.every(value => Number.isFinite(value) && Math.abs(value) <= 1));
+    assert.ok(samples.some(value => Math.abs(value) > .01), "Low string has an audible signal");
+    assert.ok(Math.abs(samples.at(-1)) < .001, "The low string still fades to silence");
+  }
+  assert.throws(() => sound.makeSamples("pluck", 79, .65, 16000), /supported range/);
+});
+
 test("membrane fundamentals depend on size and the square root of tension", () => {
   assert.equal(sound.kickFrequency(0), sound.kickFrequency(.3));
   assert.ok(Math.abs(sound.kickFrequency(0) - 112) < 0.1);

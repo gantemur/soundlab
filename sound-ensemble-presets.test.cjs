@@ -2,6 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const abc = require("./sound-abc.js");
+const score = require("./sound-score.js");
 const compose = require("./sound-compose.js");
 const presets = require("./sound-ensemble-presets.js");
 const ensemble = require("./sound-ensemble.js");
@@ -40,7 +41,7 @@ test("all three ensemble presets contain complete published melodies and synchro
 });
 
 test("ensemble presets work in available tunings without pitch or duration errors", () => {
-  for (const { id } of [...pieces, { id: "bella" }, { id: "chopin7" }, { id: "chopin20" }]) {
+  for (const { id } of [...pieces, { id: "guitarStrum" }, { id: "bella" }, { id: "chopin7" }, { id: "chopin20" }]) {
     for (const tuning of ["equal", "pythagorean", "just"]) {
       assert.doesNotThrow(() => ensemble.parseTracks(presets.create(id), tuning, temperament),
         id + " " + tuning);
@@ -58,7 +59,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 7);
+  assert.equal(presets.CATALOG.length, 8);
 });
 
 test("complete Bella Ciao arrangement synchronizes four distinct instruments and linked drum patterns", () => {
@@ -105,4 +106,49 @@ test("complete Chopin preludes have two synchronized piano hands and preserved c
     assert.ok(prepared[0].score.parts[0].events.some(event =>
       event.type === "chord" && event.pitches.length >= (id === "chopin20" ? 4 : 3)));
   }
+});
+
+
+test("original guitar study mixes picking and strumming over eight synchronized bars", () => {
+  const entry = presets.CATALOG.find(piece => piece.id === "guitarStrum");
+  assert.equal(entry.category, "studies");
+  assert.ok(entry.en && entry.mn && entry.description.en && entry.description.mn);
+  const tracks = presets.create("guitarStrum", "en");
+  assert.deepEqual(tracks.map(track => track.instrument), ["guitar", "triangle", "drums"]);
+  assert.deepEqual(tracks[0].guitar, { mode: "alternate", spacingMs: 20 });
+  assert.ok(tracks.slice(1).every(track => track.volume < tracks[0].volume));
+  const { prepared, summary } = ensemble.parseTracks(tracks, "equal", temperament);
+  assert.equal(summary.tempoQuarter, 100);
+  assert.equal(summary.totalBeats, 32);
+  assert.equal(summary.totalBeats * score.secondsPerBeat(prepared[0].score), 19.2);
+  assert.ok(prepared.every(track => track.score.bars.length === 8));
+  assert.ok(prepared.every(track => track.score.totalBeats === 32));
+  const events = prepared[0].score.parts[0].events;
+  assert.ok(events.filter(event => event.bar <= 2).every(event => event.type === "note"),
+    "the first two bars demonstrate individual picking");
+  assert.ok(events.some(event => event.type === "chord"));
+  assert.ok(events.some(event => event.bar >= 5 && event.type === "note"),
+    "the same guitar part can resume picking among strummed chords");
+  const pitches = events.flatMap(event => event.type === "chord" ? event.pitches : [event.pitch]);
+  assert.ok(pitches.every(pitch => score.pitchNumber(pitch) >= 40), "no guitar pitch below E2");
+  assert.ok(events.filter(event => event.type === "chord").every(event => event.pitches.length <= 6));
+  assert.equal(tracks[2].patterns.sequence.length, 8);
+  assert.equal(tracks[2].patterns.patterns.length, 1, "the quiet beat remains one editable linked pattern");
+});
+
+test("guitar study settings and drum patterns are fresh for every preset load", () => {
+  const first = presets.create("guitarStrum", "en");
+  const second = presets.create("guitarStrum", "mn");
+  assert.notEqual(first[0].name, second[0].name);
+  assert.notEqual(first[0].guitar, second[0].guitar);
+  assert.notEqual(first[2].patterns, second[2].patterns);
+  first[0].guitar.mode = "up";
+  first[0].guitar.spacingMs = 60;
+  first[0].abc = "changed";
+  first[2].patterns.sequence.pop();
+  assert.deepEqual(second[0].guitar, { mode: "alternate", spacingMs: 20 });
+  const again = presets.create("guitarStrum", "en");
+  assert.deepEqual(again[0].guitar, second[0].guitar);
+  assert.equal(again[0].abc, second[0].abc);
+  assert.equal(again[2].patterns.sequence.length, 8);
 });

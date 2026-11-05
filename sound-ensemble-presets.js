@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Tsogt Gantumur
  * SPDX-License-Identifier: MIT
- * Rights-cleared melodies from Compose C1 with newly written educational accompaniment.
+ * Original studies and rights-cleared melodies with newly written educational accompaniment.
  * These are playable arrangements, not transcriptions of historical orchestrations.
  */
 (function (root, factory) {
@@ -16,6 +16,12 @@
 
   const CATALOG = Object.freeze([
     { id: "starter", en: "First exercise · 4 bars", mn: "Эхний дасгал · 4 такт" },
+    { id: "guitarStrum", category: "studies", en: "Guitar · Pick and strum (8 bars)",
+      mn: "Гитар · Цохих/татах (8 такт)",
+      description: Object.freeze({
+        en: "An original C–Am–F–G study: pick the opening notes, then alternate down/up chord strokes with single notes between them.",
+        mn: "Шинээр зохиосон C–Am–F–G дасгал: эхний нотуудыг нэг нэгээр нь татаж, дараа нь аккордыг доош, дээш ээлжлүүлэн цохино. Дунд нь дан нот орно."
+      }) },
     { id: "minuet", en: "Petzold · Minuet in G (32 bars)", mn: "Петцольд · Соль мажор менуэт (32 такт)" },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -25,6 +31,25 @@
     { id: "chopin20", en: "Chopin · Prelude Op. 28 No. 20 (complete, 13 bars)",
       mn: "Шопен · Прелюд Op. 28 №20 (бүтэн, 13 такт)" }
   ]);
+
+  const STRUM_STUDY = Object.freeze({
+    guitar: Object.freeze({ mode: "alternate", spacingMs: 20 }),
+    // Written open-position voicings; the part moves from picking to strumming
+    // without changing instrument or inventing pitches beyond the ABC chord.
+    notes: Object.freeze([
+      "C, E, G, C E C G, E,", "A,, E, A, C E C A, E,",
+      "F,2 [F,A,CF]2 [F,A,CF]2 [F,A,CF]2",
+      "G,,2 [G,,B,,D,G,B,G]2 [G,,B,,D,G,B,G]2 [G,,B,,D,G,B,G]2",
+      "[C,E,G,CE]2 [C,E,G,CE]2 C E [C,E,G,CE]2",
+      "[A,,E,A,CE]2 [A,,E,A,CE]2 C E [A,,E,A,CE]2",
+      "F, A, C F [F,A,CF]2 [F,A,CF]2",
+      "[G,,B,,D,G,B,G]2 B, D [C,E,G,CE]4"
+    ]),
+    bass: Object.freeze([
+      "C,4 G,4", "A,4 E,4", "F,4 C4", "G,4 D4",
+      "C,4 G,4", "A,4 E,4", "F,4 C4", "G,4 C,4"
+    ])
+  });
 
   const CHOPIN_SOURCE = Object.freeze({
     chopin7: "https://github.com/MutopiaProject/MutopiaProject/blob/master/ftp/ChopinFF/O28/Chop-28-7/Chop-28-7-lys/chopin_prelude_op28_no7.ly",
@@ -199,6 +224,29 @@
       }, []).map(line => line.join(" | ")).join(" |\n") + " |]\n% " + comment;
   }
 
+  function createGuitarStrum(language) {
+    const names = language === "en" ? ["Guitar · pick and strum", "Quiet bass", "Quiet drums"] :
+      ["Гитар · Цохих/татах", "Зөөлөн басс", "Зөөлөн бөмбөр"];
+    const note = "Original educational study written for Sound Lab; edit freely.";
+    const guitarABC = barsABC(1, "Picking and strumming - original guitar study", "4/4", "1/8",
+      100, "C", STRUM_STUDY.notes, note);
+    const bassABC = barsABC(2, "Picking and strumming - original bass", "4/4", "1/8",
+      100, "C", STRUM_STUDY.bass, note);
+    const drumABC = barsABC(3, "Picking and strumming - original quiet groove", "4/4", "1/8",
+      100, "C clef=perc", Array(8).fill("[CE]2 E2 [DE]2 E2"), note);
+    const patterns = drumPatterns.fromABC(drumABC);
+    return [
+      { id: 1, name: names[0], instrument: "guitar", volume: 62, mute: false, solo: false,
+        abc: guitarABC, guitar: { ...STRUM_STUDY.guitar } },
+      { id: 2, name: names[1], instrument: "triangle", volume: 18, mute: false, solo: false,
+        abc: bassABC },
+      { id: 3, name: names[2], instrument: "drums", volume: 18, mute: false, solo: false,
+        abc: drumPatterns.toABC(patterns), patterns, patternBar: 1,
+        patternId: drumPatterns.atBar(patterns, 1).pattern.id,
+        textMode: "pattern", patternDraft: null }
+    ];
+  }
+
   function createBella(language) {
     const names = language === "en" ? ["Melody", "Guitar accompaniment", "Bass", "Drums"] :
       ["Аялгуу", "Гитар дагалдах", "Басс", "Бөмбөр"];
@@ -240,6 +288,7 @@
   }
 
   function create(id, language = "mn") {
+    if (id === "guitarStrum") return createGuitarStrum(language);
     if (id === "bella") return createBella(language);
     if (Object.hasOwn(CHOPIN, id)) return createChopin(id, language);
     const piece = PIECES[id];

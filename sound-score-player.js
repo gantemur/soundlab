@@ -18,6 +18,8 @@
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
   const INSTRUMENTS = Object.freeze(["flute", "violin", "morin", "guitar", "piano", "chimes",
     ...WAVEFORMS, "fmep"]);
+  const GUITAR_MODES = Object.freeze(["pluck", "down", "up", "alternate"]);
+  const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
   const AHEAD_SECONDS = .23;
   const TICK_MS = 35;
 
@@ -25,21 +27,52 @@
     return scoreModel.frequency(event.pitch, tuning, 440, temperamentModel);
   }
 
-  function scheduledEvents(score, fromBeat = 0) {
+  function guitarSettings(guitar = DEFAULT_GUITAR) {
+    if (!guitar || typeof guitar !== "object" || Array.isArray(guitar)) {
+      throw new RangeError("Invalid guitar strum settings");
+    }
+    const { mode = DEFAULT_GUITAR.mode, spacingMs = DEFAULT_GUITAR.spacingMs } = guitar;
+    if (!GUITAR_MODES.includes(mode) || !Number.isFinite(spacingMs) ||
+        spacingMs < 0 || spacingMs > 60) {
+      throw new RangeError("Invalid guitar strum mode or spacing (0–60 ms)");
+    }
+    return { mode, spacingMs };
+  }
+
+  function scheduledEvents(score, fromBeat = 0, guitar = DEFAULT_GUITAR) {
     scoreModel.validate(score);
     if (!Number.isFinite(fromBeat) || fromBeat < 0 || fromBeat > score.totalBeats) {
       throw new RangeError("Invalid score offset");
     }
+    const technique = guitarSettings(guitar);
+    const spb = scoreModel.secondsPerBeat(score);
     const notes = [];
+    let chordIndex = 0;
     for (const event of score.parts[0].events) {
       if (event.type === "rest") continue;
       if (event.type === "chord") {
-        // One notated chord is one rhythmic event, but each pitch needs its
-        // own sounding voice. Keep their common attack and release times.
-        for (const pitch of event.pitches) {
-          const { pitches, ...notated } = event;
-          notes.push({ ...notated, type: "note", pitch: { ...pitch }, chordSize: pitches.length });
+        // Expand one written chord into exactly one voice per pitch. A strum
+        // changes attacks, never its pitches, voice count or written release.
+        const { pitches, ...notated } = event;
+        const ordered = [...pitches];
+        let stepBeats = 0;
+        if (technique.mode !== "pluck") {
+          ordered.sort((a, b) => scoreModel.pitchNumber(a) - scoreModel.pitchNumber(b));
+          if (technique.mode === "up" || (technique.mode === "alternate" && chordIndex % 2)) {
+            ordered.reverse();
+          }
+          // Fast, short chords must finish their sweep before the next event.
+          // Reserve at least half the written duration for every plucked note.
+          stepBeats = Math.min(technique.spacingMs / 1000 / spb,
+            event.durationBeats / (2 * (pitches.length - 1)));
         }
+        ordered.forEach((pitch, index) => {
+          const delayBeats = index * stepBeats;
+          notes.push({ ...notated, type: "note", pitch: { ...pitch }, chordSize: pitches.length,
+            startBeat: event.startBeat + delayBeats,
+            durationBeats: event.durationBeats - delayBeats });
+        });
+        chordIndex++;
         continue;
       }
       if (event.tieFromPrevious) {
@@ -49,9 +82,12 @@
         notes.push({ ...note, pitch: { ...event.pitch } });
       }
     }
-    // Keep the complete attack time when resuming inside a chain. The player
-    // clips its remaining duration and seeks percussive buffers from that time.
-    return notes.filter(event => event.startBeat + event.durationBeats > fromBeat);
+    // Keep each complete attack time when resuming inside a tie or strum.
+    // Expand the entire score first so alternating strokes also retain their
+    // direction after a seek. The scheduler seeks each percussive buffer from
+    // its own attack and leaves not-yet-plucked notes at their future times.
+    return notes.sort((a, b) => a.startBeat - b.startBeat)
+      .filter(event => event.startBeat + event.durationBeats > fromBeat);
   }
 
   class Player {
@@ -83,7 +119,7 @@
     }
 
     configure({ score, instrument = this.instrument, tuning = this.tuning,
-      volume = this.volume }) {
+      volume = this.volume, guitar = DEFAULT_GUITAR }) {
       scoreModel.validate(score);
       if (!INSTRUMENTS.includes(instrument) || !scoreModel.TUNINGS.includes(tuning) ||
           !Number.isFinite(volume) || volume < 0 || volume > 100) {
@@ -91,10 +127,11 @@
       }
       // Validate every note before starting AudioContext, rather than silently
       // transposing notes outside the working range of the instrument models.
-      const soundingEvents = scheduledEvents(score);
+      const technique = instrument === "guitar" ? guitarSettings(guitar) : DEFAULT_GUITAR;
+      const soundingEvents = scheduledEvents(score, 0, technique);
       for (const event of soundingEvents) {
         const hz = noteFrequency(event, tuning, this.temperamentModel);
-        const lower = instrument === "piano" ? 27.5 : scoreModel.MIN_NOTE_HZ;
+        const lower = instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ;
         const upper = instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
         if (hz < lower || hz > upper) {
           throw new RangeError(scoreModel.pitchName(event.pitch) + " (" + hz.toFixed(1) +
@@ -341,13 +378,14 @@
           score.meter.denominator !== first.meter.denominator) {
         throw new RangeError("All tracks must have the same M: and Q: tempo");
       }
-      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score) : scheduledEvents(score);
+      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score) :
+        scheduledEvents(score, 0, instrument === "guitar" ? track.guitar : DEFAULT_GUITAR);
       events += soundingEvents.length;
       totalBeats = Math.max(totalBeats, score.totalBeats);
       if (instrument === "drums") continue;
       for (const event of soundingEvents) {
         const hz = noteFrequency(event, tuning, temperamentModel);
-        const lower = instrument === "piano" ? 27.5 : scoreModel.MIN_NOTE_HZ;
+        const lower = instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ;
         const upper = instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
         if (hz < lower || hz > upper) {
           throw new RangeError(scoreModel.pitchName(event.pitch) + " is outside " + instrument +
@@ -377,7 +415,8 @@
       this.partSettings = tracks.map(t => ({ id: t.id, instrument: t.instrument, volume: t.volume,
         mute: Boolean(t.mute), solo: Boolean(t.solo) }));
       this.playEvents = tracks.flatMap((t, partIndex) => (t.instrument === "drums" ?
-        drumModel.scheduledEvents(t.score) : scheduledEvents(t.score)).map(event => ({
+        drumModel.scheduledEvents(t.score) : scheduledEvents(t.score, 0,
+          t.instrument === "guitar" ? t.guitar : DEFAULT_GUITAR)).map(event => ({
         ...event, partIndex
       }))).sort((a, b) => a.startBeat - b.startBeat || a.partIndex - b.partIndex);
     }
@@ -467,6 +506,7 @@
     }
   }
 
-  return Object.freeze({ INSTRUMENTS, AHEAD_SECONDS, MAX_PARTS, MAX_ENSEMBLE_EVENTS,
+  return Object.freeze({ INSTRUMENTS, GUITAR_MODES, DEFAULT_GUITAR, AHEAD_SECONDS,
+    MAX_PARTS, MAX_ENSEMBLE_EVENTS,
     noteFrequency, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

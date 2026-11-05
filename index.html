@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s048">
+  <link rel="stylesheet" href="sound-lab.css?v=s052">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
   <script src="sound-fm.js?v=s044" defer></script>
-  <script src="sound-transient.js?v=s044" defer></script>
+  <script src="sound-transient.js?v=s052" defer></script>
   <script src="sound-sustain.js?v=s020b" defer></script>
   <script src="sound-spectrum.js?v=s017" defer></script>
   <script src="sound-motion.js?v=s020c" defer></script>
@@ -28,10 +28,10 @@
   <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s047" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s051" defer></script>
-  <script src="sound-compose.js?v=s051" defer></script>
-  <script src="sound-ensemble-presets.js?v=s051" defer></script>
-  <script src="sound-ensemble.js?v=s051" defer></script>
+  <script src="sound-score-player.js?v=s052" defer></script>
+  <script src="sound-compose.js?v=s052" defer></script>
+  <script src="sound-ensemble-presets.js?v=s052" defer></script>
+  <script src="sound-ensemble.js?v=s052" defer></script>
   <script src="sound-lab.js?v=s045" defer></script>
 </head>
 <body>
@@ -1324,6 +1324,7 @@
               <option value="rests" data-compose-i18n="exampleRests">Нот ба завсарлага</option>
               <option value="waltz" data-compose-i18n="exampleWaltz">Соль мажор вальс</option>
               <option value="minor" data-compose-i18n="exampleMinor">Минор аялгуу</option>
+              <option value="strum" data-compose-i18n="exampleStrum">Гитар · Цохих/татах (4 такт)</option>
             </optgroup>
             <optgroup label="Сонгодог хөгжим" data-compose-group-i18n="exampleClassics">
               <option value="ode" data-compose-i18n="exampleOde">Бетховен · Баяр баясгалангийн магтуу (16 такт)</option>
@@ -1378,6 +1379,20 @@
           <button id="composeStop" class="compose-stop" type="button">■ Зогсоох</button>
         </div>
         <p id="composeStatus" class="audio-status" role="status" aria-live="polite">Бэлэн. Аяыг өөрчлөх эсвэл тоглуулаарай.</p>
+        <div id="composeGuitarControls" class="guitar-technique" hidden>
+          <label class="field-title" for="composeGuitarMode" data-compose-i18n="guitarTechnique">Гитар тоглох арга</label>
+          <select id="composeGuitarMode" aria-describedby="composeGuitarHint">
+            <option value="pluck" data-compose-i18n="guitarPluck">Зэрэг татах</option>
+            <option value="down" data-compose-i18n="guitarDown">↓ Доош цохих</option>
+            <option value="up" data-compose-i18n="guitarUp">↑ Дээш цохих</option>
+            <option value="alternate" data-compose-i18n="guitarAlternate">↓↑ Ээлжлэн цохих</option>
+          </select>
+          <div id="composeGuitarSpacingGroup" class="guitar-spacing" hidden>
+            <div class="field-title"><label for="composeGuitarSpacing" data-compose-i18n="guitarSpacing">Нот хоорондын зай</label><output id="composeGuitarSpacingValue" for="composeGuitarSpacing">20 мсек</output></div>
+            <input id="composeGuitarSpacing" type="range" min="0" max="60" step="1" value="20">
+          </div>
+          <p id="composeGuitarHint" class="field-help" data-compose-i18n="guitarHint">Аккордыг цохино; дан нот тусдаа татагдана.</p>
+        </div>
         <div class="field-group">
           <div class="field-title"><label for="composeVolume" data-compose-i18n="volume">Дууны хэмжээ</label><output id="composeVolumeValue">38%</output></div>
           <input id="composeVolume" type="range" min="0" max="100" step="1" value="38">
@@ -1424,6 +1439,7 @@
             <select id="ensemblePreset">
               <optgroup label="Дасгал" data-ensemble-group-i18n="presetStudies">
                 <option value="starter">Эхний дасгал · 4 такт</option>
+                <option value="guitarStrum">Гитар · Цохих/татах (8 такт)</option>
               </optgroup>
               <optgroup label="Сонгодог хөгжим" data-ensemble-group-i18n="presetClassics">
                 <option value="minuet">Петцольд · Соль мажор менуэт (32 такт)</option>

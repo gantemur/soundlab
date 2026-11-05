@@ -53,7 +53,9 @@
     if (!Number.isFinite(decaySec) || decaySec < MIN_DECAY || decaySec > MAX_DECAY) {
       throw new RangeError("Decay outside the supported range");
     }
-    const lowPitch = kind === "piano" ? 27.5 : MIN_PITCH_HZ;
+    // Compose guitar chords include the open low E (about 82 Hz). The string
+    // model already supports this range; keep the exploratory slider unchanged.
+    const lowPitch = kind === "piano" ? 27.5 : kind === "pluck" ? 80 : MIN_PITCH_HZ;
     const highPitch = kind === "piano" ? 1760 : MAX_PITCH_HZ;
     if ((kind === "pluck" || kind === "piano") &&
         (!Number.isFinite(pitchHz) || pitchHz < lowPitch || pitchHz > highPitch)) {

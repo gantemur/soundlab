@@ -358,6 +358,13 @@ h1, h2, p { margin-top: 0; }
   border: 1px solid #bad2e8; border-radius: 9px; color: #2c5379; background: #f8fbff;
   padding: 9px; font-weight: 700; font-size: 12px; }
 .compose-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.guitar-technique { min-width: 0; border: 1px solid #ccdfe9; border-radius: 9px;
+  padding: 10px; background: #f3faf9; }
+.guitar-technique .field-help { margin: 7px 0 0; }
+.guitar-spacing { margin-top: 9px; }
+.guitar-spacing .field-title { gap: 8px; font-size: 12px; }
+.guitar-spacing output { white-space: nowrap; }
+.guitar-spacing input { display: block; width: 100%; }
 .compose-visuals .chart-heading { display: block; }
 #composeMeta { display: inline-block; max-width: 100%; margin-top: 10px; border-radius: 10px;
   white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }

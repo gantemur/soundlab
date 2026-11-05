@@ -41,7 +41,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="fixedTimeCheck" checked/);
   assert.match(html, /src="sound-string\.js\?v=s037"/);
   assert.match(html, /src="sound-piano\.js\?v=s019"/);
-  assert.match(html, /src="sound-transient\.js\?v=s044"/);
+  assert.match(html, /src="sound-transient\.js\?v=s052"/);
   assert.match(html, /src="sound-sustain\.js\?v=s020b"/);
   assert.match(html, /src="sound-spectrum\.js\?v=s017"/);
   assert.match(html, /src="sound-motion\.js\?v=s020c"/);
@@ -58,14 +58,14 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s047"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s051"/);
-  assert.match(html, /src="sound-compose\.js\?v=s051"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s051"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s051"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s052"/);
+  assert.match(html, /src="sound-compose\.js\?v=s052"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s052"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s052"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s048"/);
+  assert.match(html, /href="sound-lab\.css\?v=s052"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
   assert.match(html, /src="sound-recorder\.js"/);
@@ -526,7 +526,7 @@ function fakePage(search = "", supportWorklets = true) {
       const source = {
         buffer: null, started: false, stopped: false,
         connect() {}, disconnect() {},
-        start() { this.started = true; },
+        start(at, offset = 0) { this.started = true; this.startedAt = at; this.offset = offset; },
         stop() {
           this.stopped = true;
           if (this.onended) this.onended();
@@ -2747,6 +2747,84 @@ test("published melody choices, including Russian folk tunes, load silently and 
     "Language switching preserves the instrument chosen after loading a preset");
   assert.equal(app.elements.get("composeSource").textContent, "Нотын эх сурвалж");
   assert.equal(app.contexts.length, 0);
+});
+
+test("Compose guitar controls preserve technique across language/instrument changes and stop every strummed voice", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  assert.equal(app.elements.get("composeGuitarControls").hidden, true);
+  app.elements.get("composeExample").value = "strum";
+  app.fire("composeExample", "change");
+  assert.equal(app.elements.get("composeInstrument").value, "guitar");
+  assert.equal(app.elements.get("composeGuitarControls").hidden, false);
+  assert.equal(app.elements.get("composeGuitarMode").value, "alternate");
+  assert.equal(app.elements.get("composePlayPause").disabled, false, "Low G2 in the exercise is supported");
+  assert.equal(app.contexts.length, 0);
+  app.elements.get("composeGuitarSpacing").value = "30";
+  app.fire("composeGuitarSpacing", "input");
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("composeGuitarSpacingValue").textContent, "30 ms");
+  app.elements.get("composeInstrument").value = "piano";
+  app.fire("composeInstrument", "change");
+  assert.equal(app.elements.get("composeGuitarControls").hidden, true);
+  app.elements.get("composeInstrument").value = "guitar";
+  app.fire("composeInstrument", "change");
+  assert.equal(app.elements.get("composeGuitarMode").value, "alternate");
+  assert.equal(app.elements.get("composeGuitarSpacing").value, "30");
+  const source = "M:4/4\nL:1/4\nQ:1/4=100\nK:C\n[C,E,G,CE]4 |]";
+  await app.fire("composeLoad", "change", { target: { files: [{ name: "chord.abc", size: source.length,
+    text: async () => source }] } });
+  await app.fire("composePlayPause", "click");
+  const voices = app.contexts[0].sources;
+  assert.equal(voices.length, 5);
+  for (let i = 1; i < voices.length; i++) {
+    assert.ok(Math.abs(voices[i].startedAt - voices[i - 1].startedAt - .03) < 1e-8,
+      "The chosen spacing reaches the audio scheduler");
+  }
+  app.fire("stopAll", "click");
+  assert.ok(voices.every(voice => voice.stopped), "Global Stop includes delayed string attacks");
+  app.elements.get("composeGuitarMode").value = "pluck";
+  app.fire("composeGuitarMode", "change");
+  assert.equal(app.elements.get("composeGuitarSpacingGroup").hidden, true);
+});
+
+test("ensemble guitar controls belong to one track, survive selection/language changes, and reset on preset load", () => {
+  const app = fakePage();
+  const descendants = node => [node, ...node.children.flatMap(descendants)];
+  const guitarControls = () => {
+    const nodes = descendants(app.elements.get("ensembleTrackList"));
+    return { mode: nodes.find(node => node.className === "ensemble-guitar-mode"),
+      spacing: nodes.find(node => node.className === "ensemble-guitar-spacing") };
+  };
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "guitarStrum";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 3);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.equal(guitarControls().mode.value, "alternate");
+  let controls = guitarControls();
+  controls.mode.value = "up";
+  controls.mode.events.change();
+  assert.equal(guitarControls().mode, controls.mode, "Changing direction keeps the keyboard-focused select");
+  controls = guitarControls();
+  controls.spacing.value = "45";
+  controls.spacing.events.input();
+  assert.equal(guitarControls().spacing, controls.spacing, "Dragging does not rebuild or lose the slider");
+  app.elements.get("ensembleTrackList").children[1].children[0].children[0].click();
+  assert.match(app.elements.get("ensembleText").value, /original bass/);
+  app.fire("langEn", "click");
+  controls = guitarControls();
+  assert.equal(controls.mode.value, "up");
+  assert.equal(controls.spacing.value, "45");
+  assert.match(controls.mode.getAttribute("aria-label"), /Guitar technique/);
+  assert.equal(app.contexts.length, 0, "Changing technique or language never autoplays");
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(guitarControls().mode.value, "alternate");
+  assert.equal(guitarControls().spacing.value, "20");
+  app.elements.get("ensemblePreset").value = "chopin7";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(guitarControls().mode, undefined, "Piano tracks have no guitar controls");
 });
 
 test("Compose draws ties across staff rows and keeps long-score playback visible", async () => {
