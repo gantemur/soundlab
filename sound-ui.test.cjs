@@ -61,7 +61,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score-player\.js\?v=s047"/);
   assert.match(html, /src="sound-compose\.js\?v=s045b"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s046"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s049"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s050"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
@@ -3258,6 +3258,8 @@ test("D1 pattern menu assigns a reusable rhythm to the chosen bar and T: renames
   app.elements.get("ensemblePatternBar").value = "2";
   app.fire("ensemblePatternBar", "change");
   app.fire("ensemblePatternUnique", "click");
+  assert.deepEqual(app.elements.get("ensemblePatternChoice").children.map(option => option.textContent),
+    ["A", "B"], "Pattern choices show only names, not bar counts");
   app.elements.get("ensembleGridCells").children[4].children[1].children[7].click();
   app.elements.get("ensemblePatternBar").value = "4";
   app.fire("ensemblePatternBar", "change");
@@ -3283,7 +3285,7 @@ test("D1 pattern menu assigns a reusable rhythm to the chosen bar and T: renames
   await new Promise(resolve => setTimeout(resolve, 220));
   assert.deepEqual(app.elements.get("ensemblePatternArrangement").children.map(el => el.textContent),
     ["A", "DDDD", "A", "DDDD"]);
-  assert.match(app.elements.get("ensemblePatternChoice").children[1].textContent, /DDDD/);
+  assert.equal(app.elements.get("ensemblePatternChoice").children[1].textContent, "DDDD");
   app.elements.get("ensemblePatternBar").value = "2";
   app.fire("ensemblePatternBar", "change");
   assert.equal(app.elements.get("ensemblePatternChoice").value, "2", "The renamed pattern stays linked");
@@ -3298,6 +3300,8 @@ test("D1 rejects a too-long pattern assignment without changing the current song
   app.fire("ensembleAddDrums", "click");
   app.elements.get("ensemblePatternLength").value = "2";
   app.fire("ensemblePatternGroup", "click"); // Pattern B covers bars 1–2.
+  assert.deepEqual(app.elements.get("ensemblePatternChoice").children.map(option => option.textContent),
+    ["A", "B"], "Multi-bar patterns also show only their names");
   app.elements.get("ensemblePatternBar").value = "4";
   app.fire("ensemblePatternBar", "change");
   assert.equal(app.elements.get("ensemblePatternChoice").value, "1");
