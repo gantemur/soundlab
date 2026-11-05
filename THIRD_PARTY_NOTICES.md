@@ -15,6 +15,9 @@ shown in Compose and appended as comments to each editable score:
 | Mozart — Symphony 40, K. 550 | [Violin LilyPond source](https://github.com/musicologyman-teaching/mozart-k-550/blob/master/mozart-k-550-for-listening-i.ly); 20-bar first-subject excerpt, one octave lower, no accompaniment |
 | Traditional — Frère Jacques | [Noctave CC0 score](https://noctavepiano.com/en/sheet-music/trad-frere-jacques/), one melody statement |
 | Traditional — Twinkle / Ah! vous dirai-je, maman | [Noctave CC0 score](https://noctavepiano.com/en/sheet-music/trad-ah-vous-dirai-je-maman/), plain tune, no Suzuki variations |
+| Traditional — Коробейники (Korobeiniki) | [Jack Campin's folk-tune ABC](https://abcnotation.com/tunePage?a=trillian.mit.edu%2F~jc%2Fmusic%2Fabc%2Fmirror%2Fcampin.me.uk%2FChalumeau_55%2F0417), checked against [a second traditional variant](https://abcnotation.com/tunePage?a=thesession.org%2Ftunes%2F13747.no-ext%2F0001); 16-bar melody in D minor, no accompaniment |
+| Ivan Larionov — Калинка (Kalinka, 1860) | [Traditional E-minor ABC performance variant](https://abcnotation.com/tunePage?a=trillian.mit.edu%2F~jc%2Fmusic%2Fabc%2Fsong%2FKalinka_Em%2F0000); 27 notated bars with a pickup, refrain and verse, no chord accompaniment or fermatas |
+| Traditional — Во поле берёза стояла | [Wikisource's folk melody in ABC](https://ru.wikisource.org/wiki/Справка:Ноты#Нотация_ABC); four-bar stanza repeated once, octave lowered for morin khuur |
 
 These melodies are not modern copyrighted recordings, complete orchestral
 scores or copies of a Suzuki edition. Public-domain status of an underlying
@@ -25,3 +28,5 @@ research are recorded privately in `gantemur/soundlab-private/music/abc/`.
 The MIT license covers the independently authored Sound Lab application
 code and documentation; it is not a claim of ownership over the underlying
 musical compositions, original editions or separately authored transcriptions.
+The 1941 composition *Священная война* is deliberately **not** included:
+its international copyright status remains unresolved.

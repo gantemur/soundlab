@@ -51,7 +51,20 @@
     twinkle: "X:10\nT:Twinkle, Twinkle - traditional\nM:4/4\nL:1/4\nQ:1/4=100\nK:C\n" +
       "C C G G | A A G2 | F F E E | D D C2 |\n" +
       "G G F F | E E D2 | G G F F | E E D2 |\n" +
-      "C C G G | A A G2 | F F E E | D D C2 |]"
+      "C C G G | A A G2 | F F E E | D D C2 |]",
+    korobeiniki: "X:11\nT:Korobeiniki - Russian traditional melody\nM:2/4\nL:1/8\nQ:1/4=96\nK:Dm\n" +
+      "A2 EF | G2 FE | D2 DF | A2 GF | E3 F | G2 A2 | F2 D2 | D2 z2 |\n" +
+      "G2- G B | d2 c B | A3 F | A2 G F | E2 E F | G2 A2 | F2 D2 | D2 z2 |]",
+    kalinka: "X:12\nT:Kalinka - Ivan Larionov (refrain and verse)\nM:2/4\nL:1/8\nQ:1/4=112\nK:Em\n" +
+      "B2 | A2 FG | A2 FG | A2 GF | E2 BB | A3/2 G/2 FG | A2 FG | A2 GF | E4 |\n" +
+      "e4 | d4 |\n" +
+      "Bd cB/A/ | G2 D2 | Bd cB/A/ | G2 D2 | E2 EF | AG FE | D2 D2 | D2 d2 |\n" +
+      "Bd AB | G2 D2 | Bd AB | G2 D2 | E2 EF | AG FE | d2 c2 | B4 |]",
+    birch: "X:13\nT:Vo pole beryoza stoyala - Russian folk melody\nM:6/4\nL:1/8\nQ:1/4=120\nK:Am\n" +
+      "E E E E D2 C C B,2 A,2 | E E G E D D C C B,2 A,2 |\n" +
+      "B,3 C D2 C C B,2 A,2 | B, B, B, C D D C C B,2 A,2 |\n" +
+      "E E E E D2 C C B,2 A,2 | E E G E D D C C B,2 A,2 |\n" +
+      "B,3 C D2 C C B,2 A,2 | B, B, B, C D D C C B,2 A,2 |]"
   });
 
   const EXAMPLE_INFO = Object.freeze({
@@ -78,7 +91,21 @@
     twinkle: { instrument: "chimes", composer: "Traditional French melody", originalKey: "Traditional; C major version",
       source: "https://noctavepiano.com/en/sheet-music/trad-ah-vous-dirai-je-maman/",
       en: "The traditional tune in C major, without Suzuki's variations.",
-      mn: "До мажор дахь ардын ая; Сүзүкийн хувилбарууд ороогүй." }
+      mn: "До мажор дахь ардын ая; Сүзүкийн хувилбарууд ороогүй." },
+    korobeiniki: { instrument: "piano", composer: "Russian traditional tune (late 19th century)",
+      originalKey: "Traditional; D minor version",
+      source: "https://abcnotation.com/tunePage?a=trillian.mit.edu%2F~jc%2Fmusic%2Fabc%2Fmirror%2Fcampin.me.uk%2FChalumeau_55%2F0417",
+      en: "A complete 16-bar folk melody in D minor, also known from Tetris. The ornamental turn is omitted.",
+      mn: "Тетрис тоглоомоор ч танил болсон Ре минор ардын ая; 16 такт, чимэглэлийн нэг нугалааг орхисон." },
+    kalinka: { instrument: "violin", composer: "Ivan Larionov (1860)",
+      originalKey: "Original key unverified; E minor / G major source version",
+      source: "https://abcnotation.com/tunePage?a=trillian.mit.edu%2F~jc%2Fmusic%2Fabc%2Fsong%2FKalinka_Em%2F0000",
+      en: "Refrain and contrasting verse, E minor / G major; a steady tempo replaces fermatas and repeats.",
+      mn: "Ми минор/Соль мажор дахь дахилт ба бадаг; фермат, давталтыг орхиж, нэг хурдаар тоглоно." },
+    birch: { instrument: "morin", composer: "Traditional Russian folk song", originalKey: "Traditional; A minor version",
+      source: "https://ru.wikisource.org/wiki/Справка:Ноты#Нотация_ABC",
+      en: "A four-bar folk stanza played twice, in A minor one octave lower than the linked example.",
+      mn: "Ля минор ардын дууны дөрвөн такттай бадгийг хоёр давтсан; эх нотны жишээнээс нэг октав доошлуулсан." }
   });
 
   // ABC comments keep provenance with the editable or privately collected score.
@@ -102,6 +129,9 @@
       exampleMozart40: "Mozart · Symphony No. 40 (20-bar theme)",
       exampleFrere: "Frère Jacques · folk (8 bars)",
       exampleTwinkle: "Twinkle, Twinkle · folk (12 bars)",
+      exampleKorobeiniki: "Korobeiniki · Russian folk (16 bars)",
+      exampleKalinka: "Kalinka · Larionov (27-bar melody)",
+      exampleBirch: "A Birch Stood in the Field · folk (8 bars)",
       instrument: "Instrument", flute: "Flute", violin: "Violin", morin: "Morin khuur",
       guitar: "Guitar", piano: "Piano", chimes: "Chimes",
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean",
@@ -134,6 +164,9 @@
       exampleMozart40: "Моцарт · 40-р симфони (20 тактын сэдэв)",
       exampleFrere: "Фрэр Жак · ардын дуу (8 такт)",
       exampleTwinkle: "Гялалзах одод · ардын дуу (12 такт)",
+      exampleKorobeiniki: "Коробейники · орос ардын дуу (16 такт)",
+      exampleKalinka: "Калинка · Ларионов (27 такт)",
+      exampleBirch: "Во поле берёза стояла · ардын дуу (8 такт)",
       instrument: "Хөгжмийн зэмсэг", flute: "Лимбэ", violin: "Хийл", morin: "Морин хуур",
       guitar: "Гитар", piano: "Төгөлдөр хуур", chimes: "Хоолойт хонх",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын",

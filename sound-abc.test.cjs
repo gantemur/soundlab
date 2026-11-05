@@ -18,12 +18,14 @@ test("all Compose examples are valid measured single-part scores", () => {
     assert.equal(parsed.version, 1, name);
     assert.equal(parsed.parts.length, 1, name);
     const expectedBars = { ode: 16, minuetG: 32, lightly: 16, mozart40: 20,
-      frere: 8, twinkle: 12 }[name] || 4;
+      frere: 8, twinkle: 12, korobeiniki: 16, kalinka: 27, birch: 8 }[name] || 4;
     assert.equal(parsed.bars.length, expectedBars, name);
     assert.equal(parsed.totalBeats, name === "waltz" ? 12 :
       name === "minuetG" ? 96 : name === "lightly" ? 32 :
       name === "mozart40" ? 80 : name === "frere" ? 32 :
-      name === "twinkle" ? 48 : name === "ode" ? 64 : 16, name);
+      name === "twinkle" ? 48 : name === "ode" ? 64 :
+      name === "korobeiniki" ? 32 : name === "kalinka" ? 53 :
+      name === "birch" ? 48 : 16, name);
     assert.equal(parsed.parts[0].events[0].startBeat, 0, name);
     assert.equal(parsed.parts[0].events.at(-1).startBeat +
       parsed.parts[0].events.at(-1).durationBeats, parsed.totalBeats, name);
@@ -52,6 +54,34 @@ test("published melodies preserve musical signatures rather than replacing them 
   const minuet = abc.parse(EXAMPLES.minuetG);
   assert.equal(minuet.key.name, "G");
   assert.equal(score.pitchName(minuet.parts[0].events.at(-1).pitch), "G3");
+});
+
+test("Russian folk presets retain their source phrases, pickup, cadence and repeated stanza", () => {
+  const korobeiniki = abc.parse(EXAMPLES.korobeiniki);
+  assert.equal(korobeiniki.key.name, "Dm");
+  assert.deepEqual(korobeiniki.parts[0].events.slice(0, 4).map(e => score.pitchName(e.pitch)),
+    ["A4", "E4", "F4", "G4"]);
+  assert.equal(score.pitchName(korobeiniki.parts[0].events.at(-2).pitch), "D4");
+  assert.equal(korobeiniki.parts[0].events.at(-1).type, "rest");
+
+  const kalinka = abc.parse(EXAMPLES.kalinka);
+  assert.equal(kalinka.key.name, "Em");
+  assert.equal(kalinka.bars[0].pickup, true);
+  assert.equal(kalinka.bars[0].durationBeats, 1);
+  assert.deepEqual(kalinka.parts[0].events.slice(0, 4).map(e => score.pitchName(e.pitch)),
+    ["B4", "A4", "F♯4", "G4"]);
+  assert.equal(score.pitchName(kalinka.parts[0].events.at(-1).pitch), "B4");
+
+  const birch = abc.parse(EXAMPLES.birch);
+  assert.equal(birch.key.name, "Am");
+  assert.deepEqual(birch.parts[0].events.slice(0, 4).map(e => score.pitchName(e.pitch)),
+    ["E4", "E4", "E4", "E4"]);
+  assert.deepEqual(birch.parts[0].events.filter(e => e.bar <= 4).map(e =>
+    [score.pitchName(e.pitch), e.durationBeats]),
+  birch.parts[0].events.filter(e => e.bar >= 5).map(e =>
+    [score.pitchName(e.pitch), e.durationBeats]),
+  "The traditional four-bar stanza is repeated exactly");
+  assert.equal(score.pitchName(birch.parts[0].events.at(-1).pitch), "A3");
 });
 
 test("ABC note values, rests, split bars and double bars preserve exact timing", () => {
