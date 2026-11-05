@@ -154,7 +154,7 @@
       parseError: "Score error", rangeError: "Note outside the selected instrument's range",
       bar: "Bar", rest: "Rest", notes: "notes", bars: "bars", seconds: "sec",
       empty: "No valid score yet", now: "Now", model: "Modeled instruments · one part · ABC subset",
-      footer: "C1 plays one melody at a time. More instrument parts, chords and percussion rhythms will come in later passes; graphical note editing is optional."
+      footer: "This tab plays one melody with its readable staff. The Many instruments tab can play several ABC parts together. Chords and drum patterns are planned for later."
     },
     mn: {
       mode: "Ая зохиох", phase: "07 · Ая зохиох", title: "Аялгуу зохиох",
@@ -194,7 +194,7 @@
       parseError: "Нотын бичгийн алдаа", rangeError: "Нотын өндөр сонгосон зэмсгийн хүрээнээс хэтэрлээ",
       bar: "Такт", rest: "Завсарлага", notes: "нот", bars: "такт", seconds: "сек",
       empty: "Зөв аялгуу хараахан байхгүй", now: "Одоо", model: "Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ",
-      footer: "C1-д нэг аялгуу тоглоно. Дараа нь олон хөгжмийн хоолой, аккорд, цохивор хэмнэл нэмж болно; дүрсээр нот засах хэсгийг хойшлуулж болно."
+      footer: "Энд нэг аялгууг нотын мөртэй нь тоглуулна. Олон хөгжим хэсэгт хэд хэдэн ABC аялгууг зэрэг тоглуулж болно. Аккорд, бөмбөрийн хэмнэлийг дараа нэмнэ."
     }
   });
 

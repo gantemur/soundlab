@@ -27,7 +27,7 @@
   <script src="sound-score.js?v=s040a" defer></script>
   <script src="sound-abc.js?v=s040a" defer></script>
   <script src="sound-score-player.js?v=s045" defer></script>
-  <script src="sound-compose.js?v=s045" defer></script>
+  <script src="sound-compose.js?v=s045b" defer></script>
   <script src="sound-ensemble.js?v=s045" defer></script>
   <script src="sound-lab.js?v=s045" defer></script>
 </head>
@@ -1399,7 +1399,7 @@
         </section>
         <section class="panel chart-panel compose-help-panel" aria-labelledby="compose-help-title">
           <h2 id="compose-help-title" data-compose-i18n="model">Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ</h2>
-          <p data-compose-i18n="footer">C1-д нэг аялгуу тоглоно. Дараа нь олон хөгжмийн хоолой, аккорд, цохивор хэмнэл нэмж болно.</p>
+          <p data-compose-i18n="footer">Энд нэг аялгууг нотын мөртэй нь тоглуулна. Олон хөгжим хэсэгт хэд хэдэн ABC аялгууг зэрэг тоглуулж болно.</p>
         </section>
       </div>
     </div>
@@ -1441,7 +1441,7 @@
         <section class="panel chart-panel" aria-labelledby="ensembleEditorTitle">
           <div class="compose-score-editor">
             <h2 id="ensembleEditorTitle">Сонгосон хөгжмийн ABC нот</h2>
-            <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-describedby="ensembleHelp"></textarea>
+            <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-labelledby="ensembleEditorTitle" aria-describedby="ensembleHelp"></textarea>
             <p class="field-help" id="ensembleHelp" data-ensemble-i18n="help">Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. M: хэмжээ ба Q: хурд ижил байх ёстой.</p>
             <label class="compose-file-button" for="ensembleLoad" data-ensemble-i18n="import">.abc / .txt файл нээх</label>
             <input id="ensembleLoad" class="sr-only" type="file" accept=".abc,.txt,text/plain" aria-label="Import ABC for selected part">
