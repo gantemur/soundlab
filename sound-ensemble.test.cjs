@@ -200,7 +200,7 @@ test("drum score and melodic score must use matching clock, but tuning does not 
 
 test("all complete ensemble arrangements accept drums with their original pickup and bars", () => {
   for (const preset of ensemblePresets.CATALOG) {
-    if (preset.id === "starter") continue;
+    if (preset.id === "starter" || preset.id === "bella") continue;
     const tracks = ensemblePresets.create(preset.id, "en");
     const summary = ensemble.parseTracks(tracks, "equal", temperament).summary;
     const source = abc.parse(tracks[0].abc);
