@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s046">
+  <link rel="stylesheet" href="sound-lab.css?v=s047">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -26,10 +26,11 @@
   <script src="sound-recorder.js" defer></script>
   <script src="sound-score.js?v=s040a" defer></script>
   <script src="sound-abc.js?v=s040a" defer></script>
-  <script src="sound-score-player.js?v=s045" defer></script>
+  <script src="sound-drum-abc.js?v=s047" defer></script>
+  <script src="sound-score-player.js?v=s047" defer></script>
   <script src="sound-compose.js?v=s045b" defer></script>
   <script src="sound-ensemble-presets.js?v=s046" defer></script>
-  <script src="sound-ensemble.js?v=s046" defer></script>
+  <script src="sound-ensemble.js?v=s047" defer></script>
   <script src="sound-lab.js?v=s045" defer></script>
 </head>
 <body>
@@ -1439,7 +1440,10 @@
         <p id="ensembleStatus" class="audio-status" role="status" aria-live="polite">Бэлэн.</p>
         <div class="ensemble-tracks-heading">
           <h3 data-ensemble-i18n="track">Хөгжим</h3>
-          <button type="button" id="ensembleAdd" data-ensemble-i18n="add">+ Хөгжим нэмэх</button>
+          <div class="ensemble-add-buttons">
+            <button type="button" id="ensembleAdd" data-ensemble-i18n="add">+ Аялгуу нэмэх</button>
+            <button type="button" id="ensembleAddDrums" data-ensemble-i18n="addDrums">+ Бөмбөр нэмэх</button>
+          </div>
         </div>
         <div id="ensembleTrackList" class="ensemble-track-list" aria-label="Instrument tracks"></div>
       </section>
@@ -1457,10 +1461,31 @@
             <h2 id="ensembleEditorTitle">Сонгосон хөгжмийн ABC нот</h2>
             <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-labelledby="ensembleEditorTitle" aria-describedby="ensembleHelp"></textarea>
             <p class="field-help" id="ensembleHelp" data-ensemble-i18n="help">Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. M: хэмжээ ба Q: хурд ижил байх ёстой.</p>
+            <p class="field-help" id="ensembleDrumHint" data-ensemble-i18n="drumHelp" hidden>C их бөмбөр, D жижиг бөмбөр, E хаалттай цан, F нээлттэй цан, G модон цохилуур.</p>
             <label class="compose-file-button" for="ensembleLoad" data-ensemble-i18n="import">.abc / .txt файл нээх</label>
             <input id="ensembleLoad" class="sr-only" type="file" accept=".abc,.txt,text/plain" aria-label="Import ABC for selected part">
-            <p class="field-help" data-ensemble-i18n="limits">4 хүртэл зэмсэг, нийт 512 нот/завсарлага, 90 секунд. Олон хоолойтой ABC болон бөмбөрийн хэмнэлийг дараа нэмнэ.</p>
+            <p class="field-help" data-ensemble-i18n="limits">4 хүртэл мөр, нийт 1024 нот/цохилт, 90 секунд.</p>
           </div>
+          <details id="ensembleDrumGrid" class="ensemble-drum-details" hidden>
+            <summary data-ensemble-i18n="grid">Бөмбөрийн тор · хүсвэл нээх</summary>
+            <p class="field-help" data-ensemble-i18n="gridHint">Нүдийг дарж цохилт нэмнэ/хасна. ABC бичиг ба тор нэг хэмнэлтэй.</p>
+            <div class="ensemble-grid-controls">
+              <label><span data-ensemble-i18n="gridBar">Такт</span><select id="ensembleGridBar"></select></label>
+              <label><span data-ensemble-i18n="gridStep">Алхам</span><select id="ensembleGridStep">
+                <option value="8" data-ensemble-i18n="gridEighth">Наймт</option>
+                <option value="16" data-ensemble-i18n="gridSixteenth" selected>Арван зургаат</option>
+              </select></label>
+              <label><span data-ensemble-i18n="gridStrength">Цохилтын хүч</span><select id="ensembleGridStrength">
+                <option value="p" data-ensemble-i18n="gridSoft">Зөөлөн</option>
+                <option value="normal" data-ensemble-i18n="gridNormal" selected>Энгийн</option>
+                <option value="accent" data-ensemble-i18n="gridAccent">Хүчтэй</option>
+              </select></label>
+            </div>
+            <p id="ensembleGridMessage" class="field-help" role="status" aria-live="polite"></p>
+            <div class="ensemble-grid-scroll" tabindex="0" aria-label="Editable drum pattern">
+              <div id="ensembleGridCells" class="ensemble-drum-grid"></div>
+            </div>
+          </details>
         </section>
       </div>
     </div>

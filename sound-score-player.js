@@ -7,10 +7,12 @@
     require("./sound-score.js") : root.SoundLabScore;
   const fmModel = typeof module === "object" && module.exports ?
     require("./sound-fm.js") : root.SoundLabFM;
-  const api = factory(scoreModel, fmModel);
+  const drumModel = typeof module === "object" && module.exports ?
+    require("./sound-drum-abc.js") : root.SoundLabDrumABC;
+  const api = factory(scoreModel, fmModel, drumModel);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabScorePlayer = api;
-})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel) {
+})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel) {
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
@@ -308,17 +310,19 @@
   }
 
   const MAX_PARTS = 4;
-  const MAX_ENSEMBLE_EVENTS = 512;
+  const MAX_ENSEMBLE_EVENTS = 1024;
   function validateEnsemble(tracks, tuning = "equal", temperamentModel) {
     if (!Array.isArray(tracks) || tracks.length < 1 || tracks.length > MAX_PARTS ||
-        !scoreModel.TUNINGS.includes(tuning)) throw new RangeError("Use 1–4 melodic tracks and a supported tuning");
+        !scoreModel.TUNINGS.includes(tuning)) throw new RangeError("Use 1–4 tracks and a supported tuning");
     const first = tracks[0]?.score;
     if (!first) throw new Error("Missing ABC score");
     let events = 0, totalBeats = 0;
     for (const track of tracks) {
       const { score, instrument, volume } = track;
-      scoreModel.validate(score);
-      if (!INSTRUMENTS.includes(instrument) || !Number.isFinite(volume) || volume < 0 || volume > 100) {
+      if (instrument === "drums") drumModel.validate(score);
+      else scoreModel.validate(score);
+      if (!(instrument === "drums" || INSTRUMENTS.includes(instrument)) ||
+          !Number.isFinite(volume) || volume < 0 || volume > 100) {
         throw new RangeError("Invalid track instrument or volume");
       }
       if (score.tempoQuarter !== first.tempoQuarter ||
@@ -326,8 +330,9 @@
           score.meter.denominator !== first.meter.denominator) {
         throw new RangeError("All tracks must have the same M: and Q: tempo");
       }
-      events += score.parts[0].events.length;
+      events += instrument === "drums" ? drumModel.scheduledEvents(score).length : score.parts[0].events.length;
       totalBeats = Math.max(totalBeats, score.totalBeats);
+      if (instrument === "drums") continue;
       for (const event of score.parts[0].events) {
         if (event.type === "rest") continue;
         const hz = noteFrequency(event, tuning, temperamentModel);
@@ -339,7 +344,7 @@
       }
     }
     if (events > MAX_ENSEMBLE_EVENTS || totalBeats * scoreModel.secondsPerBeat(first) > 90) {
-      throw new RangeError("Ensemble is limited to 512 events and 90 seconds");
+      throw new RangeError("Ensemble is limited to 1024 events and 90 seconds");
     }
     return { tempoQuarter: first.tempoQuarter, meter: first.meter, totalBeats, eventCount: events };
   }
@@ -359,7 +364,8 @@
       this.instrument = "ensemble";
       this.partSettings = tracks.map(t => ({ id: t.id, instrument: t.instrument, volume: t.volume,
         mute: Boolean(t.mute), solo: Boolean(t.solo) }));
-      this.playEvents = tracks.flatMap((t, partIndex) => scheduledEvents(t.score).map(event => ({
+      this.playEvents = tracks.flatMap((t, partIndex) => (t.instrument === "drums" ?
+        drumModel.scheduledEvents(t.score) : scheduledEvents(t.score)).map(event => ({
         ...event, partIndex
       }))).sort((a, b) => a.startBeat - b.startBeat || a.partIndex - b.partIndex);
     }
@@ -402,9 +408,43 @@
     }
     scheduleNote(event, at, endsAt, offsetSeconds = 0) {
       const part = this.partSettings[event.partIndex];
+      if (event.type === "drum") {
+        this.scheduleDrumHit(event, at, offsetSeconds);
+        return;
+      }
       super.scheduleNote(event, at, endsAt, offsetSeconds, {
         instrument: part.instrument, volume: 100, output: this.buses[event.partIndex]
       });
+    }
+    scheduleDrumHit(event, at, offsetSeconds = 0) {
+      const recipes = {
+        kick: { voice: "membrane", size: "large", decay: .36 },
+        snare: { voice: "snare", size: "medium", decay: .24 },
+        hat: { voice: "cymbal", size: "small", decay: .13 },
+        openHat: { voice: "cymbal", size: "medium", decay: .48 },
+        woodblock: { voice: "woodblock", size: "small", decay: .24 }
+      };
+      const recipe = recipes[event.drum];
+      if (!recipe) throw new RangeError("Unknown percussion voice");
+      const context = this.context;
+      const key = ["drum", context.sampleRate, event.drum].join("|");
+      let buffer = this.buffers.get(key);
+      if (!buffer) {
+        const samples = this.transientModel.makeSamples("kick", 220, recipe.decay,
+          context.sampleRate, recipe.size, { drumVoice: recipe.voice });
+        buffer = context.createBuffer(1, samples.length, context.sampleRate);
+        buffer.getChannelData(0).set(samples);
+        if (this.buffers.size >= 24) this.buffers.delete(this.buffers.keys().next().value);
+        this.buffers.set(key, buffer);
+      }
+      if (offsetSeconds >= buffer.duration - .01) return;
+      const source = context.createBufferSource(), gain = context.createGain();
+      source.buffer = buffer;
+      source.connect(gain);
+      gain.connect(this.buses[event.partIndex]);
+      gain.gain.setValueAtTime(.32 * event.velocity, at);
+      this.addVoice(source, gain);
+      source.start(at, offsetSeconds);
     }
     stop(reset = true) {
       super.stop(reset);

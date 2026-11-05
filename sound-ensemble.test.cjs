@@ -2,11 +2,13 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const abc = require("./sound-abc.js");
+const drumABC = require("./sound-drum-abc.js");
 const ensemble = require("./sound-ensemble.js");
 const playerModel = require("./sound-score-player.js");
 const sustain = require("./sound-sustain.js");
 const transient = require("./sound-transient.js");
 const temperament = require("./sound-temperaments.js");
+const ensemblePresets = require("./sound-ensemble-presets.js");
 
 function fixture() {
   const context = {
@@ -149,4 +151,65 @@ test("acoustic score piano gets an RMS level correction; FM piano retains its ga
     "Acoustic note gain is boosted and capped");
   assert.ok(notes[1].gain.records.some(item => item[0] === "set" && Math.abs(item[1] - .19) < 1e-9),
     "FM note retains its level");
+});
+
+test("C2C percussion attacks use the same audio clock and recorder bus as melody", async t => {
+  const { synth, context, owner } = fixture();
+  t.after(() => synth.stop());
+  const drums = { id: 3, name: "Drums", instrument: "drums", volume: 68, mute: false, solo: false,
+    abc: drumABC.groove({ meter: { numerator: 4, denominator: 4, quarterBeats: 4 },
+      tempoQuarter: 96, totalBeats: 16 }, 3) };
+  const { prepared, summary } = ensemble.parseTracks([...ensemble.DEFAULTS, drums], "equal", temperament);
+  assert.equal(summary.eventCount, 65);
+  synth.configure({ tracks: prepared });
+  assert.equal(context.sources.length, 0);
+  assert.equal(synth.playEvents.filter(e => e.type === "drum").length, 48);
+  await synth.play();
+  assert.equal(context.sources.length, 4, "two pitched notes and two simultaneous drum voices start");
+  assert.ok(context.sources.every(source => source.startedAt === context.sources[0].startedAt));
+  assert.equal(synth.outputBus.connected, owner.output);
+  assert.equal(synth.buses[2].connected, synth.outputBus);
+  const drumGains = context.gains.filter(gain => gain.connected === synth.buses[2]);
+  assert.equal(drumGains.length, 2);
+  assert.ok(drumGains.every(gain => gain.connected === synth.buses[2]));
+  synth.updateMix(3, { mute: true });
+  assert.equal(synth.buses[2].gain.value, 0);
+  context.currentTime = 1.5;
+  synth.pause();
+  assert.equal(synth.status, "paused");
+  assert.equal(synth.outputBus.gain.value, 0);
+  const position = synth.currentBeat;
+  await synth.play();
+  assert.equal(synth.status, "playing");
+  assert.equal(synth.currentBeat, position);
+  synth.stop();
+});
+
+test("drum score and melodic score must use matching clock, but tuning does not change drums", () => {
+  const drums = { id: 3, instrument: "drums", volume: 65,
+    abc: drumABC.groove({ meter: { numerator: 4, denominator: 4, quarterBeats: 4 },
+      tempoQuarter: 96, totalBeats: 16 }) };
+  const { summary } = ensemble.parseTracks([...ensemble.DEFAULTS, drums], "just", temperament);
+  assert.equal(summary.totalBeats, 16);
+  drums.abc = drums.abc.replace("Q:1/4=96", "Q:1/4=120");
+  assert.throws(() => ensemble.parseTracks([...ensemble.DEFAULTS, drums], "equal", temperament), /same M: and Q:/);
+  drums.abc = drumABC.groove({ meter: { numerator: 3, denominator: 4, quarterBeats: 3 },
+    tempoQuarter: 96, totalBeats: 12 });
+  assert.throws(() => ensemble.parseTracks([...ensemble.DEFAULTS, drums], "equal", temperament), /same M: and Q:/);
+});
+
+test("all complete ensemble arrangements accept drums with their original pickup and bars", () => {
+  for (const preset of ensemblePresets.CATALOG) {
+    if (preset.id === "starter") continue;
+    const tracks = ensemblePresets.create(preset.id, "en");
+    const summary = ensemble.parseTracks(tracks, "equal", temperament).summary;
+    const source = abc.parse(tracks[0].abc);
+    const percussion = { id: 4, name: "Drums", instrument: "drums", volume: 65,
+      abc: drumABC.groove({ ...summary, barDurations: source.bars.map(bar => bar.durationBeats) }, 4) };
+    const added = ensemble.parseTracks([...tracks, percussion], "equal", temperament);
+    assert.equal(added.summary.totalBeats, summary.totalBeats, preset.id);
+    assert.ok(added.summary.eventCount > summary.eventCount, preset.id);
+    const score = drumABC.parse(percussion.abc);
+    assert.deepEqual(score.bars.map(bar => bar.durationBeats), source.bars.map(bar => bar.durationBeats), preset.id);
+  }
 });

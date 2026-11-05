@@ -20,6 +20,7 @@ const noiseModel = require("./sound-noise.js");
 const recorderModel = require("./sound-recorder.js");
 const composeModel = require("./sound-compose.js");
 const ensembleModel = require("./sound-ensemble.js");
+const drumABC = require("./sound-drum-abc.js");
 
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(__dirname, "sound-lab.css"), "utf8");
@@ -54,14 +55,15 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s040a"/);
   assert.match(html, /src="sound-abc\.js\?v=s040a"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s045"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s047"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s047"/);
   assert.match(html, /src="sound-compose\.js\?v=s045b"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s046"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s046"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s047"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s046"/);
+  assert.match(html, /href="sound-lab\.css\?v=s047"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
   assert.match(html, /src="sound-recorder\.js"/);
@@ -144,8 +146,9 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="composeSubtabs"[^>]*hidden/);
   assert.match(html, /id="composeEnsembleWorkspace"[^>]*hidden/);
   assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 2);
-  for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensemblePlayPause", "ensembleStop",
-    "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList"]) {
+  for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensembleAddDrums",
+    "ensemblePlayPause", "ensembleStop", "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList",
+    "ensembleDrumGrid", "ensembleDrumHint", "ensembleGridBar", "ensembleGridStep", "ensembleGridStrength", "ensembleGridCells"]) {
     assert.ok(ids.includes(id), "Missing Ensemble control #" + id);
   }
   for (const id of ["composeText", "composeExample", "composeInstrument", "composeTuning",
@@ -572,7 +575,7 @@ function fakePage(search = "", supportWorklets = true) {
   const vmContext = vm.createContext(sandbox);
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
-  for (const name of ["sound-score.js", "sound-abc.js", "sound-fm.js", "sound-score-player.js",
+  for (const name of ["sound-score.js", "sound-abc.js", "sound-drum-abc.js", "sound-fm.js", "sound-score-player.js",
     "sound-compose.js", "sound-ensemble-presets.js", "sound-ensemble.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });
@@ -3133,6 +3136,70 @@ test("Compose ensemble loads complete arrangements with three synchronized edita
   app.fire("ensembleApplyPreset", "click");
   assert.equal(app.elements.get("ensembleTrackList").children.length, 2);
   assert.match(app.elements.get("ensembleText").value, /T:Melody/);
+});
+
+test("Compose drum part edits the same score through text and optional grid without autoplay", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  assert.equal(app.elements.get("ensembleDrumGrid").hidden, true);
+  app.fire("ensembleAddDrums", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 3);
+  assert.equal(app.elements.get("ensembleTimeline").children.length, 3);
+  assert.match(app.elements.get("ensembleText").value, /%%MIDI channel 10/);
+  assert.equal(app.elements.get("ensembleDrumGrid").hidden, false);
+  assert.equal(app.elements.get("ensembleGridCells").children.length, 5);
+  assert.equal(app.elements.get("ensembleGridBar").children.length, 4);
+  assert.equal(app.contexts.length, 0);
+  const first = drumABC.parse(app.elements.get("ensembleText").value);
+  assert.equal(drumABC.gridOf(first)[0].cells[0].kick, 1);
+  // Click the kick in the first cell: Normal replaces Accent, then clears it.
+  app.elements.get("ensembleGridCells").children[0].children[1].children[0].click();
+  assert.equal(drumABC.gridOf(drumABC.parse(app.elements.get("ensembleText").value))[0].cells[0].kick, .8);
+  app.elements.get("ensembleGridCells").children[0].children[1].children[0].click();
+  assert.equal(drumABC.gridOf(drumABC.parse(app.elements.get("ensembleText").value))[0].cells[0].kick, undefined);
+  app.elements.get("ensembleGridStrength").value = "p";
+  app.elements.get("ensembleGridCells").children[4].children[1].children[3].click();
+  let edited = drumABC.parse(app.elements.get("ensembleText").value);
+  assert.equal(drumABC.gridOf(edited)[0].cells[3].woodblock, .55);
+  assert.equal(edited.totalBeats, first.totalBeats);
+  app.elements.get("ensembleGridStep").value = "8";
+  app.fire("ensembleGridStep", "change");
+  assert.equal(app.elements.get("ensembleGridStep").value, "16", "Offbeat drum must remain visible");
+  assert.match(app.elements.get("ensembleGridMessage").textContent, /арван зургаат/i);
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("ensembleGridCells").children[0].children[0].textContent, "Bass drum");
+  await app.fire("ensemblePlayPause", "click");
+  assert.equal(app.contexts.length, 1);
+  assert.equal(app.contexts[0].oscillators.length, 2);
+  assert.equal(app.contexts[0].sources.length, 1, "Only the hi-hat remains on the first beat");
+  app.fire("ensembleStop", "click");
+  const invalid = app.elements.get("ensembleText").value.replace("channel 10", "channel 9");
+  app.elements.get("ensembleText").value = invalid;
+  app.fire("ensembleText", "input");
+  await new Promise(resolve => setTimeout(resolve, 220));
+  assert.equal(app.elements.get("ensembleText").value, invalid, "Invalid ABC must remain untouched");
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, true);
+  assert.match(app.elements.get("ensembleGridMessage").textContent, /unavailable/i);
+});
+
+test("Compose Add Drums fits all full arrangements, including Kalinka's pickup", () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  for (const preset of ["minuet", "korobeiniki", "kalinka"]) {
+    app.elements.get("ensemblePreset").value = preset;
+    app.fire("ensembleApplyPreset", "click");
+    assert.equal(app.elements.get("ensembleTrackList").children.length, 3);
+    app.fire("ensembleAddDrums", "click");
+    assert.equal(app.elements.get("ensembleTrackList").children.length, 4, preset);
+    assert.equal(app.elements.get("ensemblePlayPause").disabled, false, preset);
+    assert.equal(app.elements.get("ensembleDrumGrid").hidden, false);
+    const score = drumABC.parse(app.elements.get("ensembleText").value);
+    assert.equal(score.bars.length, preset === "kalinka" ? 27 : preset === "minuet" ? 32 : 16);
+    if (preset === "kalinka") assert.equal(score.bars[0].pickup, true);
+  }
+  assert.equal(app.contexts.length, 0);
 });
 
 test("Compose solo Pause works on pointerdown even when Safari does not send a click", async () => {
