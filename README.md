@@ -285,6 +285,8 @@ K:C clef=perc
 
 ## S049: direct pattern assignment and live names
 
+Try these controls in the [live Sound Lab Compose editor](https://gantemur.github.io/soundlab/) under **Many instruments → Drums**.
+
 - The **Song bar / Дууны такт** selector continues to choose one bar and automatically select the pattern used there. Changing the adjacent **Pattern / Загвар** dropdown now **assigns** the chosen existing pattern to that song bar, instead of merely opening a different definition for editing. A one-bar pattern can be placed at any compatible bar, including several nonadjacent places. A two- or four-bar pattern fills the chosen bar **and the following bar(s)**; if an old multi-bar occurrence is partly replaced, its untouched bars are preserved as complete patterns. Assignments beyond the end or incompatible with a pickup are rejected without altering the score.
 - The button previously labeled *Make unique* is now **New pattern / Шинэ загвар** (it copies the selected occurrence for a local variation); **Repeat to end** is **Дуустал давтах** in Mongolian. The longer-pattern and explicit-range controls remain under More.
 - In **Pattern ABC**, changing the `T:` title now renames the **pattern** immediately, updating arrangement chips, pattern choices and editor heading; it does not rename the whole song. Notes and title edits are applied as soon as the ABC is valid, with **no Save button**. Invalid drafts remain visible and block playback. Pattern names are still session editing metadata: an ordinary fully expanded ABC score does not encode their links or names.
