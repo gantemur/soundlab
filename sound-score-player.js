@@ -68,6 +68,7 @@
       this.baseTime = 0;
       this.generation = 0;
       this.interval = null;
+      this.outputBus = null;
     }
 
     configure({ score, instrument = this.instrument, tuning = this.tuning,
@@ -107,6 +108,15 @@
 
     stopVoices() {
       const now = this.context ? this.context.currentTime : 0;
+      // Independently mute the whole score before touching individual voices.
+      // Safari can leave a scheduled BufferSource audible for a short interval
+      // even after stop(), so Pause must not rely on that call alone.
+      if (this.outputBus) {
+        try {
+          this.outputBus.gain.cancelScheduledValues(now);
+          this.outputBus.gain.setValueAtTime(0, now);
+        } catch (_) { /* Also disconnect below on Stop. */ }
+      }
       for (const voice of this.voices) {
         // Disconnect synchronously: a browser may reject stop() for an
         // already-ended or future-scheduled source. The gain must still go
@@ -126,6 +136,10 @@
       if (this.interval !== null) clearInterval(this.interval);
       this.interval = null;
       this.stopVoices();
+      if (this.outputBus) {
+        try { this.outputBus.disconnect(); } catch (_) { /* Already disconnected. */ }
+        this.outputBus = null;
+      }
       if (reset) this.positionBeat = 0;
       this.status = "stopped";
       this.inform();
@@ -154,6 +168,7 @@
         const context = await this.contextOwner.readyContext();
         if (ticket !== this.generation) return false;
         this.context = context;
+        this.preparePlayback(context);
         this.originBeat = this.positionBeat;
         this.baseTime = context.currentTime + .08;
         this.nextIndex = this.playEvents.findIndex(event =>
@@ -186,7 +201,7 @@
         this.scheduleNote(event, Math.max(at, now + .003), endsAt, offsetSeconds);
       }
       const endTime = this.baseTime + (this.score.totalBeats - this.originBeat) * spb;
-      const tail = ["guitar", "chimes"].includes(this.instrument) ? .8 : .15;
+      const tail = ["guitar", "chimes", "ensemble"].includes(this.instrument) ? .8 : .15;
       if (now > endTime + tail) {
         this.stop();
         return;
@@ -204,25 +219,36 @@
       };
     }
 
-    toneComponents(hz) {
-      return this.instrument === "flute" ? this.sustainModel.fluteComponents(60, hz,
-        this.context.sampleRate) : this.sustainModel.bowedComponents(this.instrument, 60, hz,
+    preparePlayback(context) {
+      if (!this.outputBus) {
+        this.outputBus = context.createGain();
+        this.outputBus.connect(this.contextOwner.output);
+      }
+      this.outputBus.gain.cancelScheduledValues(context.currentTime);
+      this.outputBus.gain.setValueAtTime(1, context.currentTime);
+    }
+
+    toneComponents(hz, instrument = this.instrument) {
+      return instrument === "flute" ? this.sustainModel.fluteComponents(60, hz,
+        this.context.sampleRate) : this.sustainModel.bowedComponents(instrument, 60, hz,
         this.context.sampleRate);
     }
 
-    scheduleNote(event, at, endsAt, offsetSeconds = 0) {
+    scheduleNote(event, at, endsAt, offsetSeconds = 0, settings = null) {
       const hz = noteFrequency(event, this.tuning, this.temperamentModel);
       const context = this.context;
       const gain = context.createGain();
-      const level = .19 * this.volume / 100;
-      gain.connect(this.contextOwner.output);
-      if (["flute", "violin", "morin", ...WAVEFORMS].includes(this.instrument)) {
+      const instrument = settings?.instrument || this.instrument;
+      const volume = settings?.volume ?? this.volume;
+      const level = Math.min(.35, .19 * volume / 100 * (instrument === "piano" ? 2.35 : 1));
+      gain.connect(settings?.output || this.outputBus || this.contextOwner.output);
+      if (["flute", "violin", "morin", ...WAVEFORMS].includes(instrument)) {
         const oscillator = context.createOscillator();
-        if (WAVEFORMS.includes(this.instrument)) {
+        if (WAVEFORMS.includes(instrument)) {
           // Native oscillator shapes are band-limited by the browser.
-          oscillator.type = this.instrument;
+          oscillator.type = instrument;
         } else {
-          const components = this.toneComponents(hz);
+          const components = this.toneComponents(hz, instrument);
           const real = new Float32Array(components.length + 1);
           const imag = new Float32Array(components.length + 1);
           components.forEach((component, i) => { real[i + 1] = component.cos; imag[i + 1] = component.sin; });
@@ -235,7 +261,7 @@
         const attack = Math.min(.045, remaining * .25);
         const release = Math.min(.10, remaining * .35);
         // Square and sawtooth carry strong upper harmonics; ease their level.
-        const adjustedLevel = level * (this.instrument === "square" || this.instrument === "sawtooth" ? .72 : 1);
+        const adjustedLevel = level * (instrument === "square" || instrument === "sawtooth" ? .72 : 1);
         gain.gain.setValueAtTime(0, at);
         gain.gain.linearRampToValueAtTime(adjustedLevel, at + attack);
         gain.gain.setValueAtTime(adjustedLevel, Math.max(at + attack, endsAt - release));
@@ -245,18 +271,18 @@
         oscillator.stop(endsAt + .005);
         return;
       }
-      const percussive = this.instrument === "chimes";
-      const kind = this.instrument === "guitar" ? "pluck" : percussive ? "kick" :
-        this.instrument === "fmep" ? "fmep" : "piano";
-      const decay = this.instrument === "piano" || this.instrument === "fmep" ? .8 :
+      const percussive = instrument === "chimes";
+      const kind = instrument === "guitar" ? "pluck" : percussive ? "kick" :
+        instrument === "fmep" ? "fmep" : "piano";
+      const decay = instrument === "piano" || instrument === "fmep" ? .8 :
         percussive ? .7 : .65;
-      const options = this.instrument === "guitar" ? { position: .22 } :
-        this.instrument === "piano" ? { velocity: .62, touch: "press" } :
+      const options = instrument === "guitar" ? { position: .22 } :
+        instrument === "piano" ? { velocity: .62, touch: "press" } :
           percussive ? { drumVoice: "chimes", chimeHz: hz } : {};
-      const key = [context.sampleRate, kind, hz.toFixed(5), decay, this.instrument].join("|");
+      const key = [context.sampleRate, kind, hz.toFixed(5), decay, instrument].join("|");
       let buffer = this.buffers.get(key);
       if (!buffer) {
-        const samples = this.instrument === "fmep" ?
+        const samples = instrument === "fmep" ?
           fmModel.makeElectricPianoSamples(hz, context.sampleRate) :
           this.transientModel.makeSamples(kind, hz, decay, context.sampleRate, "medium", options);
         buffer = context.createBuffer(1, samples.length, context.sampleRate);
@@ -269,17 +295,126 @@
       source.buffer = buffer;
       source.connect(gain);
       gain.gain.setValueAtTime(level, at);
-      if (this.instrument === "piano" || this.instrument === "fmep") {
+      if (instrument === "piano" || instrument === "fmep") {
         const noteEnd = Math.max(at + .005, endsAt);
         gain.gain.setValueAtTime(level, noteEnd);
         gain.gain.setTargetAtTime(0, noteEnd, .028); // damper returns on release
       }
       this.addVoice(source, gain);
       source.start(at, offsetSeconds);
-      if (this.instrument === "piano" || this.instrument === "fmep") source.stop(Math.min(at + buffer.duration - offsetSeconds,
+      if (instrument === "piano" || instrument === "fmep") source.stop(Math.min(at + buffer.duration - offsetSeconds,
         endsAt + .19));
     }
   }
 
-  return Object.freeze({ INSTRUMENTS, AHEAD_SECONDS, noteFrequency, scheduledEvents, Player });
+  const MAX_PARTS = 4;
+  const MAX_ENSEMBLE_EVENTS = 512;
+  function validateEnsemble(tracks, tuning = "equal", temperamentModel) {
+    if (!Array.isArray(tracks) || tracks.length < 1 || tracks.length > MAX_PARTS ||
+        !scoreModel.TUNINGS.includes(tuning)) throw new RangeError("Use 1–4 melodic tracks and a supported tuning");
+    const first = tracks[0]?.score;
+    if (!first) throw new Error("Missing ABC score");
+    let events = 0, totalBeats = 0;
+    for (const track of tracks) {
+      const { score, instrument, volume } = track;
+      scoreModel.validate(score);
+      if (!INSTRUMENTS.includes(instrument) || !Number.isFinite(volume) || volume < 0 || volume > 100) {
+        throw new RangeError("Invalid track instrument or volume");
+      }
+      if (score.tempoQuarter !== first.tempoQuarter ||
+          score.meter.numerator !== first.meter.numerator ||
+          score.meter.denominator !== first.meter.denominator) {
+        throw new RangeError("All tracks must have the same M: and Q: tempo");
+      }
+      events += score.parts[0].events.length;
+      totalBeats = Math.max(totalBeats, score.totalBeats);
+      for (const event of score.parts[0].events) {
+        if (event.type === "rest") continue;
+        const hz = noteFrequency(event, tuning, temperamentModel);
+        const upper = instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
+        if (hz < scoreModel.MIN_NOTE_HZ || hz > upper) {
+          throw new RangeError(scoreModel.pitchName(event.pitch) + " is outside " + instrument +
+            " range (110–" + upper + " Hz)");
+        }
+      }
+    }
+    if (events > MAX_ENSEMBLE_EVENTS || totalBeats * scoreModel.secondsPerBeat(first) > 90) {
+      throw new RangeError("Ensemble is limited to 512 events and 90 seconds");
+    }
+    return { tempoQuarter: first.tempoQuarter, meter: first.meter, totalBeats, eventCount: events };
+  }
+
+  class EnsemblePlayer extends Player {
+    constructor(options) {
+      super(options);
+      this.partSettings = [];
+      this.buses = [];
+      this.instrument = "ensemble";
+    }
+    configure({ tracks, tuning = "equal" }) {
+      const summary = validateEnsemble(tracks, tuning, this.temperamentModel);
+      this.stop();
+      this.score = summary;
+      this.tuning = tuning;
+      this.instrument = "ensemble";
+      this.partSettings = tracks.map(t => ({ id: t.id, instrument: t.instrument, volume: t.volume,
+        mute: Boolean(t.mute), solo: Boolean(t.solo) }));
+      this.playEvents = tracks.flatMap((t, partIndex) => scheduledEvents(t.score).map(event => ({
+        ...event, partIndex
+      }))).sort((a, b) => a.startBeat - b.startBeat || a.partIndex - b.partIndex);
+    }
+    preparePlayback(context) {
+      super.preparePlayback(context);
+      if (!this.buses.length) {
+        this.buses = this.partSettings.map(() => {
+          const bus = context.createGain();
+          bus.connect(this.outputBus);
+          return bus;
+        });
+      }
+      this.updateBusLevels(true);
+    }
+    updateBusLevels(immediate = false) {
+      const anySolo = this.partSettings.some(part => part.solo);
+      for (const [i, part] of this.partSettings.entries()) {
+        const bus = this.buses[i];
+        if (!bus || !this.context) continue;
+        const level = part.mute || (anySolo && !part.solo) ? 0 : part.volume / 100;
+        const now = this.context.currentTime;
+        bus.gain.cancelScheduledValues(now);
+        if (immediate) bus.gain.setValueAtTime(level, now);
+        else bus.gain.setTargetAtTime(level, now, .008);
+      }
+    }
+    updateMix(id, fields) {
+      const part = this.partSettings.find(p => p.id === id);
+      if (!part) return;
+      for (const key of ["mute", "solo", "volume"]) {
+        if (Object.prototype.hasOwnProperty.call(fields, key)) {
+          const value = fields[key];
+          if (key === "volume" && (!Number.isFinite(value) || value < 0 || value > 100)) {
+            throw new RangeError("Invalid track volume");
+          }
+          part[key] = key === "volume" ? value : Boolean(value);
+        }
+      }
+      this.updateBusLevels();
+    }
+    scheduleNote(event, at, endsAt, offsetSeconds = 0) {
+      const part = this.partSettings[event.partIndex];
+      super.scheduleNote(event, at, endsAt, offsetSeconds, {
+        instrument: part.instrument, volume: 100, output: this.buses[event.partIndex]
+      });
+    }
+    stop(reset = true) {
+      super.stop(reset);
+      if (this.buses) {
+        this.buses.forEach(bus => { try { bus.disconnect(); } catch (_) { /* Already disconnected. */ } });
+        this.buses = [];
+      }
+    }
+  }
+
+  return Object.freeze({ INSTRUMENTS, AHEAD_SECONDS, MAX_PARTS, MAX_ENSEMBLE_EVENTS,
+    noteFrequency, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

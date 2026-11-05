@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s041b">
+  <link rel="stylesheet" href="sound-lab.css?v=s045">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -26,9 +26,10 @@
   <script src="sound-recorder.js" defer></script>
   <script src="sound-score.js?v=s040a" defer></script>
   <script src="sound-abc.js?v=s040a" defer></script>
-  <script src="sound-score-player.js?v=s044" defer></script>
-  <script src="sound-compose.js?v=s044" defer></script>
-  <script src="sound-lab.js?v=s044" defer></script>
+  <script src="sound-score-player.js?v=s045" defer></script>
+  <script src="sound-compose.js?v=s045" defer></script>
+  <script src="sound-ensemble.js?v=s045" defer></script>
+  <script src="sound-lab.js?v=s045" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -1301,6 +1302,11 @@
       </div>
     </div>
 
+    <div id="composeSubtabs" class="compose-subtabs" role="group" aria-label="Ая зохиох горим" hidden>
+      <button type="button" data-compose-subtab="solo" class="selected" aria-pressed="true" data-i18n="composeSolo">Нэг хөгжим</button>
+      <button type="button" data-compose-subtab="ensemble" aria-pressed="false" data-i18n="composeEnsemble">Олон хөгжим</button>
+    </div>
+
     <div class="workspace" id="composeWorkspace" hidden>
       <section class="panel controls compose-controls" aria-labelledby="compose-controls-title">
         <div class="section-top">
@@ -1394,6 +1400,53 @@
         <section class="panel chart-panel compose-help-panel" aria-labelledby="compose-help-title">
           <h2 id="compose-help-title" data-compose-i18n="model">Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ</h2>
           <p data-compose-i18n="footer">C1-д нэг аялгуу тоглоно. Дараа нь олон хөгжмийн хоолой, аккорд, цохивор хэмнэл нэмж болно.</p>
+        </section>
+      </div>
+    </div>
+
+    <div class="workspace ensemble-workspace" id="composeEnsembleWorkspace" hidden>
+      <section class="panel controls compose-controls" aria-labelledby="ensemble-heading">
+        <div class="section-top">
+          <h2 id="ensemble-heading" data-ensemble-i18n="heading">Олон хөгжим тоглуулах</h2>
+          <p class="description" data-ensemble-i18n="intro">Хөгжим тус бүр өөрийн ABC ноттой. Бүгд нэг хэмнэл, хурдтай зэрэг тоглоно.</p>
+        </div>
+        <div class="field-group">
+          <label class="field-title" for="ensembleTuning" data-ensemble-i18n="tuning">Хөг</label>
+          <select id="ensembleTuning">
+            <option value="equal" data-ensemble-i18n="equal">Тэнцүү (12-TET)</option>
+            <option value="pythagorean" data-ensemble-i18n="pythagorean">Пифагорын</option>
+            <option value="just" data-ensemble-i18n="just">Цэвэр · До төвтэй</option>
+          </select>
+        </div>
+        <div class="compose-play-row">
+          <button id="ensemblePlayPause" class="compose-play" type="button">▶ Тоглуулах</button>
+          <button id="ensembleStop" class="compose-stop" type="button">■ Зогсоох</button>
+        </div>
+        <p id="ensembleStatus" class="audio-status" role="status" aria-live="polite">Бэлэн.</p>
+        <div class="ensemble-tracks-heading">
+          <h3 data-ensemble-i18n="track">Хөгжим</h3>
+          <button type="button" id="ensembleAdd" data-ensemble-i18n="add">+ Хөгжим нэмэх</button>
+        </div>
+        <div id="ensembleTrackList" class="ensemble-track-list" aria-label="Instrument tracks"></div>
+      </section>
+      <div class="visuals compose-visuals">
+        <section class="panel chart-panel ensemble-overview" aria-labelledby="ensemble-timeline-title">
+          <div class="chart-heading"><div>
+            <h2 id="ensemble-timeline-title" data-ensemble-i18n="timeline">Нэгдсэн цагийн шугам</h2>
+            <p data-ensemble-i18n="inspect">Мөр бүрийн нотууд; шар зураас нь тоглож буй цохилт.</p>
+          </div></div>
+          <div id="ensembleTimeline" class="ensemble-timeline" role="img" aria-label="Shared note activity timeline"></div>
+          <p id="ensembleNow" class="compose-now">Цохилт 0.0</p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="ensembleEditorTitle">
+          <div class="compose-score-editor">
+            <h2 id="ensembleEditorTitle">Сонгосон хөгжмийн ABC нот</h2>
+            <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-describedby="ensembleHelp"></textarea>
+            <p class="field-help" id="ensembleHelp" data-ensemble-i18n="help">Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. M: хэмжээ ба Q: хурд ижил байх ёстой.</p>
+            <label class="compose-file-button" for="ensembleLoad" data-ensemble-i18n="import">.abc / .txt файл нээх</label>
+            <input id="ensembleLoad" class="sr-only" type="file" accept=".abc,.txt,text/plain" aria-label="Import ABC for selected part">
+            <p class="field-help" data-ensemble-i18n="limits">4 хүртэл зэмсэг, нийт 512 нот/завсарлага, 90 секунд. Олон хоолойтой ABC болон бөмбөрийн хэмнэлийг дараа нэмнэ.</p>
+          </div>
         </section>
       </div>
     </div>

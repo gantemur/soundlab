@@ -19,6 +19,7 @@ const harmonicModel = require("./sound-harmonics.js");
 const noiseModel = require("./sound-noise.js");
 const recorderModel = require("./sound-recorder.js");
 const composeModel = require("./sound-compose.js");
+const ensembleModel = require("./sound-ensemble.js");
 
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(__dirname, "sound-lab.css"), "utf8");
@@ -53,12 +54,13 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s040a"/);
   assert.match(html, /src="sound-abc\.js\?v=s040a"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s044"/);
-  assert.match(html, /src="sound-compose\.js\?v=s044"/);
-  assert.match(html, /src="sound-lab\.js\?v=s044"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s045"/);
+  assert.match(html, /src="sound-compose\.js\?v=s045"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s045"/);
+  assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s041b"/);
+  assert.match(html, /href="sound-lab\.css\?v=s045"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
   assert.match(html, /src="sound-recorder\.js"/);
@@ -138,6 +140,13 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="noiseWorkspace"[^>]*hidden/);
   assert.match(html, /id="modeCompose"[^>]*data-i18n="modeCompose"/);
   assert.match(html, /id="composeWorkspace"[^>]*hidden/);
+  assert.match(html, /id="composeSubtabs"[^>]*hidden/);
+  assert.match(html, /id="composeEnsembleWorkspace"[^>]*hidden/);
+  assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 2);
+  for (const id of ["ensembleText", "ensembleTuning", "ensembleAdd", "ensemblePlayPause", "ensembleStop",
+    "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList"]) {
+    assert.ok(ids.includes(id), "Missing Ensemble control #" + id);
+  }
   for (const id of ["composeText", "composeExample", "composeInstrument", "composeTuning",
     "composePlayPause", "composeStop", "composeVolume", "composeLoad", "composeScoreSvg"]) {
     assert.ok(ids.includes(id), "Missing Compose control #" + id);
@@ -315,6 +324,7 @@ function fakePage(search = "", supportWorklets = true) {
   const intervalPlayButtons = ["alternating", "together"].map(intervalPlay => element({ intervalPlay }));
   const intervalOptions = intervalModel.PRESETS.map(preset => ({ ...element(), value: preset.ratio }));
   const intervalTuningButtons = ["just", "equal"].map(intervalTuning => element({ intervalTuning }));
+  const composeSubtabButtons = ["solo", "ensemble"].map(composeSubtab => element({ composeSubtab }));
   const intervalColorButtons = ["pure", "rich"].map(intervalColor => element({ intervalColor }));
   const harmonicPresetButtons = ["pure", "odd", "rich"].map(harmonicPreset => element({ harmonicPreset }));
   const harmonicLevelInputs = Array.from({ length: harmonicModel.COUNT }, (_, i) =>
@@ -328,6 +338,7 @@ function fakePage(search = "", supportWorklets = true) {
     hidden: false,
     events: {},
     getElementById(id) { return elements.get(id) || null; },
+    createElement(name) { const node = element(); node.tagName = name; return node; },
     createElementNS(_ns, name) { const node = element(); node.tagName = name; return node; },
     querySelectorAll(selector) {
       if (selector === "[data-wave]") return waveButtons;
@@ -344,6 +355,7 @@ function fakePage(search = "", supportWorklets = true) {
       if (selector === "[data-mix-gap]") return mixGapButtons;
       if (selector === "[data-mix-kind]") return mixKindButtons;
       if (selector === "[data-tuning-kind]") return tuningKindButtons;
+      if (selector === "[data-compose-subtab]") return composeSubtabButtons;
       if (selector === "[data-ear-help]") return earHelpButtons;
       if (selector === "[data-ear-sound]") return earSoundButtons;
       if (selector === "[data-ear-play]") return earPlayButtons;
@@ -560,7 +572,7 @@ function fakePage(search = "", supportWorklets = true) {
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
   for (const name of ["sound-score.js", "sound-abc.js", "sound-fm.js", "sound-score-player.js",
-    "sound-compose.js"]) {
+    "sound-compose.js", "sound-ensemble.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });
   }
@@ -570,7 +582,7 @@ function fakePage(search = "", supportWorklets = true) {
     guitarPlayButtons, guitarChordButtons, pianoTouchButtons, strikePlayButtons, sustainButtons,
     drumButtons, spectrumButtons,
     motionButtons, sirenPatternButtons, timbreButtons, vowelButtons, mixGapButtons, mixKindButtons,
-    tuningKindButtons, scalePlayButtons, scaleTonicButtons,
+    tuningKindButtons, composeSubtabButtons, scalePlayButtons, scaleTonicButtons,
     earHelpButtons, earSoundButtons, earPlayButtons, timers, animationFrames,
     limit5PlayButtons, tempPlayButtons, tempNarrowButtons,
     intervalOptions, intervalPlayButtons, intervalTuningButtons, intervalColorButtons,
@@ -3033,4 +3045,74 @@ test("S033 pending browser audio is canceled on tab switch and page hide", async
   app.window.events.pagehide();
   assert.equal(app.contexts[0].sources[0].stopped, true);
   assert.equal(app.tempPlayButtons[1].getAttribute("aria-pressed"), "false");
+});
+
+test("Compose ensemble swaps in a compact shared timeline and synchronizes two instrument parts", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  assert.equal(app.elements.get("composeWorkspace").hidden, false);
+  assert.equal(app.elements.get("composeSubtabs").hidden, false);
+  app.composeSubtabButtons[1].click();
+  assert.equal(app.elements.get("composeWorkspace").hidden, true);
+  assert.equal(app.elements.get("composeEnsembleWorkspace").hidden, false);
+  assert.equal(app.composeSubtabButtons[1].getAttribute("aria-pressed"), "true");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 2);
+  assert.equal(app.elements.get("ensembleTimeline").children.length, 2);
+  assert.equal(app.contexts.length, 0, "Ensemble does not autoplay");
+  await app.fire("ensemblePlayPause", "click");
+  assert.equal(app.contexts.length, 1);
+  assert.equal(app.contexts[0].oscillators.length, 2, "Two notes start on the same beat");
+  assert.equal(app.contexts[0].sources.length, 0);
+  assert.match(app.elements.get("ensemblePlayPause").textContent, /Түр зогсоох/);
+  app.fire("ensemblePlayPause", "pointerdown");
+  await app.fire("ensemblePlayPause", "click");
+  assert.match(app.elements.get("ensemblePlayPause").textContent, /Үргэлжлүүлэх/,
+    "Safari pointerdown and delayed click must not cause an accidental Resume");
+  assert.match(app.elements.get("ensembleStatus").textContent, /Түр зогслоо/);
+  app.fire("ensembleStop", "click");
+  assert.match(app.elements.get("ensemblePlayPause").textContent, /Тоглуулах/);
+  app.composeSubtabButtons[0].click();
+  assert.equal(app.elements.get("composeWorkspace").hidden, false);
+  assert.equal(app.elements.get("composeEnsembleWorkspace").hidden, true);
+});
+
+test("Compose ensemble edits tracks separately, adds and removes parts, changes languages", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.fire("ensembleAdd", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 3);
+  assert.equal(app.elements.get("ensembleTimeline").children.length, 3);
+  app.fire("ensembleAdd", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 4);
+  assert.equal(app.elements.get("ensembleAdd").disabled, true);
+  // Remove newly-added part from its row, restoring a three-part ensemble.
+  const fourth = app.elements.get("ensembleTrackList").children[3];
+  fourth.children[0].children[1].click();
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 3);
+  assert.equal(app.contexts.length, 0, "Score/mixer edits remain silent");
+  app.fire("langEn", "click");
+  assert.match(app.elements.get("ensembleStatus").textContent, /Ready/);
+  assert.match(app.elements.get("ensembleEditorTitle").textContent, /ABC/);
+  const second = app.elements.get("ensembleTrackList").children[1];
+  second.children[0].children[0].click();
+  assert.match(app.elements.get("ensembleText").value, /T:Bass/);
+  const file = { name: "new-part.abc", size: 82,
+    text: async () => "M:4/4\nL:1/4\nQ:1/4=96\nK:D\nD2 A2 | D4 |]" };
+  await app.fire("ensembleLoad", "change", { target: { files: [file] } });
+  assert.match(app.elements.get("ensembleText").value, /K:D/);
+  assert.equal(app.elements.get("ensembleTimeline").children.length, 3);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+});
+
+test("Compose solo Pause works on pointerdown even when Safari does not send a click", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  await app.fire("composePlayPause", "click");
+  assert.equal(app.contexts[0].oscillators.length, 1);
+  app.fire("composePlayPause", "pointerdown");
+  assert.match(app.elements.get("composePlayPause").textContent, /Үргэлжлүүлэх/);
+  app.fire("composePlayPause", "click");
+  assert.match(app.elements.get("composePlayPause").textContent, /Үргэлжлүүлэх/);
+  app.fire("composeStop", "click");
 });

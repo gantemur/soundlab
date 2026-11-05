@@ -120,7 +120,7 @@ test("Pause silences a scheduled voice even when Safari-style stop/gain calls th
   const { player, context } = audioFixture();
   player.configure({ score: melody, instrument: "piano" });
   await player.play();
-  const voiceGain = context.gains[0];
+  const voiceGain = context.gains[1]; // gains[0] is the Safari-safe master bus
   const source = context.sources[0];
   voiceGain.disconnect = () => { voiceGain.disconnected = true; };
   voiceGain.gain.cancelScheduledValues = () => { throw new Error("unsupported"); };
@@ -181,7 +181,7 @@ test("four electronic oscillators retain their exact waveforms, pitches and stop
     assert.ok(Math.abs(source.frequency.value - 261.625565) < .01);
     assert.equal(context.waves.length, 0, "Standard oscillator needs no custom harmonic model");
     assert.equal(recipes.length, 0, "Electronic oscillators use no percussion model");
-    assert.ok(context.gains[0].gain.records.some(record => record[0] === "ramp"));
+    assert.ok(context.gains[1].gain.records.some(record => record[0] === "ramp"));
     player.stop();
     assert.equal(source.stoppedAt, .002);
     assert.equal(player.currentBeat, 0);
@@ -197,7 +197,7 @@ test("FM electric piano uses original decaying samples, note-off damping and pau
   assert.equal(context.buffers.length, 1);
   assert.equal(source.buffer.duration, 2.8);
   assert.equal(recipes.length, 0, "FM uses its own model, not an acoustic sampled instrument");
-  assert.ok(context.gains[0].gain.records.some(record => record[0] === "target"),
+  assert.ok(context.gains[1].gain.records.some(record => record[0] === "target"),
     "The modeled electric piano releases its note with a damper");
   context.currentTime = .33;
   player.pause();

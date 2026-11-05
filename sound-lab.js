@@ -16,6 +16,7 @@
   const noiseModel = window.SoundLabNoise;
   const recorderModel = window.SoundLabRecorder;
   const composeModel = window.SoundLabCompose;
+  const ensembleModel = window.SoundLabEnsemble;
   const $ = id => document.getElementById(id);
 
   const messages = {
@@ -72,6 +73,7 @@
       invalid: "Enter a frequency between 20 and 12,000 Hz.",
       modePure: "Pure tones", modeStrike: "Strike/Pluck", modeSustain: "Blow/Bow", modeMotion: "Moving Pitch",
       modeMix: "Combine waves", modeTuning: "Tuning", modeCompose: "Compose",
+      composeSolo: "Single instrument", composeEnsemble: "Many instruments",
       composePhase: "07 · Write a melody", modeSwitchAria: "Sound categories",
       mixExperimentsAria: "Explore combined and complex sounds",
       mixExperimentBeats: "Two frequencies", mixExperimentHarmonics: "Build timbre",
@@ -630,6 +632,7 @@
       invalid: "20–12,000 Гц-ийн хооронд давтамж оруулна уу.",
       modePure: "Цэвэр авиа", modeStrike: "Цохих/татах", modeSustain: "Үлээх/нумдах", modeMotion: "Хувирдаг давтамж",
       modeMix: "Долгион холих", modeTuning: "Хөг", modeCompose: "Ая зохиох",
+      composeSolo: "Нэг хөгжим", composeEnsemble: "Олон хөгжим",
       composePhase: "07 · Ая зохиох", modeSwitchAria: "Дууны бүлэг",
       mixExperimentsAria: "Холимог ба нийлмэл авианы туршилтууд",
       mixExperimentBeats: "Хоёр давтамж", mixExperimentHarmonics: "Өнгө бүтээх",
@@ -1141,6 +1144,7 @@
   const state = {
     language: params.get("lang") === "en" ? "en" : "mn",
     mode: "pure",
+    composeSubtab: "solo",
     waveform: "sine",
     frequency: 440,
     volume: 40,
@@ -1449,7 +1453,10 @@
       const gain = context.createGain();
       const now = context.currentTime;
       source.buffer = buffer;
-      gain.gain.setValueAtTime(maxGain.transient * strength / 100, now);
+      // The acoustic piano samples have much less RMS energy than the FM
+      // piano. Correct perceived balance, with a ceiling for overlapping hits.
+      const pianoBoost = recipe.kind === "piano" && recipe.options?.pianoVoice !== "electric" ? 2.35 : 1;
+      gain.gain.setValueAtTime(Math.min(.37, maxGain.transient * strength / 100 * pianoBoost), now);
       source.connect(gain);
       gain.connect(this.contextOwner.output);
 
@@ -2569,6 +2576,8 @@
   const noiseAudio = new NoiseEngine(audio);
   const recorder = new recorderModel.Recorder(audio, window.AudioWorkletNode);
   const compose = composeModel ? new composeModel.Controller({ document, contextOwner: audio,
+    transientModel, sustainModel, temperamentModel: tempModel }) : null;
+  const ensemble = ensembleModel ? new ensembleModel.Controller({ document, contextOwner: audio,
     transientModel, sustainModel, temperamentModel: tempModel }) : null;
   let recordStatusKey = "recordReady";
   let recordError = false;
@@ -4377,7 +4386,14 @@
     $("pureWorkspace").hidden = isStrike || isSustain || isMotion || isMix || isTuning || isCompose;
     $("pureChallenge").hidden = isStrike || isSustain || isMotion || isMix || isTuning || isCompose;
     $("pureExplanation").hidden = isStrike || isSustain || isMotion || isMix || isTuning || isCompose;
-    $("composeWorkspace").hidden = !isCompose;
+    $("composeSubtabs").hidden = !isCompose;
+    $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";
+    $("composeEnsembleWorkspace").hidden = !isCompose || state.composeSubtab !== "ensemble";
+    document.querySelectorAll("[data-compose-subtab]").forEach(button => {
+      const selected = state.composeSubtab === button.dataset.composeSubtab;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
     $("strikeWorkspace").hidden = !isStrike;
     $("strikeChallenge").hidden = !isStrike;
     $("strikeExplanation").hidden = !isStrike;
@@ -4434,6 +4450,7 @@
 
   function renderTexts() {
     if (compose) compose.renderLanguage(state.language);
+    if (ensemble) ensemble.renderLanguage(state.language);
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-i18n]").forEach(element => {
       const key = element.getAttribute("data-i18n");
@@ -4811,6 +4828,7 @@
 
   function stopAllAudio(immediate = false, message = "stopped") {
     if (compose && compose.hasSession()) compose.stop();
+    if (ensemble && ensemble.hasSession()) ensemble.stop();
     strikeTicket++;
     transientAudio.stop(immediate);
     stopStrikeFollow();
@@ -4874,6 +4892,13 @@
     }
     renderTexts();
     drawPlots();
+  }
+
+  function selectComposeSubtab(subtab) {
+    if (!["solo", "ensemble"].includes(subtab) || subtab === state.composeSubtab) return;
+    stopAllAudio();
+    state.composeSubtab = subtab;
+    renderMode();
   }
 
   function selectMixKind(kind) {
@@ -7362,6 +7387,8 @@
   $("modeMix").addEventListener("click", () => selectMode("mix"));
   $("modeTuning").addEventListener("click", () => selectMode("tuning"));
   $("modeCompose").addEventListener("click", () => selectMode("compose"));
+  document.querySelectorAll("[data-compose-subtab]").forEach(button =>
+    button.addEventListener("click", () => selectComposeSubtab(button.dataset.composeSubtab)));
   const sustainPad = $("sustainHoldButton");
   sustainPad.addEventListener("pointerdown", event => {
     if (state.mode !== "sustain" || event.button > 0 || sustainPointerId !== null) return;
@@ -7593,7 +7620,8 @@
     if (recorder.state === "recording") stopRecording();
     if (state.sustainPlaying || sustainPointerId !== null || sustainKeyboardHeld ||
         state.motionPlaying || motionStarting || state.mixPlaying || state.intervalPlaying || state.earPlaying || state.scalePlaying || state.limit5Playing || state.limit5Starting || state.tempPlaying || state.tempStarting ||
-        state.harmonicPlaying || state.noisePlaying || (compose && compose.isPlaying())) {
+        state.harmonicPlaying || state.noisePlaying || (compose && compose.isPlaying()) ||
+        (ensemble && ensemble.isPlaying())) {
       stopAllAudio(true, "hidden");
     }
   });

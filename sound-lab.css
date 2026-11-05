@@ -401,6 +401,56 @@ h1, h2, p { margin-top: 0; }
 .compose-help-panel h2 { font-size: 15px; color: #375a77; }
 .compose-help-panel p { font-size: 12px; color: #6c8196; margin-bottom: 1px; }
 
+/* Compose C2A — a compact mixer and common time axis instead of four staves. */
+.compose-subtabs { display: flex; flex-wrap: wrap; gap: 9px; margin: -2px 0 15px; }
+.compose-subtabs button { border: 1px solid #bad2e8; border-radius: 10px; padding: 12px 19px;
+  background: #fff; color: #3e6180; font-size: 13px; font-weight: 850; }
+.compose-subtabs button.selected { background: #2869b9; color: #fff; border-color: #2869b9; }
+.compose-subtabs button:hover:not(.selected) { background: #edf5ff; }
+.ensemble-tracks-heading { display: flex; justify-content: space-between; align-items: center; gap: 7px; }
+.ensemble-tracks-heading h3 { font-size: 14px; color: #284666; }
+.ensemble-tracks-heading button { border: 1px solid #73b7b6; background: #e7f7f5; color: #176b70;
+  padding: 8px 11px; font-weight: 800; border-radius: 8px; font-size: 12px; }
+.ensemble-tracks-heading button:disabled { opacity: .45; }
+.ensemble-track-list { display: flex; flex-direction: column; gap: 10px; }
+.ensemble-track { display: flex; flex-direction: column; gap: 7px; padding: 11px;
+  border: 1px solid #d6e3ee; background: #f8fbfe; border-radius: 11px; }
+.ensemble-track.selected { border-color: #56a39b; background: #f0faf8; }
+.ensemble-track-head { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.ensemble-select { flex: 1; text-align: left; border: 0; background: none; color: #2c5b7c;
+  font-weight: 850; font-size: 13px; padding: 3px 1px; overflow: hidden; text-overflow: ellipsis; }
+.ensemble-select:hover { text-decoration: underline; }
+.ensemble-remove { border: 1px solid #cbd9e8; background: #fff; border-radius: 7px; color: #8f5555;
+  min-width: 28px; height: 28px; font-size: 21px; line-height: 20px; }
+.ensemble-remove:disabled { opacity: .4; }
+.ensemble-name { width: 100%; min-width: 0; border: 1px solid #d0dfe9; border-radius: 7px;
+  background: #fff; padding: 6px 8px; color: #304f6c; font-size: 12px; }
+.compose-controls select.ensemble-instrument { min-height: 37px; padding: 6px 8px; }
+.ensemble-mix-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.ensemble-mix { min-width: 55px; border: 1px solid #bbd2e5; color: #42607e; background: #f3f8fe;
+  font-size: 11px; font-weight: 850; border-radius: 7px; padding: 6px 7px; }
+.ensemble-mix.active { background: #e4f6f1; border-color: #4ca79c; color: #176d6e; }
+.ensemble-volume-label { display: flex; align-items: center; gap: 5px; flex: 1 1 130px;
+  min-width: 120px; font-size: 11px; color: #416685; font-weight: 750; white-space: nowrap; }
+.ensemble-volume { flex: 1; min-width: 65px; width: 100%; accent-color: #3b7cb6; }
+.ensemble-overview { min-height: 220px; }
+.ensemble-timeline { display: flex; flex-direction: column; gap: 10px; padding: 18px 0 10px; }
+.ensemble-timeline-row { display: grid; grid-template-columns: minmax(65px, 105px) minmax(0, 1fr);
+  gap: 9px; align-items: center; min-height: 34px; }
+.ensemble-timeline-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: #375e7f; font-size: 12px; font-weight: 800; }
+.ensemble-lane { height: 29px; position: relative; border-radius: 5px;
+  background: repeating-linear-gradient(90deg, #e5eef6 0, #e5eef6 1px, #f6f9fd 1px, #f6f9fd 25%); overflow: hidden; }
+.ensemble-note { display: block; position: absolute; top: 6px; height: 17px; background: #5495ca;
+  border: 1px solid #347bb7; border-radius: 3px; min-width: 2px; max-width: 100%; }
+.ensemble-track:nth-child(even) .ensemble-note, .ensemble-timeline-row:nth-child(even) .ensemble-note {
+  background: #42a398; border-color: #248c82; }
+.ensemble-playhead { position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+  background: #ed982c; z-index: 3; pointer-events: none; box-shadow: 0 0 3px #bd7411; }
+.ensemble-workspace .compose-score-editor h2 { margin-bottom: 10px; }
+.ensemble-workspace .compose-score-editor textarea { min-height: 190px; }
+.ensemble-workspace .audio-status.error { color: #ae453e; background: #fff0ee; border-color: #efbcb3; }
+
 .settings { border-top: 1px solid #e5ecf4; padding-top: 13px; }
 .settings summary { color: #3b6ba8; cursor: pointer; font-size: 12px; font-weight: 800; padding: 5px 0; }
 .settings summary:hover { color: #1b4f92; }
