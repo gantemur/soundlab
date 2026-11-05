@@ -44,8 +44,8 @@
       gridBar: "Bar", gridStep: "Spacing", gridStrength: "Hit strength", gridSoft: "Soft", gridNormal: "Normal", gridAccent: "Accent",
       gridEighth: "Eighths", gridSixteenth: "Sixteenths", gridFine: "Sixteenth notes present; showing all 16th steps.",
       gridError: "Grid unavailable for this text; the ABC has not been changed: ",
-      patternsTitle: "Rhythm patterns", patternsEnable: "Find repeats", patternsIntro: "Edit a pattern once to change every linked use. Make a copy for a one-off fill.",
-      patternsBar: "Song bar", patternsChoice: "Pattern", patternsUnique: "Make unique", patternsRepeat: "Repeat to end",
+      patternsTitle: "Rhythm patterns", patternsEnable: "Find repeats", patternsIntro: "Choose a song bar, then a pattern to assign it there (longer patterns fill following bars). Changes to notes or T: names apply immediately.",
+      patternsBar: "Song bar", patternsChoice: "Pattern", patternsUnique: "New pattern", patternsRepeat: "Repeat to end",
       patternsAdvanced: "Other arrangement actions", patternsLength: "Bars", patternsGroup: "New pattern here",
       patternsFrom: "From", patternsTo: "Through", patternsRange: "Fill range",
       patternsView: "ABC view", patternsPatternABC: "Selected pattern ABC", patternsFullABC: "Whole song ABC",
@@ -75,8 +75,8 @@
       gridBar: "Такт", gridStep: "Алхам", gridStrength: "Цохилтын хүч", gridSoft: "Зөөлөн", gridNormal: "Энгийн", gridAccent: "Хүчтэй",
       gridEighth: "Наймт", gridSixteenth: "Арван зургаат", gridFine: "Арван зургаатын цохилт байна; бүх алхмыг харуулж байна.",
       gridError: "Энэ бичигт тор нээх боломжгүй. ABC-г өөрчлөөгүй: ",
-      patternsTitle: "Хэмнэлийн загвар", patternsEnable: "Давталт таних", patternsIntro: "Загварыг нэг засахад бүх давталт өөрчлөгдөнө. Нэг удаагийн ялгаанд тусад нь хувилна.",
-      patternsBar: "Дууны такт", patternsChoice: "Загвар", patternsUnique: "Тусад нь хувилах", patternsRepeat: "Төгсгөл хүртэл давтах",
+      patternsTitle: "Хэмнэлийн загвар", patternsEnable: "Давталт таних", patternsIntro: "Дууны тактаа сонгоод Загвар сонговол тэнд онооно (олон такттай загвар дараагийн тактуудыг хамарна). Нот, T: нэрний өөрчлөлт шууд хэрэгжинэ.",
+      patternsBar: "Дууны такт", patternsChoice: "Загвар", patternsUnique: "Шинэ загвар", patternsRepeat: "Дуустал давтах",
       patternsAdvanced: "Бусад байрлуулах үйлдэл", patternsLength: "Такт", patternsGroup: "Эндээс шинэ загвар",
       patternsFrom: "Эхлэх", patternsTo: "Дуусах", patternsRange: "Хэсэгт давтах",
       patternsView: "ABC харагдац", patternsPatternABC: "Загварын ABC", patternsFullABC: "Бүтэн ABC",
@@ -139,8 +139,11 @@
       this.$("ensemblePatternChoice").addEventListener("change", () => {
         const track = this.selected();
         if (track.patternDraft) return this.renderPatternPanel();
-        track.patternId = Number(this.$("ensemblePatternChoice").value);
-        this.gridBar = 1; this.setEditorText(); this.renderPatternPanel(); this.renderDrumGrid();
+        const id = Number(this.$("ensemblePatternChoice").value);
+        this.applyPatternOperation(() => ({
+          project: drumPatterns.assignAtBar(track.patterns, id, track.patternBar),
+          patternId: id, startBar: track.patternBar
+        }));
       });
       this.$("ensemblePatternUnique").addEventListener("click", () => this.applyPatternOperation(() =>
         drumPatterns.makeUnique(this.selected().patterns, this.selected().patternBar)));
@@ -205,10 +208,14 @@
       const track = this.selected(), text = this.$("ensembleText").value;
       if (track.instrument === "drums" && track.patterns && track.textMode === "pattern") {
         try {
+          const previousName = drumPatterns.getPattern(track.patterns, track.patternId).name;
           const next = drumPatterns.updatePatternABC(track.patterns, track.patternId, text);
           track.abc = drumPatterns.toABC(next);
           track.patterns = next;
           track.patternDraft = null;
+          if (drumPatterns.getPattern(next, track.patternId).name !== previousName) {
+            this.renderEditorLabel(); this.renderPatternPanel();
+          }
         } catch (error) {
           track.patternDraft = { id: track.patternId, text, error: error.message };
           this.$("ensemblePlayPause").disabled = true;
@@ -268,7 +275,10 @@
         track.patternBar = startBar;
         this.gridBar = 1;
         this.player.stop(); this.setEditorText(); this.parse();
-      } catch (error) { this.$("ensemblePatternMessage").textContent = error.message; }
+      } catch (error) {
+        this.renderPatternPanel(); // Restore the choice if assignment is rejected.
+        this.$("ensemblePatternMessage").textContent = error.message;
+      }
     }
     loadPreset() {
       const choice = this.$("ensemblePreset").value;

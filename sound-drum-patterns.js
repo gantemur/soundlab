@@ -79,7 +79,7 @@
       title: pattern.name }, pattern.bars.map((bar, index) =>
       ({ number: index + 1, cells: copy(bar.cells) })));
   }
-  function changedPattern(project, id, bars) {
+  function changedPattern(project, id, bars, name) {
     const current = getPattern(project, id);
     if (bars.length !== current.bars.length || bars.some((bar, i) =>
       bar.cells.length !== current.bars[i].cells.length)) {
@@ -87,6 +87,7 @@
     }
     const next = copy(project), target = getPattern(next, id);
     target.bars = bars.map(bar => ({ cells: copy(bar.cells) }));
+    if (name !== undefined) target.name = name;
     toABC(next); // Refuse to exceed parser, hit, or song-length limits.
     return next;
   }
@@ -98,7 +99,7 @@
         !same(score.tempoQuarter, project.tempoQuarter)) {
       throw new Error("A drum pattern must use the song's M: and Q:");
     }
-    return changedPattern(project, id, drums.gridOf(score));
+    return changedPattern(project, id, drums.gridOf(score), score.title);
   }
   function toggleHit(project, id, patternBar, sixteenth, voice, velocity) {
     const text = drums.toggleGridHit(drums.parse(patternABC(project, id)),
@@ -144,6 +145,53 @@
     toABC(next);
     return next;
   }
+  // Assign a named pattern at a particular song bar. If the replacement cuts
+  // through another multi-bar occurrence, preserve its untouched fragments as
+  // new complete patterns rather than accidentally changing adjacent bars.
+  function assignAtBar(project, id, first) {
+    const pattern = getPattern(project, id), count = pattern.bars.length;
+    const last = first + count - 1;
+    if (!Number.isInteger(first) || first < 1 || last > project.sequence.length) {
+      throw new Error("This pattern needs " + count + " bar(s) starting within the song");
+    }
+    for (let i = 0; i < count; i++) {
+      if (!same(project.barDurations[first + i - 1], pattern.bars[i].cells.length / 4)) {
+        throw new Error("This pattern does not fit the selected bar lengths or pickup");
+      }
+    }
+    const current = atBar(project, first);
+    if (current.startBar === first && current.pattern.id === pattern.id) return copy(project);
+    const next = copy(project), before = expanded(project);
+    const fragments = [];
+    for (let bar = 1; bar <= project.sequence.length;) {
+      const occurrence = atBar(project, bar);
+      const end = bar + occurrence.pattern.bars.length - 1;
+      if (bar <= last && end >= first) {
+        if (bar < first) fragments.push({ first: bar, last: first - 1 });
+        if (end > last) fragments.push({ first: last + 1, last: end });
+      }
+      bar = end + 1;
+    }
+    for (const fragment of fragments) {
+      for (let bar = fragment.first; bar <= fragment.last;) {
+        // Avoid synthesizing 3-bar definitions from a split 4-bar pattern.
+        const count = Math.min(2, fragment.last - bar + 1);
+        const bars = before.slice(bar - 1, bar + count - 1).map(b => ({ cells: b.cells }));
+        let existing = next.patterns.find(candidate => candidate.bars.length === bars.length &&
+          candidate.bars.every((b, i) => JSON.stringify(b.cells) === JSON.stringify(bars[i].cells)));
+        if (!existing) existing = nextPattern(next, bars);
+        for (let offset = 0; offset < count; offset++) {
+          next.sequence[bar + offset - 1] = { id: existing.id, offset };
+        }
+        bar += count;
+      }
+    }
+    for (let offset = 0; offset < count; offset++) {
+      next.sequence[first + offset - 1] = { id: pattern.id, offset };
+    }
+    toABC(next);
+    return next;
+  }
   function groupBars(project, first, count) {
     if (![1, 2, 4].includes(count) || !Number.isInteger(first) || first < 1 ||
         first + count - 1 > project.sequence.length ||
@@ -175,5 +223,5 @@
     return groups;
   }
   return Object.freeze({ fromABC, toABC, patternABC, updatePatternABC, toggleHit,
-    atBar, getPattern, expanded, makeUnique, replaceRange, groupBars, runs });
+    atBar, getPattern, expanded, makeUnique, replaceRange, assignAtBar, groupBars, runs });
 });

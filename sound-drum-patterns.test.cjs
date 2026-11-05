@@ -63,6 +63,64 @@ test("pattern ABC text round-trips through the grid and maintains its clock", ()
   assert.equal(signatures(edited)[0][0].woodblock, .8, "Invalid text leaves the previous data intact");
 });
 
+test("T: edits rename the reusable pattern, not the song, and retain its linked notes", () => {
+  const initial = patterns.fromABC(groove(4));
+  const renamed = patterns.updatePatternABC(initial, 1,
+    patterns.patternABC(initial, 1).replace("T:A", "T:DDDD"));
+  assert.equal(patterns.getPattern(renamed, 1).name, "DDDD");
+  assert.equal(patterns.runs(renamed)[0].name, "DDDD");
+  assert.match(patterns.patternABC(renamed, 1), /^T:DDDD$/m);
+  assert.match(patterns.toABC(renamed), /^T:Beat$/m, "The expanded song keeps its own title");
+  assert.deepEqual(signatures(renamed), signatures(initial));
+  const tapped = patterns.toggleHit(renamed, 1, 1, 3, "woodblock", 1);
+  assert.equal(patterns.getPattern(tapped, 1).name, "DDDD");
+  assert.equal(signatures(tapped).filter(bar => bar[3].woodblock === 1).length, 4);
+});
+
+test("assigning an existing single-bar pattern targets any chosen song bar", () => {
+  const initial = patterns.fromABC(groove(4));
+  const detached = patterns.makeUnique(initial, 2);
+  const variant = patterns.toggleHit(detached.project, detached.patternId, 1, 7, "woodblock", 1);
+  const assigned = patterns.assignAtBar(variant, detached.patternId, 4);
+  assert.deepEqual(patterns.runs(assigned).map(run => [run.name, run.startBar, run.endBar]),
+    [["A", 1, 1], ["B", 2, 2], ["A", 3, 3], ["B", 4, 4]]);
+  assert.equal(signatures(assigned)[1][7].woodblock, 1);
+  assert.equal(signatures(assigned)[3][7].woodblock, 1);
+  assert.equal(signatures(assigned)[0][7].woodblock, undefined);
+  assert.equal(signatures(variant)[3][7].woodblock, undefined, "The source project is unchanged");
+  const restored = patterns.assignAtBar(assigned, 1, 2);
+  assert.equal(signatures(restored)[1][7].woodblock, undefined);
+  assert.equal(patterns.atBar(restored, 2).pattern.id, 1);
+});
+
+test("assigning a longer pattern can split an old occurrence without losing untouched bars", () => {
+  const initial = patterns.fromABC(groove(8));
+  const grouped = patterns.groupBars(initial, 1, 4);
+  const varied = patterns.toggleHit(grouped.project, grouped.patternId, 2, 7, "woodblock", 1);
+  const before = signatures(varied);
+  const assigned = patterns.assignAtBar(varied, 1, 2);
+  const after = signatures(assigned);
+  assert.equal(after[1][7].woodblock, undefined, "The selected bar adopts pattern A");
+  for (const i of [0, 2, 3, 4, 5, 6, 7]) assert.deepEqual(after[i], before[i]);
+  assert.equal(patterns.atBar(assigned, 2).pattern.id, 1);
+  assert.equal(patterns.getPattern(assigned, grouped.patternId).bars.length, 4,
+    "The original longer pattern remains available for reassignment");
+  const fourAtFive = patterns.assignAtBar(assigned, grouped.patternId, 5);
+  assert.equal(patterns.atBar(fourAtFive, 5).pattern.id, grouped.patternId);
+  assert.equal(patterns.atBar(fourAtFive, 8).offset, 3);
+  assert.equal(signatures(fourAtFive)[5][7].woodblock, 1);
+  assert.throws(() => patterns.assignAtBar(assigned, grouped.patternId, 7), /needs 4 bar/);
+});
+
+test("assignment rejects a pattern that does not fit a pickup", () => {
+  const pickup = patterns.fromABC(drums.groove({ meter, tempoQuarter: 96, totalBeats: 13,
+    barDurations: [1, 4, 4, 4] }));
+  const full = patterns.atBar(pickup, 2).pattern;
+  assert.throws(() => patterns.assignAtBar(pickup, full.id, 1), /pickup|bar lengths/);
+  assert.deepEqual(patterns.assignAtBar(pickup, full.id, 3).barDurations, [1, 4, 4, 4]);
+  assert.deepEqual(signatures(pickup), signatures(patterns.assignAtBar(pickup, full.id, 3)));
+});
+
 test("replace range refuses partial occurrences and incompatible meter/pickup", () => {
   const eight = patterns.fromABC(groove(8));
   const pair = patterns.groupBars(eight, 1, 2);

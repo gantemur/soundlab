@@ -57,11 +57,11 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-abc\.js\?v=s040a"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s047"/);
-  assert.match(html, /src="sound-drum-patterns\.js\?v=s048"/);
+  assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
   assert.match(html, /src="sound-score-player\.js\?v=s047"/);
   assert.match(html, /src="sound-compose\.js\?v=s045b"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s046"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s048"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s049"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
@@ -156,6 +156,8 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
     "ensemblePatternFrom", "ensemblePatternTo", "ensemblePatternLength", "ensemblePatternTextMode", "ensemblePatternRevert", "ensemblePatternMessage"]) {
     assert.ok(ids.includes(id), "Missing Ensemble control #" + id);
   }
+  assert.match(html, /id="ensemblePatternUnique"[^>]*>Шинэ загвар<\/button>/);
+  assert.match(html, /id="ensemblePatternRepeat"[^>]*>Дуустал давтах<\/button>/);
   for (const id of ["composeText", "composeExample", "composeInstrument", "composeTuning",
     "composePlayPause", "composeStop", "composeVolume", "composeLoad", "composeScoreSvg"]) {
     assert.ok(ids.includes(id), "Missing Compose control #" + id);
@@ -3246,6 +3248,67 @@ test("D1 linked drum pattern edits all bars; Make unique edits one bar and full 
   assert.equal(altered.filter(bar => bar.cells[5].woodblock === 1).length, 1);
   assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
   assert.equal(app.contexts.length, 0, "Arrangement editing must not play sound");
+});
+
+test("D1 pattern menu assigns a reusable rhythm to the chosen bar and T: renames it live", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.fire("ensembleAddDrums", "click");
+  app.elements.get("ensemblePatternBar").value = "2";
+  app.fire("ensemblePatternBar", "change");
+  app.fire("ensemblePatternUnique", "click");
+  app.elements.get("ensembleGridCells").children[4].children[1].children[7].click();
+  app.elements.get("ensemblePatternBar").value = "4";
+  app.fire("ensemblePatternBar", "change");
+  assert.equal(app.elements.get("ensemblePatternChoice").value, "1", "Song bar chooses its current pattern");
+  app.elements.get("ensemblePatternChoice").value = "2";
+  app.fire("ensemblePatternChoice", "change");
+  assert.equal(app.elements.get("ensemblePatternBar").value, "4", "Assignment does not change the chosen song bar");
+  assert.equal(app.elements.get("ensemblePatternChoice").value, "2");
+  assert.deepEqual(app.elements.get("ensemblePatternArrangement").children.map(el => el.textContent),
+    ["A", "B", "A", "B"]);
+  app.elements.get("ensemblePatternTextMode").value = "full";
+  app.fire("ensemblePatternTextMode", "change");
+  const full = drumABC.gridOf(drumABC.parse(app.elements.get("ensembleText").value));
+  assert.equal(full[1].cells[7].woodblock, .8);
+  assert.equal(full[3].cells[7].woodblock, .8);
+  assert.equal(full[0].cells[7].woodblock, undefined);
+  app.elements.get("ensemblePatternTextMode").value = "pattern";
+  app.fire("ensemblePatternTextMode", "change");
+  const editor = app.elements.get("ensembleText");
+  editor.value = editor.value.replace("T:B", "T:DDDD");
+  app.fire("ensembleText", "input");
+  assert.match(app.elements.get("ensembleEditorTitle").textContent, /DDDD/);
+  await new Promise(resolve => setTimeout(resolve, 220));
+  assert.deepEqual(app.elements.get("ensemblePatternArrangement").children.map(el => el.textContent),
+    ["A", "DDDD", "A", "DDDD"]);
+  assert.match(app.elements.get("ensemblePatternChoice").children[1].textContent, /DDDD/);
+  app.elements.get("ensemblePatternBar").value = "2";
+  app.fire("ensemblePatternBar", "change");
+  assert.equal(app.elements.get("ensemblePatternChoice").value, "2", "The renamed pattern stays linked");
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.equal(app.contexts.length, 0, "Pattern changes remain silent until Play");
+});
+
+test("D1 rejects a too-long pattern assignment without changing the current song bar", () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.fire("ensembleAddDrums", "click");
+  app.elements.get("ensemblePatternLength").value = "2";
+  app.fire("ensemblePatternGroup", "click"); // Pattern B covers bars 1–2.
+  app.elements.get("ensemblePatternBar").value = "4";
+  app.fire("ensemblePatternBar", "change");
+  assert.equal(app.elements.get("ensemblePatternChoice").value, "1");
+  app.elements.get("ensemblePatternChoice").value = "2";
+  app.fire("ensemblePatternChoice", "change");
+  assert.equal(app.elements.get("ensemblePatternBar").value, "4");
+  assert.equal(app.elements.get("ensemblePatternChoice").value, "1", "Rejected selection is restored");
+  assert.match(app.elements.get("ensemblePatternMessage").textContent, /needs 2 bar/i);
+  assert.deepEqual(app.elements.get("ensemblePatternArrangement").children.map(el => el.textContent),
+    ["B", "A ×2"]);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
 });
 
 test("D1 text edits propagate through linked bars; an invalid draft stays visible until corrected", async () => {
