@@ -21,6 +21,7 @@ const recorderModel = require("./sound-recorder.js");
 const composeModel = require("./sound-compose.js");
 
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+const css = fs.readFileSync(path.join(__dirname, "sound-lab.css"), "utf8");
 const browserCode = fs.readFileSync(path.join(__dirname, "sound-lab.js"), "utf8");
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 
@@ -54,7 +55,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score-player\.js\?v=s040a"/);
   assert.match(html, /src="sound-compose\.js\?v=s040a"/);
   assert.match(html, /src="sound-lab\.js\?v=s041"/);
-  assert.match(html, /href="sound-lab\.css\?v=s040a"/);
+  assert.match(html, /href="sound-lab\.css\?v=s041b"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
   assert.match(html, /src="sound-recorder\.js"/);
@@ -209,6 +210,11 @@ test("compact header removes the redundant mode introductions but keeps one page
   assert.doesNotMatch(html, /id="page(?:Eyebrow|Title|Intro)"/);
   assert.doesNotMatch(browserCode, /strikeEyebrow|strikeTitle|strikeIntro/);
   assert.match(html, /Дууны долгион яагаад өөр өөр сонсогддог вэ\?/);
+});
+
+test("firetruck Play/Stop icon forwards taps to its enclosing button", () => {
+  assert.match(html, /<button id="sirenButton"[^>]*>[\s\S]*?<span class="play-icon" id="sirenPlayIcon"/);
+  assert.match(css, /\.siren-button\s*>\s*span\s*\{\s*pointer-events:\s*none;/);
 });
 
 function fakePage(search = "", supportWorklets = true) {
