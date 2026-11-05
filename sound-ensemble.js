@@ -527,7 +527,7 @@
         label: (i + 1) + " · " + drumPatterns.getPattern(project, slot.id).name }));
       fillSelect("ensemblePatternBar", barItems, track.patternBar);
       fillSelect("ensemblePatternChoice", project.patterns.map(p => ({ value: p.id,
-        label: p.name + " (" + p.bars.length + ")" })), track.patternId);
+        label: p.name })), track.patternId);
       const from = Number(this.$("ensemblePatternFrom").value);
       const to = Number(this.$("ensemblePatternTo").value);
       fillSelect("ensemblePatternFrom", barItems, Number.isInteger(from) && from >= 1 &&
