@@ -6,10 +6,12 @@
   const abc = typeof module === "object" && module.exports ? require("./sound-abc.js") : root.SoundLabABC;
   const score = typeof module === "object" && module.exports ? require("./sound-score.js") : root.SoundLabScore;
   const player = typeof module === "object" && module.exports ? require("./sound-score-player.js") : root.SoundLabScorePlayer;
-  const api = factory(abc, score, player);
+  const presets = typeof module === "object" && module.exports ?
+    require("./sound-ensemble-presets.js") : root.SoundLabEnsemblePresets;
+  const api = factory(abc, score, player, presets);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemble = api;
-})(typeof window !== "undefined" ? window : null, function (abc, scoreModel, playerModel) {
+})(typeof window !== "undefined" ? window : null, function (abc, scoreModel, playerModel, presets) {
   "use strict";
   const VOICES = Object.freeze({
     en: { flute: "Flute", violin: "Violin", morin: "Morin khuur", guitar: "Guitar",
@@ -22,6 +24,7 @@
   const TEXT = Object.freeze({
     en: { heading: "Play several instruments", intro: "Each track has its own ABC score and instrument; every part shares one beat and tempo.",
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean", just: "Just · C-centred",
+      presets: "Arrangement examples", loadPreset: "Load", presetHint: "Load replaces the current arrangement. You can edit every instrument's ABC afterward.",
       add: "+ Add track", play: "▶ Play ensemble", pause: "Ⅱ Pause", resume: "▶ Resume", stop: "■ Stop",
       ready: "Ready. Choose a track or press Play.", playing: "Playing all active tracks.",
       starting: "Starting instruments…", paused: "Paused. Press Resume to continue.",
@@ -37,6 +40,7 @@
       error: "Score error", trackError: "Track", noAudio: "Sound could not start. Check audio settings." },
     mn: { heading: "Олон хөгжим тоглуулах", intro: "Хөгжим тус бүр өөрийн ABC ноттой. Бүгд нэг хэмнэл, хурдтай зэрэг тоглоно.",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын", just: "Цэвэр · До төвтэй",
+      presets: "Бэлэн найруулга", loadPreset: "Нээх", presetHint: "Нээхэд одоогийн нотууд солигдоно. Хөгжим тус бүрийн ABC-г өөрчилж болно.",
       add: "+ Хөгжим нэмэх", play: "▶ Тоглуулах", pause: "Ⅱ Түр зогсоох", resume: "▶ Үргэлжлүүлэх", stop: "■ Зогсоох",
       ready: "Бэлэн. Хөгжим сонгох эсвэл тоглуулаарай.", playing: "Сонгосон хөгжмүүд зэрэг тоглож байна.",
       starting: "Хөгжмүүдийг бэлдэж байна…", paused: "Түр зогслоо. Үргэлжлүүлж болно.",
@@ -90,6 +94,7 @@
         this.parseTimer = setTimeout(() => { this.parseTimer = null; this.parse(); }, 180);
       });
       this.$("ensembleTuning").addEventListener("change", () => this.parse());
+      this.$("ensembleApplyPreset").addEventListener("click", () => this.loadPreset());
       this.$("ensembleAdd").addEventListener("click", () => this.addTrack());
       this.$("ensembleStop").addEventListener("click", () => this.stop());
       // On Safari, pointerdown often arrives before a delayed/suppressed click.
@@ -124,6 +129,18 @@
     }
     resetTimer() {
       if (this.parseTimer !== null) { clearTimeout(this.parseTimer); this.parseTimer = null; }
+    }
+    loadPreset() {
+      const choice = this.$("ensemblePreset").value;
+      if (choice !== "starter" && !presets.CATALOG.some(item => item.id === choice)) return;
+      this.resetTimer();
+      this.player.stop();
+      this.tracks = choice === "starter" ? DEFAULTS.map(track => ({ ...track })) :
+        presets.create(choice, this.language);
+      this.selectedId = this.tracks[0].id;
+      this.nextId = Math.max(...this.tracks.map(track => track.id)) + 1;
+      this.$("ensembleText").value = this.selected().abc;
+      this.parse();
     }
     parse() {
       this.resetTimer();
@@ -314,6 +331,11 @@
       this.document.querySelectorAll("[data-ensemble-i18n]").forEach(element => {
         element.textContent = this.t(element.getAttribute("data-ensemble-i18n"));
       });
+      const presetList = this.$("ensemblePreset");
+      for (const piece of presets.CATALOG) {
+        const option = Array.from(presetList.options || []).find(option => option.value === piece.id);
+        if (option) option.textContent = piece[language];
+      }
       this.renderTracks();
       this.renderTransport();
       this.updatePlayhead(this.player.currentBeat);

@@ -407,6 +407,12 @@ h1, h2, p { margin-top: 0; }
   background: #fff; color: #3e6180; font-size: 13px; font-weight: 850; }
 .compose-subtabs button.selected { background: #2869b9; color: #fff; border-color: #2869b9; }
 .compose-subtabs button:hover:not(.selected) { background: #edf5ff; }
+.ensemble-preset-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.ensemble-preset-row button { min-width: 70px; min-height: 44px; padding: 9px 12px;
+  border: 1px solid #73b7b6; border-radius: 9px; background: #e7f7f5;
+  color: #176b70; font-size: 12px; font-weight: 850; }
+.ensemble-preset-row button:hover { background: #d8f0ed; }
+.ensemble-workspace .field-help { margin-top: 7px; }
 .ensemble-tracks-heading { display: flex; justify-content: space-between; align-items: center; gap: 7px; }
 .ensemble-tracks-heading h3 { font-size: 14px; color: #284666; }
 .ensemble-tracks-heading button { border: 1px solid #73b7b6; background: #e7f7f5; color: #176b70;

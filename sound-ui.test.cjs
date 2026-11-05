@@ -56,11 +56,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-score-player\.js\?v=s045"/);
   assert.match(html, /src="sound-compose\.js\?v=s045b"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s045"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s046"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s046"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s045"/);
+  assert.match(html, /href="sound-lab\.css\?v=s046"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
   assert.match(html, /src="sound-recorder\.js"/);
@@ -143,7 +144,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="composeSubtabs"[^>]*hidden/);
   assert.match(html, /id="composeEnsembleWorkspace"[^>]*hidden/);
   assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 2);
-  for (const id of ["ensembleText", "ensembleTuning", "ensembleAdd", "ensemblePlayPause", "ensembleStop",
+  for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensemblePlayPause", "ensembleStop",
     "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList"]) {
     assert.ok(ids.includes(id), "Missing Ensemble control #" + id);
   }
@@ -572,7 +573,7 @@ function fakePage(search = "", supportWorklets = true) {
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
   for (const name of ["sound-score.js", "sound-abc.js", "sound-fm.js", "sound-score-player.js",
-    "sound-compose.js", "sound-ensemble.js"]) {
+    "sound-compose.js", "sound-ensemble-presets.js", "sound-ensemble.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });
   }
@@ -3103,6 +3104,35 @@ test("Compose ensemble edits tracks separately, adds and removes parts, changes 
   assert.match(app.elements.get("ensembleText").value, /K:D/);
   assert.equal(app.elements.get("ensembleTimeline").children.length, 3);
   assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+});
+
+test("Compose ensemble loads complete arrangements with three synchronized editable parts", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  for (const [choice, title, count] of [
+    ["minuet", /Minuet in G/, 3],
+    ["korobeiniki", /Korobeiniki/, 3],
+    ["kalinka", /Kalinka/, 3]
+  ]) {
+    app.elements.get("ensemblePreset").value = choice;
+    app.fire("ensembleApplyPreset", "click");
+    assert.equal(app.elements.get("ensembleTrackList").children.length, count);
+    assert.equal(app.elements.get("ensembleTimeline").children.length, count);
+    assert.match(app.elements.get("ensembleText").value, title);
+    assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+    assert.match(app.elements.get("ensembleStatus").textContent, /Бэлэн/);
+    assert.equal(app.contexts.length, 0, "Loading a full preset must not start audio");
+  }
+  app.fire("langEn", "click");
+  assert.match(app.elements.get("ensembleEditorTitle").textContent, /ABC/);
+  const second = app.elements.get("ensembleTrackList").children[1];
+  second.children[0].children[0].click();
+  assert.match(app.elements.get("ensembleText").value, /original accompaniment/);
+  app.elements.get("ensemblePreset").value = "starter";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 2);
+  assert.match(app.elements.get("ensembleText").value, /T:Melody/);
 });
 
 test("Compose solo Pause works on pointerdown even when Safari does not send a click", async () => {

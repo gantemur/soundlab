@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s045">
+  <link rel="stylesheet" href="sound-lab.css?v=s046">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -28,7 +28,8 @@
   <script src="sound-abc.js?v=s040a" defer></script>
   <script src="sound-score-player.js?v=s045" defer></script>
   <script src="sound-compose.js?v=s045b" defer></script>
-  <script src="sound-ensemble.js?v=s045" defer></script>
+  <script src="sound-ensemble-presets.js?v=s046" defer></script>
+  <script src="sound-ensemble.js?v=s046" defer></script>
   <script src="sound-lab.js?v=s045" defer></script>
 </head>
 <body>
@@ -1409,6 +1410,19 @@
         <div class="section-top">
           <h2 id="ensemble-heading" data-ensemble-i18n="heading">Олон хөгжим тоглуулах</h2>
           <p class="description" data-ensemble-i18n="intro">Хөгжим тус бүр өөрийн ABC ноттой. Бүгд нэг хэмнэл, хурдтай зэрэг тоглоно.</p>
+        </div>
+        <div class="field-group">
+          <label class="field-title" for="ensemblePreset" data-ensemble-i18n="presets">Бэлэн найруулга</label>
+          <div class="ensemble-preset-row">
+            <select id="ensemblePreset">
+              <option value="starter">Эхний дасгал · 4 такт</option>
+              <option value="minuet">Петцольд · Соль мажор менуэт (32 такт)</option>
+              <option value="korobeiniki">Коробейники · ардын дуу (16 такт)</option>
+              <option value="kalinka">Калинка · Ларионов (27 такт)</option>
+            </select>
+            <button id="ensembleApplyPreset" type="button" data-ensemble-i18n="loadPreset">Нээх</button>
+          </div>
+          <p class="field-help" data-ensemble-i18n="presetHint">Нээхэд одоогийн нотууд солигдоно. Хөгжим тус бүрийн ABC-г өөрчилж болно.</p>
         </div>
         <div class="field-group">
           <label class="field-title" for="ensembleTuning" data-ensemble-i18n="tuning">Хөг</label>
