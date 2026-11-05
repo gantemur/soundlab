@@ -24,14 +24,14 @@
   <script src="sound-harmonics.js" defer></script>
   <script src="sound-noise.js" defer></script>
   <script src="sound-recorder.js" defer></script>
-  <script src="sound-score.js?v=s040a" defer></script>
-  <script src="sound-abc.js?v=s040a" defer></script>
+  <script src="sound-score.js?v=s051" defer></script>
+  <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s047" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s047" defer></script>
-  <script src="sound-compose.js?v=s045b" defer></script>
-  <script src="sound-ensemble-presets.js?v=s046" defer></script>
-  <script src="sound-ensemble.js?v=s050" defer></script>
+  <script src="sound-score-player.js?v=s051" defer></script>
+  <script src="sound-compose.js?v=s051" defer></script>
+  <script src="sound-ensemble-presets.js?v=s051" defer></script>
+  <script src="sound-ensemble.js?v=s051" defer></script>
   <script src="sound-lab.js?v=s045" defer></script>
 </head>
 <body>
@@ -1325,13 +1325,18 @@
               <option value="waltz" data-compose-i18n="exampleWaltz">Соль мажор вальс</option>
               <option value="minor" data-compose-i18n="exampleMinor">Минор аялгуу</option>
             </optgroup>
-            <optgroup label="Аялгуу ба сонгодог бүтээлийн хэсгүүд" data-compose-group-i18n="exampleMelodies">
+            <optgroup label="Сонгодог хөгжим" data-compose-group-i18n="exampleClassics">
               <option value="ode" data-compose-i18n="exampleOde">Бетховен · Баяр баясгалангийн магтуу (16 такт)</option>
               <option value="minuetG" data-compose-i18n="exampleMinuetG">Петцольд · Соль мажор менуэт (32 такт)</option>
-              <option value="lightly" data-compose-i18n="exampleLightly">Lightly Row · ардын дуу (16 такт)</option>
               <option value="mozart40" data-compose-i18n="exampleMozart40">Моцарт · 40-р симфони (20 тактын сэдэв)</option>
+            </optgroup>
+            <optgroup label="Европ ардын дуунууд" data-compose-group-i18n="exampleWestern">
+              <option value="bella" data-compose-i18n="exampleBella">Bella Ciao · Италийн ардын дуу (хоёр бадаг)</option>
+              <option value="lightly" data-compose-i18n="exampleLightly">Lightly Row · ардын дуу (16 такт)</option>
               <option value="frere" data-compose-i18n="exampleFrere">Фрэр Жак · ардын дуу (8 такт)</option>
               <option value="twinkle" data-compose-i18n="exampleTwinkle">Гялалзах одод · ардын дуу (12 такт)</option>
+            </optgroup>
+            <optgroup label="Орос ардын болон түүхэн дуунууд" data-compose-group-i18n="exampleRussian">
               <option value="korobeiniki" data-compose-i18n="exampleKorobeiniki">Коробейники · орос ардын дуу (16 такт)</option>
               <option value="kalinka" data-compose-i18n="exampleKalinka">Калинка · Ларионов (27 такт)</option>
               <option value="birch" data-compose-i18n="exampleBirch">Во поле берёза стояла · ардын дуу (8 такт)</option>
@@ -1417,10 +1422,21 @@
           <label class="field-title" for="ensemblePreset" data-ensemble-i18n="presets">Бэлэн найруулга</label>
           <div class="ensemble-preset-row">
             <select id="ensemblePreset">
-              <option value="starter">Эхний дасгал · 4 такт</option>
-              <option value="minuet">Петцольд · Соль мажор менуэт (32 такт)</option>
-              <option value="korobeiniki">Коробейники · ардын дуу (16 такт)</option>
-              <option value="kalinka">Калинка · Ларионов (27 такт)</option>
+              <optgroup label="Дасгал" data-ensemble-group-i18n="presetStudies">
+                <option value="starter">Эхний дасгал · 4 такт</option>
+              </optgroup>
+              <optgroup label="Сонгодог хөгжим" data-ensemble-group-i18n="presetClassics">
+                <option value="minuet">Петцольд · Соль мажор менуэт (32 такт)</option>
+                <option value="chopin7">Шопен · Прелюд Op. 28 №7 (бүтэн, 16 такт)</option>
+                <option value="chopin20">Шопен · Прелюд Op. 28 №20 (бүтэн, 13 такт)</option>
+              </optgroup>
+              <optgroup label="Европ ардын дуунууд" data-ensemble-group-i18n="presetWestern">
+                <option value="bella">Bella Ciao · бөмбөртэй найруулга</option>
+              </optgroup>
+              <optgroup label="Орос ардын болон түүхэн дуунууд" data-ensemble-group-i18n="presetRussian">
+                <option value="korobeiniki">Коробейники · ардын дуу (16 такт)</option>
+                <option value="kalinka">Калинка · Ларионов (27 такт)</option>
+              </optgroup>
             </select>
             <button id="ensembleApplyPreset" type="button" data-ensemble-i18n="loadPreset">Нээх</button>
           </div>

@@ -20,6 +20,18 @@ test("pluck, kick and modeled piano are distinct bounded decaying mathematical s
   assert.notEqual(sound.sampleAt("piano", 0.012, 220, 0.65), sound.sampleAt("pluck", 0.012, 220, 0.65));
 });
 
+test("acoustic piano can synthesize low and high score chords beyond the guitar's pitch range", () => {
+  for (const pitchHz of [32.7032, 43.6535, 1046.502, 1318.51]) {
+    const sample = sound.makeSamples("piano", pitchHz, .4, 8000);
+    assert.ok(sample.length > 1000);
+    assert.ok(sample.every(Number.isFinite));
+    assert.ok(sample.some(value => Math.abs(value) > 1e-4), "Piano note is audible at " + pitchHz + " Hz");
+  }
+  assert.throws(() => sound.makeSamples("pluck", 43.6535, .4, 8000), /supported range/);
+  assert.throws(() => sound.makeSamples("piano", 24, .4, 8000), /supported range/);
+  assert.throws(() => sound.makeSamples("piano", 2000, .4, 8000), /supported range/);
+});
+
 test("membrane fundamentals depend on size and the square root of tension", () => {
   assert.equal(sound.kickFrequency(0), sound.kickFrequency(.3));
   assert.ok(Math.abs(sound.kickFrequency(0) - 112) < 0.1);

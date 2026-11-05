@@ -44,7 +44,11 @@
       throw new Error("Temperament model unavailable");
     }
     const normalizedOctave = Math.floor(midi / 12) - 1;
-    return temperamentModel.frequency(tuning, mod(midi, 12), normalizedOctave, a4);
+    // The tuning visualizer covers octaves 2–6. A piano can legitimately play
+    // outside that range; temperament ratios repeat exactly by octaves.
+    const octaveForTemperament = Math.max(2, Math.min(6, normalizedOctave));
+    return temperamentModel.frequency(tuning, mod(midi, 12), octaveForTemperament, a4) *
+      2 ** (normalizedOctave - octaveForTemperament);
   }
 
   function secondsPerBeat(score) {
@@ -64,9 +68,9 @@
         score.totalBeats > MAX_BEATS || score.totalBeats * secondsPerBeat(score) > MAX_SECONDS) {
       throw new RangeError("The score must contain 1–256 events, at most 32 bars and 256 quarter beats, and fit within 90 seconds");
     }
-    let cursor = 0, previous = null;
+    let cursor = 0, previous = null, soundingNotes = 0;
     for (const event of events) {
-      if (!event || !["note", "rest"].includes(event.type) ||
+      if (!event || !["note", "chord", "rest"].includes(event.type) ||
           !Number.isFinite(event.startBeat) || Math.abs(event.startBeat - cursor) > 1e-7 ||
           !Number.isFinite(event.durationBeats) || event.durationBeats <= 0 ||
           event.durationBeats > 32 || !Number.isInteger(event.bar) || event.bar < 1 ||
@@ -74,9 +78,16 @@
         throw new RangeError("Invalid event timing");
       }
       if (event.type === "note") pitchNumber(event.pitch);
+      if (event.type === "chord") {
+        if (!Array.isArray(event.pitches) || event.pitches.length < 2 || event.pitches.length > 6 ||
+            new Set(event.pitches.map(pitchNumber)).size !== event.pitches.length) {
+          throw new RangeError("A chord needs 2–6 distinct pitched notes");
+        }
+      }
+      soundingNotes += event.type === "chord" ? event.pitches.length : event.type === "note" ? 1 : 0;
       if (["tieToNext", "tieFromPrevious"].some(flag =>
         event[flag] !== undefined && typeof event[flag] !== "boolean") ||
-          (event.type === "rest" && (event.tieToNext || event.tieFromPrevious)) ||
+          (event.type !== "note" && (event.tieToNext || event.tieFromPrevious)) ||
           Boolean(event.tieFromPrevious) !== Boolean(previous && previous.tieToNext)) {
         throw new RangeError("Invalid note tie");
       }
@@ -89,6 +100,7 @@
       cursor += event.durationBeats;
       previous = event;
     }
+    if (soundingNotes > 768) throw new RangeError("Maximum 768 sounding notes per score");
     if (previous.tieToNext) throw new RangeError("A tie must continue to another note");
     if (Math.abs(cursor - score.totalBeats) > 1e-7) throw new RangeError("Score duration mismatch");
     return score;

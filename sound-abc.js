@@ -173,6 +173,48 @@
           if (finalBar) closed = true;
           continue;
         }
+        if (c === "[") {
+          // Standard ABC chord: all pitches begin together and share the
+          // duration written after ]. Individual voices/ties are not yet used.
+          const startIndex = i++;
+          const pitches = [];
+          while (i < body.length && body[i] !== "]") {
+            const match = /^(\^\^|__|\^|_|=)?([A-Ga-g])([,']*)/.exec(body.slice(i));
+            if (!match) throw new ABCError("Invalid note inside chord", line, i + 1);
+            const [, accidentalText, letter, marks] = match;
+            const base = letter.toUpperCase();
+            const octave = (/[a-g]/.test(letter) ? 5 : 4) +
+              [...marks].reduce((value, mark) => value + (mark === "," ? -1 : 1), 0);
+            if (octave < 1 || octave > 7) throw new ABCError("Note outside supported octaves", line, i + 1);
+            const spelling = base + octave;
+            const explicit = accidentalText === undefined ? null :
+              { "^^": 2, "^": 1, "=": 0, _: -1, __: -2 }[accidentalText];
+            if (explicit !== null) carried[spelling] = explicit;
+            pitches.push({ letter: base, accidental: explicit !== null ? explicit :
+              (carried[spelling] ?? key.accidentals[base] ?? 0), octave });
+            i += match[0].length;
+          }
+          if (body[i] !== "]" || pitches.length < 2 || pitches.length > 6) {
+            throw new ABCError("A chord needs 2–6 notes and a closing ]", line, startIndex + 1);
+          }
+          i++;
+          const length = readDuration(body, i);
+          i += length.consumed;
+          const durationBeats = unitBeats * length.factor;
+          if (durationBeats > 32) throw new ABCError("One chord may not exceed 32 quarter beats", line, startIndex + 1);
+          if (pendingTie) throw new ABCError("Ties to chords are not supported", line, startIndex + 1);
+          if (new Set(pitches.map(p => scoreModel.pitchNumber(p))).size !== pitches.length) {
+            throw new ABCError("A chord cannot repeat a pitch", line, startIndex + 1);
+          }
+          const event = { type: "chord", startBeat, durationBeats, bar,
+            pitches, abc: body.slice(startIndex, i) };
+          events.push(event);
+          lastToken = event;
+          if (events.length > scoreModel.MAX_EVENTS) throw new ABCError("Maximum 256 notes/rests", line);
+          startBeat += durationBeats;
+          if (startBeat > scoreModel.MAX_BEATS + 1e-7) throw new ABCError("Maximum 256 quarter beats", line);
+          continue;
+        }
         const startIndex = i;
         const accidentalMatch = /^(\^\^|__|\^|_|=)/.exec(body.slice(i));
         let explicit = null;
@@ -182,7 +224,7 @@
         }
         if (!/[A-Ga-gz]/.test(body[i] || "") || !/^[A-Ga-gz]$/.test(body[i])) {
           throw new ABCError("Unsupported symbol '" + (body[i] ?? "end") +
-            "' (Compose supports notes, rests, lengths, ties and barlines)", line, i + 1);
+            "' (Compose supports notes, chords, rests, lengths, ties and barlines)", line, i + 1);
         }
         const letter = body[i++];
         const isRest = letter === "z";

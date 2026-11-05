@@ -18,14 +18,15 @@ test("all Compose examples are valid measured single-part scores", () => {
     assert.equal(parsed.version, 1, name);
     assert.equal(parsed.parts.length, 1, name);
     const expectedBars = { ode: 16, minuetG: 32, lightly: 16, mozart40: 20,
-      frere: 8, twinkle: 12, korobeiniki: 16, kalinka: 27, birch: 8 }[name] || 4;
+      frere: 8, twinkle: 12, korobeiniki: 16, kalinka: 27, birch: 8,
+      bella: 17 }[name] || 4;
     assert.equal(parsed.bars.length, expectedBars, name);
     assert.equal(parsed.totalBeats, name === "waltz" ? 12 :
       name === "minuetG" ? 96 : name === "lightly" ? 32 :
       name === "mozart40" ? 80 : name === "frere" ? 32 :
       name === "twinkle" ? 48 : name === "ode" ? 64 :
       name === "korobeiniki" ? 32 : name === "kalinka" ? 53 :
-      name === "birch" ? 48 : 16, name);
+      name === "birch" ? 48 : name === "bella" ? 64 : 16, name);
     assert.equal(parsed.parts[0].events[0].startBeat, 0, name);
     assert.equal(parsed.parts[0].events.at(-1).startBeat +
       parsed.parts[0].events.at(-1).durationBeats, parsed.totalBeats, name);
@@ -84,6 +85,34 @@ test("Russian folk presets retain their source phrases, pickup, cadence and repe
   assert.equal(score.pitchName(birch.parts[0].events.at(-1).pitch), "A3");
 });
 
+test("Bella Ciao contains two traditional stanzas, a pickup and a resolved cadence", () => {
+  const bella = abc.parse(EXAMPLES.bella);
+  assert.equal(bella.key.name, "Am");
+  assert.deepEqual(bella.bars.filter(b => b.partial).map(b => b.number), [1, 17]);
+  assert.equal(bella.bars[0].durationBeats, 1);
+  assert.equal(bella.bars.at(-1).durationBeats, 3);
+  assert.deepEqual(bella.parts[0].events.slice(0, 3).map(e => score.pitchName(e.pitch)),
+    ["A4", "B4", "C5"]);
+  assert.equal(score.pitchName(bella.parts[0].events.at(-1).pitch), "A4");
+});
+
+test("ABC bracketed chords keep simultaneous pitches, shared durations and accidentals", () => {
+  const parsed = abc.parse(piece("[^CEG]2 z [EGB] | [CEG]3 z |]"));
+  const events = parsed.parts[0].events;
+  assert.equal(parsed.totalBeats, 8);
+  assert.equal(events[0].type, "chord");
+  assert.deepEqual(events[0].pitches.map(score.pitchName), ["C♯4", "E4", "G4"]);
+  assert.equal(events[0].durationBeats, 2);
+  assert.deepEqual(events.map(e => [e.type, e.startBeat, e.durationBeats]), [
+    ["chord", 0, 2], ["rest", 2, 1], ["chord", 3, 1],
+    ["chord", 4, 3], ["rest", 7, 1]
+  ]);
+  assert.equal(score.validate(parsed), parsed);
+  for (const bad of ["[C]4", "[CC]4", "[Cz]4", "[CE]4-", "[CE", "[CDEFGAB]4"]) {
+    assert.throws(() => abc.parse(piece(bad + " |]")), /./, bad);
+  }
+});
+
 test("ABC note values, rests, split bars and double bars preserve exact timing", () => {
   const parsed = abc.parse(piece("C2 z D/ E/ | F G A B || c4 |]"));
   assert.deepEqual(parsed.parts[0].events.slice(0, 4).map(e =>
@@ -133,7 +162,7 @@ test("C1 parser rejects unsupported notation and visibly detects rhythm errors",
   const invalid = [
     piece("C D E |]"), // incomplete non-final bar only? final partial allowed, so use non-final
     piece("C4 | C2 D | C4 |]"),
-    piece("C D E F | [CE]2 |]"),
+    piece("C D E F | [CE]5 |]"),
     piece("C D E F |: C4 :|"),
     piece("C D E F | (3CDE C |]"),
     piece("C D E F | C4 |]", { key: "H" }),

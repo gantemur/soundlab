@@ -33,6 +33,15 @@
     const notes = [];
     for (const event of score.parts[0].events) {
       if (event.type === "rest") continue;
+      if (event.type === "chord") {
+        // One notated chord is one rhythmic event, but each pitch needs its
+        // own sounding voice. Keep their common attack and release times.
+        for (const pitch of event.pitches) {
+          const { pitches, ...notated } = event;
+          notes.push({ ...notated, type: "note", pitch: { ...pitch }, chordSize: pitches.length });
+        }
+        continue;
+      }
       if (event.tieFromPrevious) {
         notes[notes.length - 1].durationBeats += event.durationBeats;
       } else {
@@ -82,18 +91,19 @@
       }
       // Validate every note before starting AudioContext, rather than silently
       // transposing notes outside the working range of the instrument models.
-      for (const event of score.parts[0].events) {
-        if (event.type === "rest") continue;
+      const soundingEvents = scheduledEvents(score);
+      for (const event of soundingEvents) {
         const hz = noteFrequency(event, tuning, this.temperamentModel);
-        const upper = instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
-        if (hz < scoreModel.MIN_NOTE_HZ || hz > upper) {
+        const lower = instrument === "piano" ? 27.5 : scoreModel.MIN_NOTE_HZ;
+        const upper = instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
+        if (hz < lower || hz > upper) {
           throw new RangeError(scoreModel.pitchName(event.pitch) + " (" + hz.toFixed(1) +
-            " Hz) is outside the " + instrument + " range (110–" + upper + " Hz)");
+            " Hz) is outside the " + instrument + " range (" + lower + "–" + upper + " Hz)");
         }
       }
       this.stop();
       this.score = score;
-      this.playEvents = scheduledEvents(score);
+      this.playEvents = soundingEvents;
       this.instrument = instrument;
       this.tuning = tuning;
       this.volume = volume;
@@ -242,7 +252,8 @@
       const gain = context.createGain();
       const instrument = settings?.instrument || this.instrument;
       const volume = settings?.volume ?? this.volume;
-      const level = Math.min(.35, .19 * volume / 100 * (instrument === "piano" ? 2.35 : 1));
+      const level = Math.min(.35, .19 * volume / 100 * (instrument === "piano" ? 2.35 : 1)) /
+        Math.sqrt(event.chordSize || 1);
       gain.connect(settings?.output || this.outputBus || this.contextOwner.output);
       if (["flute", "violin", "morin", ...WAVEFORMS].includes(instrument)) {
         const oscillator = context.createOscillator();
@@ -330,16 +341,17 @@
           score.meter.denominator !== first.meter.denominator) {
         throw new RangeError("All tracks must have the same M: and Q: tempo");
       }
-      events += instrument === "drums" ? drumModel.scheduledEvents(score).length : score.parts[0].events.length;
+      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score) : scheduledEvents(score);
+      events += soundingEvents.length;
       totalBeats = Math.max(totalBeats, score.totalBeats);
       if (instrument === "drums") continue;
-      for (const event of score.parts[0].events) {
-        if (event.type === "rest") continue;
+      for (const event of soundingEvents) {
         const hz = noteFrequency(event, tuning, temperamentModel);
-        const upper = instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
-        if (hz < scoreModel.MIN_NOTE_HZ || hz > upper) {
+        const lower = instrument === "piano" ? 27.5 : scoreModel.MIN_NOTE_HZ;
+        const upper = instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
+        if (hz < lower || hz > upper) {
           throw new RangeError(scoreModel.pitchName(event.pitch) + " is outside " + instrument +
-            " range (110–" + upper + " Hz)");
+            " range (" + lower + "–" + upper + " Hz)");
         }
       }
     }

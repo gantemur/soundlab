@@ -64,7 +64,12 @@
       "E E E E D2 C C B,2 A,2 | E E G E D D C C B,2 A,2 |\n" +
       "B,3 C D2 C C B,2 A,2 | B, B, B, C D D C C B,2 A,2 |\n" +
       "E E E E D2 C C B,2 A,2 | E E G E D D C C B,2 A,2 |\n" +
-      "B,3 C D2 C C B,2 A,2 | B, B, B, C D D C C B,2 A,2 |]"
+      "B,3 C D2 C C B,2 A,2 | B, B, B, C D D C C B,2 A,2 |]",
+    bella: "X:14\nT:Bella Ciao - traditional Italian song (two stanzas)\nM:4/4\nL:1/8\nQ:1/4=104\nK:Am\n" +
+      "A B | c A4 E A B | c A4 E A B | c c B A c c B A | e2 e2 e2 d e |\n" +
+      "f f4 f e d | f e4 z d c | B2 e e B2 c2 | A6 A B |\n" +
+      "c A4 E A B | c A4 E A B | c c B A c c B A | e2 e2 e2 d e |\n" +
+      "f f4 f e d | f e4 z d c | B2 e e B2 c2 | A6 |]"
   });
 
   const EXAMPLE_INFO = Object.freeze({
@@ -102,6 +107,10 @@
       source: "https://abcnotation.com/tunePage?a=trillian.mit.edu%2F~jc%2Fmusic%2Fabc%2Fsong%2FKalinka_Em%2F0000",
       en: "Refrain and contrasting verse, E minor / G major; a steady tempo replaces fermatas and repeats.",
       mn: "Ми минор/Соль мажор дахь дахилт ба бадаг; фермат, давталтыг орхиж, нэг хурдаар тоглоно." },
+    bella: { instrument: "violin", composer: "Anonymous Italian traditional song", originalKey: "Traditional; A minor variant",
+      source: "https://abcnotation.com/tunePage?a=tapazovaldoten.altervista.org%2Fcanzoni%2Fbella_ciao%2Fbella_ciao_abc%2F0001",
+      en: "A complete two-stanza instrumental setting of the traditional melody; no lyrics or modern arrangement copied.",
+      mn: "Италийн ардын аяыг хоёр бадаг болгон тоглуулна; дууны үг, орчин үеийн найруулгыг хуулбарлаагүй." },
     birch: { instrument: "morin", composer: "Traditional Russian folk song", originalKey: "Traditional; A minor version",
       source: "https://ru.wikisource.org/wiki/Справка:Ноты#Нотация_ABC",
       en: "A four-bar folk stanza played twice, in A minor one octave lower than the linked example.",
@@ -122,7 +131,8 @@
       intro: "Write a short ABC score, choose one instrument and hear it follow your notes. No sound plays until you press Play.",
       example: "Example score", exampleFirst: "First melody", exampleRests: "Notes and rests",
       exampleWaltz: "Waltz in G", exampleMinor: "Minor tune",
-      exampleStudies: "Writing exercises", exampleMelodies: "Melodies and classical excerpts",
+      exampleStudies: "Writing exercises", exampleClassics: "Classical music",
+      exampleRussian: "Russian folk and historical songs", exampleWestern: "European folk songs",
       exampleOde: "Beethoven · Ode to Joy (16 bars)",
       exampleMinuetG: "Petzold · Minuet in G (32 bars)",
       exampleLightly: "Lightly Row · folk (16 bars)",
@@ -132,6 +142,7 @@
       exampleKorobeiniki: "Korobeiniki · Russian folk (16 bars)",
       exampleKalinka: "Kalinka · Larionov (27-bar melody)",
       exampleBirch: "A Birch Stood in the Field · folk (8 bars)",
+      exampleBella: "Bella Ciao · Italian folk (two stanzas)",
       instrument: "Instrument", instrumentAcoustic: "Acoustic models",
       instrumentElectronic: "Electronic sounds",
       flute: "Flute", violin: "Violin", morin: "Morin khuur",
@@ -141,7 +152,7 @@
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean",
       just: "Just · C-centred", tuningHint: "The same written notes can sound different in another tuning. The just preset is centred on C; enharmonic spellings share a key in C1.",
       volume: "Volume", score: "ABC score", load: "Open .abc / .txt file",
-      scoreHint: "C D E G = quarter notes when L:1/4. C2 lasts twice as long; z is a rest. Uppercase C is middle C; lowercase c is one octave higher.",
+      scoreHint: "C D E G = quarter notes when L:1/4. C2 lasts twice as long; z is a rest; [CEG] sounds a three-note chord. Uppercase C is middle C; lowercase c is one octave higher.",
       limitsHint: "Up to 32 bars, 256 notes/rests and 90 seconds. A short first bar is a pickup; C2-C joins equal pitches into one held note, including across a barline.",
       source: "Score source", suggested: "Suggested instrument",
       play: "▶ Play", pause: "Ⅱ Pause", resume: "▶ Resume", stop: "■ Stop",
@@ -154,14 +165,15 @@
       parseError: "Score error", rangeError: "Note outside the selected instrument's range",
       bar: "Bar", rest: "Rest", notes: "notes", bars: "bars", seconds: "sec",
       empty: "No valid score yet", now: "Now", model: "Modeled instruments · one part · ABC subset",
-      footer: "This tab plays one melody with its readable staff. The Many instruments tab can play several ABC parts together. Chords and drum patterns are planned for later."
+      footer: "This tab plays one ABC part, including chords, with a readable staff. The Many instruments tab combines parts and also has reusable drum patterns."
     },
     mn: {
       mode: "Ая зохиох", phase: "07 · Ая зохиох", title: "Аялгуу зохиох",
       intro: "ABC тэмдэглэгээгээр богино ая бичиж, нэг хөгжмөөр тоглуулаарай. «Тоглуулах»-ыг дарахаас өмнө дуу гарахгүй.",
       example: "Жишээ ая", exampleFirst: "Энгийн аялгуу", exampleRests: "Нот ба завсарлага",
       exampleWaltz: "Соль мажор вальс", exampleMinor: "Минор аялгуу",
-      exampleStudies: "Нот бичих дасгал", exampleMelodies: "Аялгуу ба сонгодог бүтээлийн хэсгүүд",
+      exampleStudies: "Нот бичих дасгал", exampleClassics: "Сонгодог хөгжим",
+      exampleRussian: "Орос ардын болон түүхэн дуунууд", exampleWestern: "Европ ардын дуунууд",
       exampleOde: "Бетховен · Баяр баясгалангийн магтуу (16 такт)",
       exampleMinuetG: "Петцольд · Соль мажор менуэт (32 такт)",
       exampleLightly: "Lightly Row · ардын дуу (16 такт)",
@@ -171,6 +183,7 @@
       exampleKorobeiniki: "Коробейники · орос ардын дуу (16 такт)",
       exampleKalinka: "Калинка · Ларионов (27 такт)",
       exampleBirch: "Во поле берёза стояла · ардын дуу (8 такт)",
+      exampleBella: "Bella Ciao · Италийн ардын дуу (хоёр бадаг)",
       instrument: "Хөгжмийн зэмсэг", instrumentAcoustic: "Акустик загварууд",
       instrumentElectronic: "Электрон авиа",
       flute: "Лимбэ", violin: "Хийл", morin: "Морин хуур",
@@ -181,7 +194,7 @@
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын",
       just: "Цэвэр · До төвтэй", tuningHint: "Ижил нотыг өөр хөгөөр тоглуулахад өндөр нь бага зэрэг өөрчлөгдөнө. Цэвэр хувилбар нь До төвтэй; C1-д диез ба бемол ижил товчлуурт хамаарна.",
       volume: "Дууны хэмжээ", score: "ABC нотын бичиг", load: ".abc / .txt файл нээх",
-      scoreHint: "L:1/4 үед C D E G нь дөрөвт нотууд; C2 нь хоёр дахин урт, z нь завсарлага. Том C нь До4, жижиг c нь До5.",
+      scoreHint: "L:1/4 үед C D E G нь дөрөвт нотууд; C2 нь хоёр дахин урт, z нь завсарлага, [CEG] нь зэрэг эгшиглэх гурван нот. Том C нь До4, жижиг c нь До5.",
       limitsHint: "32 такт, 256 нот/завсарлага, 90 секунд хүртэл. Эхний такт дутуу байж болно; C2-C нь ижил өндөртэй нотуудыг залгуулна. Тактын зураасыг давуулан залгуулж болно.",
       source: "Нотын эх сурвалж", suggested: "Санал болгох зэмсэг",
       play: "▶ Тоглуулах", pause: "Ⅱ Түр зогсоох", resume: "▶ Үргэлжлүүлэх", stop: "■ Зогсоох",
@@ -194,7 +207,7 @@
       parseError: "Нотын бичгийн алдаа", rangeError: "Нотын өндөр сонгосон зэмсгийн хүрээнээс хэтэрлээ",
       bar: "Такт", rest: "Завсарлага", notes: "нот", bars: "такт", seconds: "сек",
       empty: "Зөв аялгуу хараахан байхгүй", now: "Одоо", model: "Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ",
-      footer: "Энд нэг аялгууг нотын мөртэй нь тоглуулна. Олон хөгжим хэсэгт хэд хэдэн ABC аялгууг зэрэг тоглуулж болно. Аккорд, бөмбөрийн хэмнэлийг дараа нэмнэ."
+      footer: "Энд аккордтойгоо нэг ABC хоолойг нотын мөртэй нь тоглуулна. Олон хөгжим хэсэгт хэд хэдэн хоолой болон давталттай бөмбөрийн загваруудыг хамт тоглуулж болно."
     }
   });
 
@@ -443,33 +456,41 @@
           Math.max(bar.durationBeats, this.score.meter.quarterBeats) * 181;
         const group = make("g", { class: "compose-note", "data-note-index": index });
         let y = lineY + 65;
-        if (event.type === "note") {
+        if (event.type === "note" || event.type === "chord") {
           const letters = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-          const diatonic = (event.pitch.octave - 4) * 7 + letters[event.pitch.letter];
-          y = lineY + 83 - (diatonic - 2) * 5;
-          for (let ledger = lineY + 93; ledger <= y; ledger += 10) {
-            make("line", { x1: x - 7, x2: x + 16, y1: ledger, y2: ledger,
-              class: "compose-ledger-line" }, group);
-          }
-          for (let ledger = lineY + 33; ledger >= y; ledger -= 10) {
-            make("line", { x1: x - 7, x2: x + 16, y1: ledger, y2: ledger,
-              class: "compose-ledger-line" }, group);
-          }
-          make("ellipse", { cx: x + 4, cy: y, rx: 6.2, ry: 4.6,
-            transform: `rotate(-22 ${x + 4} ${y})` }, group);
+          const pitches = event.type === "chord" ? event.pitches : [event.pitch];
+          const ys = pitches.map(pitch => {
+            const diatonic = (pitch.octave - 4) * 7 + letters[pitch.letter];
+            return lineY + 83 - (diatonic - 2) * 5;
+          });
+          y = Math.min(...ys);
+          pitches.forEach((pitch, noteIndex) => {
+            const noteY = ys[noteIndex];
+            for (let ledger = lineY + 93; ledger <= noteY; ledger += 10) {
+              make("line", { x1: x - 7, x2: x + 16, y1: ledger, y2: ledger,
+                class: "compose-ledger-line" }, group);
+            }
+            for (let ledger = lineY + 33; ledger >= noteY; ledger -= 10) {
+              make("line", { x1: x - 7, x2: x + 16, y1: ledger, y2: ledger,
+                class: "compose-ledger-line" }, group);
+            }
+            make("ellipse", { cx: x + 4, cy: noteY, rx: 6.2, ry: 4.6,
+              transform: `rotate(-22 ${x + 4} ${noteY})` }, group);
+            if (pitch.accidental !== 0) {
+              make("text", { x: x - 17, y: noteY + 4, class: "compose-accidental" }, group,
+                pitch.accidental < 0 ? "♭" : "♯");
+            }
+          });
           make("line", { x1: x + 10, x2: x + 10, y1: y, y2: y - 27,
             class: "compose-stem" }, group);
-          if (event.pitch.accidental !== 0) {
-            const accident = event.pitch.accidental < 0 ? "♭" : "♯";
-            make("text", { x: x - 17, y: y + 4, class: "compose-accidental" }, group, accident);
-          }
         } else {
           make("rect", { x, y: y - 5, width: 12, height: 6, rx: 1.2,
             class: "compose-rest" }, group);
         }
         make("text", { x: x + 4, y: lineY + 166, class: "compose-note-name",
           "text-anchor": "middle" }, group,
-        event.type === "rest" ? "z" : scoreModel.pitchName(event.pitch));
+        event.type === "rest" ? "z" : event.type === "chord" ?
+          event.pitches.map(scoreModel.pitchName).join(" ") : scoreModel.pitchName(event.pitch));
         this.noteGroups.push({ node: group, event, x, y, row });
       });
       const tieArc = (from, to, y, parent) => make("path", {
@@ -501,7 +522,8 @@
       const event = events[index];
       this.$("composeNow").textContent = event ?
         this.t("bar") + " " + (event.bar - (this.score.bars[0].pickup ? 1 : 0)) + " · " +
-        (event.type === "rest" ? this.t("rest") : scoreModel.pitchName(event.pitch)) +
+        (event.type === "rest" ? this.t("rest") : event.type === "chord" ?
+          event.pitches.map(scoreModel.pitchName).join(" ") : scoreModel.pitchName(event.pitch)) +
         " · " + (beat * scoreModel.secondsPerBeat(this.score)).toFixed(1) + " " +
         this.t("seconds") : this.t("ready");
       if (event && this.noteGroups[index]) {

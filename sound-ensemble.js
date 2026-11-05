@@ -29,6 +29,8 @@
     en: { heading: "Play several instruments", intro: "Each track has its own ABC score and instrument; every part shares one beat and tempo.",
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean", just: "Just · C-centred",
       presets: "Arrangement examples", loadPreset: "Load", presetHint: "Load replaces the current arrangement. You can edit every instrument's ABC afterward.",
+      presetStudies: "Writing exercises", presetClassics: "Classical music",
+      presetWestern: "European folk songs", presetRussian: "Russian folk and historical songs",
       add: "+ Add melody", addDrums: "+ Add drums", drums: "Drums", play: "▶ Play ensemble", pause: "Ⅱ Pause", resume: "▶ Resume", stop: "■ Stop",
       ready: "Ready. Choose a track or press Play.", playing: "Playing all active tracks.",
       starting: "Starting instruments…", paused: "Paused. Press Resume to continue.",
@@ -60,6 +62,8 @@
     mn: { heading: "Олон хөгжим тоглуулах", intro: "Хөгжим тус бүр өөрийн ABC ноттой. Бүгд нэг хэмнэл, хурдтай зэрэг тоглоно.",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын", just: "Цэвэр · До төвтэй",
       presets: "Бэлэн найруулга", loadPreset: "Нээх", presetHint: "Нээхэд одоогийн нотууд солигдоно. Хөгжим тус бүрийн ABC-г өөрчилж болно.",
+      presetStudies: "Нот бичих дасгал", presetClassics: "Сонгодог хөгжим",
+      presetWestern: "Европ ардын дуунууд", presetRussian: "Орос ардын болон түүхэн дуунууд",
       add: "+ Аялгуу нэмэх", addDrums: "+ Бөмбөр нэмэх", drums: "Бөмбөр", play: "▶ Тоглуулах", pause: "Ⅱ Түр зогсоох", resume: "▶ Үргэлжлүүлэх", stop: "■ Зогсоох",
       ready: "Бэлэн. Хөгжим сонгох эсвэл тоглуулаарай.", playing: "Сонгосон хөгжмүүд зэрэг тоглож байна.",
       starting: "Хөгжмүүдийг бэлдэж байна…", paused: "Түр зогслоо. Үргэлжлүүлж болно.",
@@ -657,6 +661,9 @@
       this.language = language;
       this.document.querySelectorAll("[data-ensemble-i18n]").forEach(element => {
         element.textContent = this.t(element.getAttribute("data-ensemble-i18n"));
+      });
+      this.document.querySelectorAll("[data-ensemble-group-i18n]").forEach(element => {
+        element.label = this.t(element.getAttribute("data-ensemble-group-i18n"));
       });
       const presetList = this.$("ensemblePreset");
       for (const piece of presets.CATALOG) {

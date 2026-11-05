@@ -53,15 +53,15 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-scales\.js\?v=s031"/);
   assert.match(html, /src="sound-limit5\.js\?v=s036"/);
   assert.match(html, /src="sound-temperaments\.js\?v=s036"/);
-  assert.match(html, /src="sound-score\.js\?v=s040a"/);
-  assert.match(html, /src="sound-abc\.js\?v=s040a"/);
+  assert.match(html, /src="sound-score\.js\?v=s051"/);
+  assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s047"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s047"/);
-  assert.match(html, /src="sound-compose\.js\?v=s045b"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s046"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s050"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s051"/);
+  assert.match(html, /src="sound-compose\.js\?v=s051"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s051"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s051"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
@@ -148,6 +148,15 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="composeSubtabs"[^>]*hidden/);
   assert.match(html, /id="composeEnsembleWorkspace"[^>]*hidden/);
   assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 2);
+  for (const group of ["exampleStudies", "exampleClassics", "exampleWestern", "exampleRussian"]) {
+    assert.match(html, new RegExp('data-compose-group-i18n="' + group + '"'));
+  }
+  for (const group of ["presetStudies", "presetClassics", "presetWestern", "presetRussian"]) {
+    assert.match(html, new RegExp('data-ensemble-group-i18n="' + group + '"'));
+  }
+  for (const choice of ["bella", "chopin7", "chopin20"]) {
+    assert.match(html, new RegExp('<option value="' + choice + '"'));
+  }
   for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensembleAddDrums",
     "ensemblePlayPause", "ensembleStop", "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList",
     "ensembleDrumGrid", "ensembleDrumHint", "ensembleGridBar", "ensembleGridStep", "ensembleGridStrength", "ensembleGridCells",

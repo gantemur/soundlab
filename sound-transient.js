@@ -53,8 +53,10 @@
     if (!Number.isFinite(decaySec) || decaySec < MIN_DECAY || decaySec > MAX_DECAY) {
       throw new RangeError("Decay outside the supported range");
     }
+    const lowPitch = kind === "piano" ? 27.5 : MIN_PITCH_HZ;
+    const highPitch = kind === "piano" ? 1760 : MAX_PITCH_HZ;
     if ((kind === "pluck" || kind === "piano") &&
-        (!Number.isFinite(pitchHz) || pitchHz < MIN_PITCH_HZ || pitchHz > MAX_PITCH_HZ)) {
+        (!Number.isFinite(pitchHz) || pitchHz < lowPitch || pitchHz > highPitch)) {
       throw new RangeError("Pitched-string frequency outside the supported range");
     }
     if (kind === "kick" && (!Object.hasOwn(KICK_SIZES, kickSize) ||

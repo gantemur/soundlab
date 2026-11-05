@@ -3,6 +3,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const abc = require("./sound-abc.js");
 const playerModel = require("./sound-score-player.js");
+const transient = require("./sound-transient.js");
 const sustain = require("./sound-sustain.js");
 const temperaments = require("./sound-temperaments.js");
 
@@ -91,6 +92,45 @@ test("a score never starts audio on load; uses the audio clock and skips rests",
   context.currentTime = 5.5;
   player.tick();
   assert.equal(player.status, "stopped", "Stops after score plus short release");
+});
+
+test("bracketed piano chords expand to independent simultaneous voices with one release", async () => {
+  const chord = abc.parse("M:4/4\nL:1/4\nQ:1/4=100\nK:C\n[CEG]2 z [DFA] |]");
+  assert.equal(chord.parts[0].events.length, 3, "one notation event per chord");
+  const events = playerModel.scheduledEvents(chord);
+  assert.equal(events.length, 6);
+  assert.deepEqual(events.map(e => e.startBeat), [0, 0, 0, 3, 3, 3]);
+  assert.ok(events.every(e => e.chordSize === 3));
+  const { player, context } = audioFixture();
+  player.configure({ score: chord, instrument: "piano", volume: 44 });
+  assert.equal(context.sources.length, 0, "Load stays silent");
+  await player.play();
+  assert.equal(context.sources.length, 3, "all three piano samples are scheduled together");
+  assert.ok(context.sources.every(source => source.startedAt === context.sources[0].startedAt));
+  assert.equal(context.gains.length >= 4, true);
+  player.stop();
+});
+
+test("piano's extended range accepts low Chopin notes but other instruments keep bounds", () => {
+  const bass = abc.parse("M:4/4\nL:1/4\nQ:1/4=96\nK:C\n[C,,,C,,]4 |]");
+  const { player } = audioFixture();
+  assert.doesNotThrow(() => player.configure({ score: bass, instrument: "piano" }));
+  assert.throws(() => player.configure({ score: bass, instrument: "flute" }), /outside/);
+  const high = abc.parse("M:4/4\nL:1/4\nQ:1/4=96\nK:C\n[c'e']4 |]");
+  assert.doesNotThrow(() => player.configure({ score: high, instrument: "piano" }));
+  assert.throws(() => player.configure({ score: high, instrument: "chimes" }), /outside/);
+});
+
+test("the actual acoustic piano model renders simultaneous low Chopin pitches on playback", async () => {
+  const bass = abc.parse("M:4/4\nL:1/4\nQ:1/4=96\nK:C\n[C,,,C,,]4 |]");
+  const { player, context } = audioFixture();
+  context.sampleRate = 8000;
+  player.transientModel = transient;
+  player.configure({ score: bass, instrument: "piano", volume: 36 });
+  await player.play();
+  assert.equal(context.sources.length, 2, "both low piano strings actually synthesized");
+  assert.ok(context.buffers.every(b => b.getChannelData().some(v => Math.abs(v) > 1e-4)));
+  player.stop();
 });
 
 test("pause and resume preserve playback position, while Stop returns to bar one", async () => {
