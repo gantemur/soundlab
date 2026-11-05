@@ -5,13 +5,17 @@
 (function (root, factory) {
   const scoreModel = typeof module === "object" && module.exports ?
     require("./sound-score.js") : root.SoundLabScore;
-  const api = factory(scoreModel);
+  const fmModel = typeof module === "object" && module.exports ?
+    require("./sound-fm.js") : root.SoundLabFM;
+  const api = factory(scoreModel, fmModel);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabScorePlayer = api;
-})(typeof window !== "undefined" ? window : null, function (scoreModel) {
+})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel) {
   "use strict";
 
-  const INSTRUMENTS = Object.freeze(["flute", "violin", "morin", "guitar", "piano", "chimes"]);
+  const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
+  const INSTRUMENTS = Object.freeze(["flute", "violin", "morin", "guitar", "piano", "chimes",
+    ...WAVEFORMS, "fmep"]);
   const AHEAD_SECONDS = .23;
   const TICK_MS = 35;
 
@@ -208,22 +212,29 @@
       const gain = context.createGain();
       const level = .19 * this.volume / 100;
       gain.connect(this.contextOwner.output);
-      if (["flute", "violin", "morin"].includes(this.instrument)) {
-        const components = this.toneComponents(hz);
-        const real = new Float32Array(components.length + 1);
-        const imag = new Float32Array(components.length + 1);
-        components.forEach((component, i) => { real[i + 1] = component.cos; imag[i + 1] = component.sin; });
-        const wave = context.createPeriodicWave(real, imag, { disableNormalization: true });
+      if (["flute", "violin", "morin", ...WAVEFORMS].includes(this.instrument)) {
         const oscillator = context.createOscillator();
-        oscillator.setPeriodicWave(wave);
+        if (WAVEFORMS.includes(this.instrument)) {
+          // Native oscillator shapes are band-limited by the browser.
+          oscillator.type = this.instrument;
+        } else {
+          const components = this.toneComponents(hz);
+          const real = new Float32Array(components.length + 1);
+          const imag = new Float32Array(components.length + 1);
+          components.forEach((component, i) => { real[i + 1] = component.cos; imag[i + 1] = component.sin; });
+          const wave = context.createPeriodicWave(real, imag, { disableNormalization: true });
+          oscillator.setPeriodicWave(wave);
+        }
         oscillator.frequency.setValueAtTime(hz, at);
         oscillator.connect(gain);
         const remaining = Math.max(.015, endsAt - at);
         const attack = Math.min(.045, remaining * .25);
         const release = Math.min(.10, remaining * .35);
+        // Square and sawtooth carry strong upper harmonics; ease their level.
+        const adjustedLevel = level * (this.instrument === "square" || this.instrument === "sawtooth" ? .72 : 1);
         gain.gain.setValueAtTime(0, at);
-        gain.gain.linearRampToValueAtTime(level, at + attack);
-        gain.gain.setValueAtTime(level, Math.max(at + attack, endsAt - release));
+        gain.gain.linearRampToValueAtTime(adjustedLevel, at + attack);
+        gain.gain.setValueAtTime(adjustedLevel, Math.max(at + attack, endsAt - release));
         gain.gain.linearRampToValueAtTime(0, endsAt);
         this.addVoice(oscillator, gain);
         oscillator.start(at);
@@ -231,16 +242,19 @@
         return;
       }
       const percussive = this.instrument === "chimes";
-      const kind = this.instrument === "guitar" ? "pluck" : percussive ? "kick" : "piano";
-      const decay = this.instrument === "piano" ? .8 : percussive ? .7 : .65;
+      const kind = this.instrument === "guitar" ? "pluck" : percussive ? "kick" :
+        this.instrument === "fmep" ? "fmep" : "piano";
+      const decay = this.instrument === "piano" || this.instrument === "fmep" ? .8 :
+        percussive ? .7 : .65;
       const options = this.instrument === "guitar" ? { position: .22 } :
         this.instrument === "piano" ? { velocity: .62, touch: "press" } :
-          { drumVoice: "chimes", chimeHz: hz };
+          percussive ? { drumVoice: "chimes", chimeHz: hz } : {};
       const key = [context.sampleRate, kind, hz.toFixed(5), decay, this.instrument].join("|");
       let buffer = this.buffers.get(key);
       if (!buffer) {
-        const samples = this.transientModel.makeSamples(kind, hz, decay,
-          context.sampleRate, "medium", options);
+        const samples = this.instrument === "fmep" ?
+          fmModel.makeElectricPianoSamples(hz, context.sampleRate) :
+          this.transientModel.makeSamples(kind, hz, decay, context.sampleRate, "medium", options);
         buffer = context.createBuffer(1, samples.length, context.sampleRate);
         buffer.getChannelData(0).set(samples);
         if (this.buffers.size >= 24) this.buffers.delete(this.buffers.keys().next().value);
@@ -251,14 +265,14 @@
       source.buffer = buffer;
       source.connect(gain);
       gain.gain.setValueAtTime(level, at);
-      if (this.instrument === "piano") {
+      if (this.instrument === "piano" || this.instrument === "fmep") {
         const noteEnd = Math.max(at + .005, endsAt);
         gain.gain.setValueAtTime(level, noteEnd);
         gain.gain.setTargetAtTime(0, noteEnd, .028); // damper returns on release
       }
       this.addVoice(source, gain);
       source.start(at, offsetSeconds);
-      if (this.instrument === "piano") source.stop(Math.min(at + buffer.duration - offsetSeconds,
+      if (this.instrument === "piano" || this.instrument === "fmep") source.stop(Math.min(at + buffer.duration - offsetSeconds,
         endsAt + .19));
     }
   }

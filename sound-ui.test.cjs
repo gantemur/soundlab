@@ -52,8 +52,9 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-temperaments\.js\?v=s036"/);
   assert.match(html, /src="sound-score\.js\?v=s040a"/);
   assert.match(html, /src="sound-abc\.js\?v=s040a"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s040a"/);
-  assert.match(html, /src="sound-compose\.js\?v=s042"/);
+  assert.match(html, /src="sound-fm\.js\?v=s043"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s043"/);
+  assert.match(html, /src="sound-compose\.js\?v=s043"/);
   assert.match(html, /src="sound-lab\.js\?v=s041"/);
   assert.match(html, /href="sound-lab\.css\?v=s041b"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
@@ -138,6 +139,9 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   for (const id of ["composeText", "composeExample", "composeInstrument", "composeTuning",
     "composePlayPause", "composeStop", "composeVolume", "composeLoad", "composeScoreSvg"]) {
     assert.ok(ids.includes(id), "Missing Compose control #" + id);
+  }
+  for (const kind of ["sine", "triangle", "square", "sawtooth", "fmep"]) {
+    assert.match(html, new RegExp('<option value="' + kind + '" data-compose-i18n="' + kind + '"'));
   }
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
@@ -553,7 +557,7 @@ function fakePage(search = "", supportWorklets = true) {
   const vmContext = vm.createContext(sandbox);
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
-  for (const name of ["sound-score.js", "sound-abc.js", "sound-score-player.js",
+  for (const name of ["sound-score.js", "sound-abc.js", "sound-fm.js", "sound-score-player.js",
     "sound-compose.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });
@@ -2589,6 +2593,27 @@ test("Compose C1 validates edits and loads local ABC scores without autoplay", a
   assert.ok(app.contexts[0].sources.length > 0);
   app.fire("modeStrike", "click");
   assert.equal(app.elements.get("composeWorkspace").hidden, true);
+  assert.ok(![...app.timers.values()].some(timer => timer.delay === 35));
+});
+
+test("Compose electronic voices switch without autoplay and follow MN/EN labels", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  for (const instrument of ["sine", "triangle", "square", "sawtooth", "fmep"]) {
+    app.elements.get("composeInstrument").value = instrument;
+    app.fire("composeInstrument", "change");
+    assert.equal(app.contexts.length, 0, "Changing timbres must remain silent");
+    assert.equal(app.elements.get("composePlayPause").disabled, false);
+  }
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("composeInstrument").value, "fmep");
+  assert.equal(composeModel.UI.en.fmep, "FM electric piano · '80s style");
+  assert.equal(composeModel.UI.mn.square, "Дөрвөлжин долгион");
+  await app.fire("composePlayPause", "click");
+  assert.equal(app.contexts.length, 1);
+  assert.equal(app.contexts[0].sources.length, 1,
+    app.elements.get("composeStatus").textContent + " · buffers=" + app.contexts[0].buffers.length);
+  app.fire("composeStop", "click");
   assert.ok(![...app.timers.values()].some(timer => timer.delay === 35));
 });
 

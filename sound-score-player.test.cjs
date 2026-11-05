@@ -135,6 +135,44 @@ test("guitar, piano and chime scores delegate to existing sound models", async (
   }
 });
 
+test("four electronic oscillators retain their exact waveforms, pitches and stop behavior", async () => {
+  for (const instrument of ["sine", "triangle", "square", "sawtooth"]) {
+    const { player, context, recipes } = audioFixture();
+    player.configure({ score: melody, instrument });
+    await player.play();
+    const source = context.sources[0];
+    assert.equal(source.type, instrument);
+    assert.ok(Math.abs(source.frequency.value - 261.625565) < .01);
+    assert.equal(context.waves.length, 0, "Standard oscillator needs no custom harmonic model");
+    assert.equal(recipes.length, 0, "Electronic oscillators use no percussion model");
+    assert.ok(context.gains[0].gain.records.some(record => record[0] === "ramp"));
+    player.stop();
+    assert.equal(source.stoppedAt, .002);
+    assert.equal(player.currentBeat, 0);
+  }
+});
+
+test("FM electric piano uses original decaying samples, note-off damping and pause seek", async () => {
+  const { player, context, recipes } = audioFixture();
+  player.configure({ score: melody, instrument: "fmep" });
+  await player.play();
+  const source = context.sources[0];
+  assert.equal(source.type, "buffer");
+  assert.equal(context.buffers.length, 1);
+  assert.equal(source.buffer.duration, 2.8);
+  assert.equal(recipes.length, 0, "FM uses its own model, not an acoustic sampled instrument");
+  assert.ok(context.gains[0].gain.records.some(record => record[0] === "target"),
+    "The modeled electric piano releases its note with a damper");
+  context.currentTime = .33;
+  player.pause();
+  context.currentTime = 5;
+  await player.play();
+  const resumed = context.sources.at(-1);
+  assert.ok(resumed.offset > .2);
+  player.stop();
+  assert.equal(player.currentBeat, 0);
+});
+
 test("invalid pitches or controls are rejected before audio-context startup", () => {
   const { player, calls } = audioFixture();
   const tooLow = abc.parse("M:4/4\nL:1/4\nQ:1/4=100\nK:C\nC,,4 |]");

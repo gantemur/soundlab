@@ -25,8 +25,9 @@
   <script src="sound-recorder.js" defer></script>
   <script src="sound-score.js?v=s040a" defer></script>
   <script src="sound-abc.js?v=s040a" defer></script>
-  <script src="sound-score-player.js?v=s040a" defer></script>
-  <script src="sound-compose.js?v=s042" defer></script>
+  <script src="sound-fm.js?v=s043" defer></script>
+  <script src="sound-score-player.js?v=s043" defer></script>
+  <script src="sound-compose.js?v=s043" defer></script>
   <script src="sound-lab.js?v=s041" defer></script>
 </head>
 <body>
@@ -1325,12 +1326,21 @@
           <div class="field-group">
             <label class="field-title" for="composeInstrument" data-compose-i18n="instrument">Хөгжмийн зэмсэг</label>
             <select id="composeInstrument">
-              <option value="flute" data-compose-i18n="flute">Лимбэ</option>
-              <option value="violin" data-compose-i18n="violin">Хийл</option>
-              <option value="morin" data-compose-i18n="morin">Морин хуур</option>
-              <option value="guitar" data-compose-i18n="guitar">Гитар</option>
-              <option value="piano" data-compose-i18n="piano">Төгөлдөр хуур</option>
-              <option value="chimes" data-compose-i18n="chimes">Хоолойт хонх</option>
+              <optgroup label="Акустик загварууд" data-compose-group-i18n="instrumentAcoustic">
+                <option value="flute" data-compose-i18n="flute">Лимбэ</option>
+                <option value="violin" data-compose-i18n="violin">Хийл</option>
+                <option value="morin" data-compose-i18n="morin">Морин хуур</option>
+                <option value="guitar" data-compose-i18n="guitar">Гитар</option>
+                <option value="piano" data-compose-i18n="piano">Төгөлдөр хуур</option>
+                <option value="chimes" data-compose-i18n="chimes">Хоолойт хонх</option>
+              </optgroup>
+              <optgroup label="Электрон авиа" data-compose-group-i18n="instrumentElectronic">
+                <option value="sine" data-compose-i18n="sine">Синус долгион</option>
+                <option value="triangle" data-compose-i18n="triangle">Гурвалжин долгион</option>
+                <option value="square" data-compose-i18n="square">Дөрвөлжин долгион</option>
+                <option value="sawtooth" data-compose-i18n="sawtooth">Хөрөө долгион</option>
+                <option value="fmep" data-compose-i18n="fmep">FM цахилгаан төгөлдөр хуур · 80-аад</option>
+              </optgroup>
             </select>
           </div>
           <div class="field-group">
