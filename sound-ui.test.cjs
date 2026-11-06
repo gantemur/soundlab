@@ -59,13 +59,22 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
   assert.match(html, /src="sound-score-player\.js\?v=s052"/);
-  assert.match(html, /src="sound-compose\.js\?v=s053"/);
+  assert.match(html, /src="sound-compose\.js\?v=s055"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s053"/);
-  assert.match(html, /src="sound-lab\.js\?v=s054"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s055"/);
+  assert.match(html, /src="sound-project\.js\?v=s055"/);
+  assert.match(html, /src="sound-project-ui\.js\?v=s055"/);
+  assert.match(html, /src="sound-lab\.js\?v=s055"/);
+  assert.ok(html.indexOf('src="sound-project.js') < html.indexOf('src="sound-project-ui.js'));
+  assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s054"/);
+  assert.match(html, /href="sound-lab\.css\?v=s055"/);
+  assert.match(html, /id="projectToolbar"[^>]*hidden/);
+  assert.match(html, /id="projectName"[^>]*maxlength="120"/);
+  assert.match(html, /id="projectFile"[^>]*type="file"[^>]*accept="[^"]*\.soundlab\.json/);
+  assert.match(html, /id="projectStatus"[^>]*role="status"/);
+  assert.match(html, /id="projectConfirm"[^>]*hidden/);
   assert.match(html, /id="langMn"[^>]*>MN<\/button>[\s\S]*id="langEn"[^>]*>EN<\/button>/);
   assert.match(html, /href="LICENSE" data-i18n="licenseLink"/);
   assert.match(html, /data-i18n="designCredit">Гантөмөрийн бүтээл/);
@@ -182,11 +191,14 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
   assert.doesNotMatch(html, /id="mixExperimentSwitch"/);
-  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 8);
-  assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 9);
+  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 9);
+  assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-tuning-kind="/g)].length, 25);
-  for (const kind of ["beats", "harmonics", "noise"]) {
-    assert.equal([...html.matchAll(new RegExp('data-mix-kind="' + kind + '"', 'g'))].length, 3);
+  for (const kind of ["waves", "harmonics"]) {
+    assert.equal([...html.matchAll(new RegExp('data-pure-kind="' + kind + '"', 'g'))].length, 2);
+  }
+  for (const kind of ["beats", "noise"]) {
+    assert.equal([...html.matchAll(new RegExp('data-mix-kind="' + kind + '"', 'g'))].length, 2);
   }
   for (const kind of ["intervals", "ear", "scales", "limit5", "temperaments"]) {
     assert.equal([...html.matchAll(new RegExp('data-tuning-kind="' + kind + '"', 'g'))].length, 5);
@@ -209,9 +221,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="sustainToggleButton"/);
   assert.match(html, /id="sustainBreath" type="range" min="0" max="100"/);
   assert.match(html, /id="sustainBowPressure" type="range" min="0" max="100"/);
-  assert.ok(html.indexOf('id="modeStrike"') < html.indexOf('id="modeSustain"') &&
-    html.indexOf('id="modeSustain"') < html.indexOf('id="modeMotion"'),
-  "Held sound tab belongs between strike and moving pitch");
+  const mainNavigation = html.match(/<nav[^>]*id="modeSwitch"[^>]*>[\s\S]*?<\/nav>/)[0];
+  assert.deepEqual([...mainNavigation.matchAll(/id="(mode\w+)"/g)].map(match => match[1]),
+    ["modeSwitch", "modePure", "modeMotion", "modeSustain", "modeStrike", "modeMix", "modeTuning", "modeCompose"]);
+  assert.equal([...html.matchAll(/data-pure-kind="/g)].length, 4);
+  assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
+  assert.doesNotMatch(html, /data-mix-kind="harmonics"/);
   assert.match(html, /id="modeMix"[^>]*data-i18n="modeMix"/);
   assert.match(html, /id="mixBaseInput"[^>]*type="number"/);
   assert.match(html, /data-i18n="unitHz">Гц<\/span>/);
@@ -247,7 +262,8 @@ test("compact header removes the redundant mode introductions but keeps one page
   assert.match(html, /<h1>Sound Lab<\/h1>/);
   assert.equal([...html.matchAll(/<h1\b/g)].length, 1);
   assert.match(html, /class="mode-bar"/);
-  assert.doesNotMatch(html, /id="page(?:Eyebrow|Title|Intro)"/);
+  assert.doesNotMatch(html, /id="page(?:Eyebrow|Title|Intro|Phase)"/);
+  assert.doesNotMatch(browserCode, /\$\("pagePhase"\)/);
   assert.doesNotMatch(browserCode, /strikeEyebrow|strikeTitle|strikeIntro/);
   assert.match(html, /Дууны долгион яагаад өөр өөр сонсогддог вэ\?/);
 });
@@ -295,10 +311,12 @@ function fakePage(search = "", supportWorklets = true) {
       classList: classList(),
       setAttribute(name, value) { attributes[name] = String(value); },
       getAttribute(name) { return attributes[name]; },
+      removeAttribute(name) { delete attributes[name]; delete this[name]; },
       appendChild(node) { this.children.push(node); return node; },
       replaceChildren(...nodes) { this.children = nodes; },
       addEventListener(name, callback) { this.events[name] = callback; },
       click() { this.clickCount = (this.clickCount || 0) + 1; if (this.events.click) return this.events.click(); },
+      focus() { this.focused = true; },
       getBoundingClientRect() { return { left: 0, top: 0, width: 710, height: 210 }; },
       setPointerCapture() {}, releasePointerCapture() {},
       pause() { this.paused = true; },
@@ -318,6 +336,12 @@ function fakePage(search = "", supportWorklets = true) {
   }
 
   const elements = new Map(ids.map(id => [id, element()]));
+  const projectLabels = [...html.matchAll(/<[^>]+\bid="([^"]+)"[^>]*\bdata-project-i18n="([^"]+)"[^>]*>/g)]
+    .map(match => {
+      const node = elements.get(match[1]);
+      node.setAttribute("data-project-i18n", match[2]);
+      return node;
+    });
   const waveButtons = model.WAVEFORMS.map(wave => element({ wave }));
   const strikeButtons = transientModel.KINDS.map(strike => element({ strike }));
   const strikePlayButtons = ["single", "strum", "press", "tap"].map(strikePlay => element({ strikePlay }));
@@ -332,8 +356,19 @@ function fakePage(search = "", supportWorklets = true) {
   const timbreButtons = motionModel.TIMBRES.map(thereminTimbre => element({ thereminTimbre }));
   const vowelButtons = motionModel.VOWELS.map(thereminVowel => element({ thereminVowel }));
   const mixGapButtons = [0, 2, 4, 10].map(mixGap => element({ mixGap: String(mixGap) }));
-  const mixKindButtons = Array.from({ length: 3 }, () =>
-    ["beats", "harmonics", "noise"].map(mixKind => element({ mixKind }))).flat();
+  const pureKindButtons = [...html.matchAll(/<button\b[^>]*\bdata-pure-kind="([^"]+)"[^>]*>/g)].map(match => {
+    const button = element({ pureKind: match[1] });
+    const key = match[0].match(/data-i18n="([^"]+)"/)[1];
+    button.setAttribute("data-i18n", key);
+    return button;
+  });
+  const pureKindGroups = [...html.matchAll(/data-i18n-aria="pureExperimentsAria"/g)].map(() => {
+    const group = element();
+    group.setAttribute("data-i18n-aria", "pureExperimentsAria");
+    return group;
+  });
+  const mixKindButtons = Array.from({ length: 2 }, () =>
+    ["beats", "noise"].map(mixKind => element({ mixKind }))).flat();
   const tuningKindButtons = Array.from({ length: 5 }, () =>
     ["intervals", "ear", "scales", "limit5", "temperaments"].map(tuningKind => element({ tuningKind }))).flat();
   const earHelpButtons = ["guided", "blind"].map(earHelp => element({ earHelp }));
@@ -378,9 +413,13 @@ function fakePage(search = "", supportWorklets = true) {
       if (selector === "[data-theremin-timbre]") return timbreButtons;
       if (selector === "[data-theremin-vowel]") return vowelButtons;
       if (selector === "[data-mix-gap]") return mixGapButtons;
+      if (selector === "[data-pure-kind]") return pureKindButtons;
       if (selector === "[data-mix-kind]") return mixKindButtons;
+      if (selector === "[data-i18n]") return pureKindButtons;
+      if (selector === "[data-i18n-aria]") return pureKindGroups;
       if (selector === "[data-tuning-kind]") return tuningKindButtons;
       if (selector === "[data-compose-subtab]") return composeSubtabButtons;
+      if (selector === "[data-project-i18n]") return projectLabels;
       if (selector === "[data-ear-help]") return earHelpButtons;
       if (selector === "[data-ear-sound]") return earSoundButtons;
       if (selector === "[data-ear-play]") return earPlayButtons;
@@ -590,14 +629,14 @@ function fakePage(search = "", supportWorklets = true) {
   }
   window.AudioContext = FakeAudioContext;
   window.AudioWorkletNode = supportWorklets ? FakeAudioWorkletNode : undefined;
-  const sandbox = { document, window, URL: FakeURL, Blob, URLSearchParams, ResizeObserver: undefined,
+  const sandbox = { document, window, URL: FakeURL, Blob, TextEncoder, URLSearchParams, ResizeObserver: undefined,
     setInterval: (...args) => window.setInterval(...args), clearInterval: id => window.clearInterval(id),
     setTimeout, clearTimeout };
   const vmContext = vm.createContext(sandbox);
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
   for (const name of ["sound-score.js", "sound-abc.js", "sound-drum-abc.js", "sound-drum-patterns.js", "sound-fm.js", "sound-score-player.js",
-    "sound-compose.js", "sound-ensemble-presets.js", "sound-ensemble.js"]) {
+    "sound-compose.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });
   }
@@ -606,7 +645,7 @@ function fakePage(search = "", supportWorklets = true) {
     contexts, elements, document, window, waveButtons, strikeButtons,
     guitarPlayButtons, guitarChordButtons, pianoTouchButtons, strikePlayButtons, sustainButtons,
     drumButtons, spectrumButtons,
-    motionButtons, sirenPatternButtons, timbreButtons, vowelButtons, mixGapButtons, mixKindButtons,
+    motionButtons, sirenPatternButtons, timbreButtons, vowelButtons, mixGapButtons, pureKindButtons, pureKindGroups, mixKindButtons,
     tuningKindButtons, composeSubtabButtons, scalePlayButtons, scaleTonicButtons,
     earHelpButtons, earSoundButtons, earPlayButtons, timers, animationFrames,
     limit5PlayButtons, tempPlayButtons, tempNarrowButtons,
@@ -642,7 +681,6 @@ test("held flute plays only while pressed, and release follows the chosen decay"
   assert.equal(app.elements.get("sustainWorkspace").hidden, false);
   assert.equal(app.elements.get("strikeWorkspace").hidden, true);
   assert.equal(app.elements.get("modeSustain").getAttribute("aria-pressed"), "true");
-  assert.match(app.elements.get("pagePhase").textContent, /^03/);
   assert.equal(app.elements.get("sustainHoldButton").getAttribute("aria-pressed"), "false");
 
   // A normal pointer click after press/release must not restart hold mode.
@@ -1080,7 +1118,7 @@ test("Mongolian units cover static ranges, readouts and plotted axes; English re
 
 test("revised Mongolian wave descriptions, examples and mode labels render correctly", () => {
   const app = fakePage();
-  assert.equal(app.elements.get("pagePhase").textContent, "01 · Энгийн дохионууд");
+  assert.equal(app.elements.has("pagePhase"), false);
   assert.equal(app.elements.get("challengeText").textContent, "Давтамжийг хоёр дахин өсгө. Дууны өнгө болон үе хэрхэн өөрчлөгдөж байна вэ?");
   app.waveButtons[1].events.click();
   assert.equal(app.elements.get("soundDescription").textContent, "Дээд сондгой гармоникууд нь сул.");
@@ -1090,9 +1128,9 @@ test("revised Mongolian wave descriptions, examples and mode labels render corre
   app.waveButtons[3].events.click();
   assert.equal(app.elements.get("soundDescription").textContent, "Олон гармониктой, баялаг өнгөтэй.");
   app.fire("modeStrike", "click");
-  assert.equal(app.elements.get("pagePhase").textContent, "02 · Загварчилсан дуу");
+  assert.equal(app.elements.get("modeStrike").getAttribute("aria-pressed"), "true");
   app.fire("langEn", "click");
-  assert.equal(app.elements.get("pagePhase").textContent, "02 · Modeled sounds");
+  assert.equal(app.document.documentElement.lang, "en");
 });
 
 test("Strike & Pluck begins silently, triggers modeled buffers and bounds simultaneous voices", async () => {
@@ -1319,7 +1357,6 @@ test("Moving Pitch theremin uses a pointer gesture, shared audio, live pitch and
   app.fire("modeMotion", "click");
   assert.equal(app.elements.get("pureWorkspace").hidden, true);
   assert.equal(app.elements.get("motionWorkspace").hidden, false);
-  assert.equal(app.elements.get("pagePhase").textContent, "04 · Хувирдаг давтамж");
   assert.match(app.elements.get("motionStatus").textContent, /^Бэлэн\./,
     "A newly opened sound category must say Ready, not Stopped");
   assert.equal(app.contexts.length, 0, "Mode switching remains silent");
@@ -1583,7 +1620,6 @@ test("Combine Waves is silent until Play and begins with 440 + 444 Hz in one sha
   assert.equal(app.elements.get("mixWorkspace").hidden, false);
   assert.equal(app.elements.get("mixChallenge").hidden, false);
   assert.equal(app.elements.get("mixExplanation").hidden, false);
-  assert.equal(app.elements.get("pagePhase").textContent, "05 · Хоёр авианы биение");
   assert.equal(app.elements.get("mixPairValue").textContent, "440 + 444 Гц");
   assert.equal(app.elements.get("mixBeatValue").textContent, "4 удаа/сек");
   assert.equal(app.mixGapButtons[2].getAttribute("aria-pressed"), "true");
@@ -1601,21 +1637,16 @@ test("Combine Waves is silent until Play and begins with 440 + 444 Hz in one sha
   assert.equal(app.elements.get("mixButton").getAttribute("aria-pressed"), "false");
 });
 
-test("Combine Waves uses three synchronized left-panel choices and uniform Play/Stop labels", async () => {
+test("Combine Waves keeps two synchronized left-panel choices and uniform Play/Stop labels", async () => {
   const app = fakePage();
   app.fire("modeMix", "click");
-  assert.equal(app.mixKindButtons.length, 9);
+  assert.equal(app.mixKindButtons.length, 4);
   assert.equal(app.elements.get("mixPlayLabel").textContent, "Тоглуулах");
   app.mixKindButtons[1].events.click();
-  assert.equal(app.elements.get("harmonicWorkspace").hidden, false);
-  assert.equal(app.elements.get("harmonicPlayLabel").textContent, "Тоглуулах");
-  for (const index of [1, 4, 7]) {
-    assert.equal(app.mixKindButtons[index].getAttribute("aria-pressed"), "true");
-  }
-  app.mixKindButtons[2].events.click();
   assert.equal(app.elements.get("noiseWorkspace").hidden, false);
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, true);
   assert.equal(app.elements.get("noisePlayLabel").textContent, "Тоглуулах");
-  for (const index of [2, 5, 8]) {
+  for (const index of [1, 3]) {
     assert.equal(app.mixKindButtons[index].getAttribute("aria-pressed"), "true");
   }
   assert.equal(app.contexts.length, 0, "Changing sub-experiment does not autoplay");
@@ -1706,7 +1737,6 @@ test("S026 Хөг keeps Interval, 3-limit and 5-limit in sync without autoplay",
   app.fire("modeTuning", "click");
   assert.equal(app.elements.get("intervalWorkspace").hidden, false);
   assert.equal(app.elements.get("scaleWorkspace").hidden, true);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · Хөгжмийн интервал");
   assert.equal(app.tuningKindButtons.length, 25);
   for (const index of [0, 5, 10, 15, 20]) assert.equal(app.tuningKindButtons[index].getAttribute("aria-pressed"), "true");
 
@@ -1715,7 +1745,6 @@ test("S026 Хөг keeps Interval, 3-limit and 5-limit in sync without autoplay",
   assert.equal(app.elements.get("scaleWorkspace").hidden, false);
   assert.equal(app.elements.get("scaleChallenge").hidden, false);
   assert.equal(app.elements.get("scaleExplanation").hidden, false);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · 3-хязгаар");
   assert.equal(app.elements.get("scaleCountValue").textContent, "5 нот");
   assert.equal(app.scaleTonicButtons.filter(button => !button.hidden).length, 5);
   assert.equal(app.elements.get("scaleTonicValue").textContent, "220 Гц");
@@ -1729,7 +1758,6 @@ test("S026 Хөг keeps Interval, 3-limit and 5-limit in sync without autoplay",
 
   app.fire("langEn", "click");
   assert.match(app.scalePlayButtons[0].textContent, /In sequence/);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · 3-limit");
   assert.equal(app.elements.get("scaleTonicValue").textContent, "220 Hz");
   app.tuningKindButtons[0].events.click();
   assert.equal(app.elements.get("intervalWorkspace").hidden, false);
@@ -1745,7 +1773,6 @@ test("S029 ear tuning: compact controls, no target dots, and live notes never bu
   assert.equal(app.elements.get("earChallenge").hidden, false);
   assert.equal(app.elements.get("earExplanation").hidden, false);
   assert.equal(app.elements.get("intervalWorkspace").hidden, true);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · Тааруулах");
   assert.equal(app.contexts.length, 0);
   assert.equal(app.elements.get("earTaskSelect").value, "fifth");
   assert.match(app.elements.get("earStatus").textContent, /«Ээлжлэн» эсвэл «Хамт»/);
@@ -1871,7 +1898,6 @@ test("S030 5-limit presets, layers, lattice inspection and 12-TET guides never a
   assert.equal(app.elements.get("scaleWorkspace").hidden, true);
   assert.equal(app.elements.get("limit5Challenge").hidden, false);
   assert.equal(app.elements.get("limit5Explanation").hidden, false);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · 5-хязгаар");
   assert.equal(app.elements.get("limit5Count").textContent, "3 нот");
   assert.equal(app.elements.get("limit5CommaRuler").hidden, true,
     "Commas are optional comparisons rather than decorations on every scale");
@@ -1896,7 +1922,6 @@ test("S030 5-limit presets, layers, lattice inspection and 12-TET guides never a
   assert.equal(app.limit5PlayButtons[0].textContent, "▶ In sequence");
   assert.equal(app.limit5PlayButtons[1].textContent, "▶ Together");
   assert.equal(app.elements.get("limit5RulerValue").textContent.includes("cents"), true);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · 5-limit");
   assert.equal(app.contexts.length, 0);
   // Add an unselected point near the middle-left of the lattice.
   app.fire("limit5LatticeCanvas", "click", { clientX: 710 * (.335 + .115 * (0 + .5 * 0)), clientY: 210 * .55 });
@@ -2259,7 +2284,6 @@ test("beats waveform zoom, pan and spectrum remain bilingual and show nearby fre
   assert.equal(app.elements.get("mixZoomIn").disabled, true);
   assert.equal(app.elements.get("mixWindowLabel").textContent, "7.81 мсек – 9.81 мсек · 4 удаа/сек");
   app.fire("langEn", "click");
-  assert.equal(app.elements.get("pagePhase").textContent, "05 · Two-tone beats");
   assert.equal(app.elements.get("mixBeatValue").textContent, "4 pulses/s");
   assert.equal(app.elements.get("mixWindowLabel").textContent, "7.81 ms – 9.81 ms · 4 pulses/s");
   assert.equal(app.elements.get("mixZoomIn").getAttribute("aria-label"), "Zoom in to individual vibrations");
@@ -2609,7 +2633,6 @@ test("Compose C1 renders a four-bar staff, stays silent until Play and responds 
   assert.match(app.elements.get("composeStatus").textContent, /Бэлэн/,
     "Opening Compose before playback shows Ready, not Stopped");
   assert.equal(app.elements.get("pureWorkspace").hidden, true);
-  assert.equal(app.elements.get("pagePhase").textContent, "07 · Ая зохиох");
   assert.match(app.elements.get("composeMeta").textContent, /4 такт/);
   assert.ok(app.elements.get("composeScoreSvg").children.length >= 14,
     "Staff lines, note groups and bar numbers are drawn from the parsed notes");
@@ -2634,7 +2657,6 @@ test("Compose C1 renders a four-bar staff, stays silent until Play and responds 
   assert.match(app.elements.get("composeStatus").textContent, /Зогслоо/);
 
   app.fire("langEn", "click");
-  assert.equal(app.elements.get("pagePhase").textContent, "07 · Write a melody");
   assert.match(app.elements.get("composeMeta").textContent, /4 bars/);
   assert.equal(app.contexts.length, 1, "Language switching doesn't start audio");
 });
@@ -2890,16 +2912,166 @@ test("Compose draws ties across staff rows and keeps long-score playback visible
   app.fire("stopAll", "click");
 });
 
+test("Pure tones keeps waveforms and timbre together with independent settings and bilingual accessible selectors", () => {
+  const app = fakePage();
+  assert.equal(app.pureKindButtons.length, 4);
+  assert.equal(app.pureKindGroups.length, 2);
+  assert.deepEqual(app.pureKindButtons.map(button => button.textContent),
+    ["Долгионы хэлбэр", "Өнгө бүтээх", "Долгионы хэлбэр", "Өнгө бүтээх"]);
+  assert.ok(app.pureKindGroups.every(group => /Долгионы хэлбэр ба өнгөний/.test(group.getAttribute("aria-label"))));
+  assert.equal(app.elements.get("pureWorkspace").hidden, false);
+  assert.equal(app.elements.get("pureChallenge").hidden, false);
+  assert.equal(app.elements.get("pureExplanation").hidden, false);
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, true);
+  assert.equal(app.elements.get("harmonicChallenge").hidden, true);
+  assert.equal(app.elements.get("harmonicExplanation").hidden, true);
+  app.waveButtons[1].click();
+  app.elements.get("frequencyInput").value = "660";
+  app.fire("frequencyInput", "change");
+  app.elements.get("volumeSlider").value = "63";
+  app.fire("volumeSlider", "input");
+  app.pureKindButtons[1].click();
+  assert.equal(app.elements.get("modePure").getAttribute("aria-pressed"), "true");
+  assert.equal(app.elements.get("modeMix").getAttribute("aria-pressed"), "false");
+  assert.equal(app.elements.get("pureWorkspace").hidden, true);
+  assert.equal(app.elements.get("pureChallenge").hidden, true);
+  assert.equal(app.elements.get("pureExplanation").hidden, true);
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, false);
+  assert.equal(app.elements.get("harmonicChallenge").hidden, false);
+  assert.equal(app.elements.get("harmonicExplanation").hidden, false);
+  assert.equal(app.elements.get("mixWorkspace").hidden, true);
+  assert.equal(app.elements.get("noiseWorkspace").hidden, true);
+  for (const index of [1, 3]) assert.equal(app.pureKindButtons[index].getAttribute("aria-pressed"), "true");
+  for (const index of [0, 2]) assert.equal(app.pureKindButtons[index].getAttribute("aria-pressed"), "false");
+  app.elements.get("harmonicBaseInput").value = "330";
+  app.fire("harmonicBaseInput", "change");
+  app.elements.get("harmonicVolume").value = "28";
+  app.fire("harmonicVolume", "input");
+  app.harmonicPresetButtons[2].click();
+  app.harmonicLevelInputs[2].events.input({ target: { value: "70" } });
+  app.fire("langEn", "click");
+  assert.deepEqual(app.pureKindButtons.map(button => button.textContent),
+    ["Waveforms", "Build timbre", "Waveforms", "Build timbre"]);
+  assert.ok(app.pureKindGroups.every(group => group.getAttribute("aria-label") === "Wave shapes and timbre experiments"));
+  assert.equal(app.pureKindButtons[3].getAttribute("aria-pressed"), "true");
+  app.pureKindButtons[2].click();
+  assert.equal(app.elements.get("pureWorkspace").hidden, false);
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, true);
+  assert.equal(app.elements.get("frequencyInput").value, "660");
+  assert.equal(app.elements.get("volumeSlider").value, "63");
+  assert.equal(app.waveButtons[1].getAttribute("aria-pressed"), "true");
+  assert.equal(app.elements.get("harmonicBaseInput").value, "330");
+  assert.equal(app.elements.get("harmonicVolume").value, "28");
+  assert.equal(app.elements.get("harmonicLevelValue3").textContent, "70%");
+  const harmonicDraws = app.elements.get("harmonicWaveCanvas").drawnText.length;
+  app.harmonicLevelInputs[3].events.input({ target: { value: "65" } });
+  assert.equal(app.elements.get("harmonicWaveCanvas").drawnText.length, harmonicDraws,
+    "An inactive timbre panel does not redraw its plots");
+  app.pureKindButtons[1].click();
+  assert.ok(app.elements.get("harmonicWaveCanvas").drawnText.length > harmonicDraws);
+  assert.equal(app.elements.get("harmonicLevelValue4").textContent, "65%");
+  app.fire("modeMotion", "click");
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, true);
+  app.fire("modePure", "click");
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, false, "Returning to Pure tones keeps its chosen subpanel");
+  assert.equal(app.elements.get("harmonicBaseInput").value, "330");
+  assert.equal(app.elements.get("harmonicLevelValue3").textContent, "70%");
+  assert.equal(app.contexts.length, 0, "Panel changes, language and settings never autoplay");
+});
+
+test("switching Pure-tone panels silences the previous voice and hidden Play controls cannot start audio", async () => {
+  const app = fakePage();
+  await app.fire("harmonicButton", "click");
+  assert.equal(app.contexts.length, 0, "A hidden timbre Play control cannot initialize audio");
+  await app.fire("playButton", "click");
+  const context = app.contexts[0], wave = context.oscillators[0];
+  assert.equal(wave.stopped, false);
+  app.pureKindButtons[1].click();
+  assert.equal(wave.stopped, true);
+  assert.equal(app.elements.get("playButton").getAttribute("aria-pressed"), "false");
+  await app.fire("playButton", "click");
+  assert.equal(context.oscillators.length, 1, "Hidden waveform Play is inert in the timbre panel");
+  await app.fire("harmonicButton", "click");
+  const timbre = context.oscillators[1];
+  assert.equal(timbre.stopped, false);
+  assert.equal(app.elements.get("harmonicButton").getAttribute("aria-pressed"), "true");
+  app.pureKindButtons[2].click();
+  assert.equal(timbre.stopped, true);
+  assert.equal(app.elements.get("harmonicButton").getAttribute("aria-pressed"), "false");
+  assert.equal(context.oscillators.length, 2, "Switching panels does not start a replacement voice");
+  app.fire("modeMix", "click");
+  app.pureKindButtons[1].click();
+  await app.fire("harmonicButton", "click");
+  await app.fire("playButton", "click");
+  assert.equal(context.oscillators.length, 2, "Hidden Pure controls remain inert in another top-level tab");
+  app.fire("modePure", "click");
+  assert.equal(app.elements.get("pureWorkspace").hidden, false, "A hidden selector cannot change the remembered subpanel");
+});
+
+test("Pure-tone panel changes cancel pending wave and timbre starts in both directions", async () => {
+  for (const startingKind of ["waves", "harmonics"]) {
+    const app = fakePage();
+    if (startingKind === "harmonics") app.pureKindButtons[1].click();
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const BaseAudioContext = app.window.AudioContext;
+    app.window.AudioContext = class DelayedAudioContext extends BaseAudioContext {
+      async resume() { await gate; return super.resume(); }
+    };
+    const pending = app.fire(startingKind === "waves" ? "playButton" : "harmonicButton", "click");
+    assert.equal(app.contexts.length, 1);
+    app.pureKindButtons[startingKind === "waves" ? 1 : 2].click();
+    release();
+    await pending;
+    assert.equal(app.contexts[0].oscillators.length, 0, startingKind + " must not start after its panel is hidden");
+    assert.equal(app.elements.get("playButton").getAttribute("aria-pressed"), "false");
+    assert.equal(app.elements.get("harmonicButton").getAttribute("aria-pressed"), "false");
+    assert.equal(app.elements.get("harmonicWorkspace").hidden, startingKind === "harmonics");
+  }
+});
+
+test("a late rejected Pure-tone start cannot suspend or relabel the newer panel's playing voice", async () => {
+  for (const failingKind of ["waves", "harmonics"]) {
+    const app = fakePage("?lang=en");
+    if (failingKind === "harmonics") app.pureKindButtons[1].click();
+    let rejectFirst;
+    const gate = new Promise((_, reject) => { rejectFirst = reject; });
+    const BaseAudioContext = app.window.AudioContext;
+    app.window.AudioContext = class FirstResumeFailsLate extends BaseAudioContext {
+      async resume() {
+        this.resumeCount = (this.resumeCount || 0) + 1;
+        if (this.resumeCount === 1) await gate;
+        return super.resume();
+      }
+    };
+    const pending = app.fire(failingKind === "waves" ? "playButton" : "harmonicButton", "click");
+    app.pureKindButtons[failingKind === "waves" ? 1 : 2].click();
+    const nextButton = failingKind === "waves" ? "harmonicButton" : "playButton";
+    await app.fire(nextButton, "click");
+    const context = app.contexts[0], current = context.oscillators.at(-1);
+    assert.equal(context.state, "running");
+    assert.equal(context.oscillators.length, 1);
+    rejectFirst(new Error("late browser resume failure"));
+    await pending;
+    assert.equal(context.state, "running", "An obsolete rejection must not suspend the shared context");
+    assert.equal(current.stopped, false);
+    assert.equal(app.elements.get(nextButton).getAttribute("aria-pressed"), "true");
+    assert.equal(app.elements.get("audioStatus").classList.contains("error"), false);
+    assert.equal(app.elements.get("harmonicStatus").classList.contains("error"), false);
+    app.fire("stopAll", "click");
+  }
+});
+
 test("harmonic builder is an interactive eight-partial synthesis without autoplay", async () => {
   const app = fakePage();
-  app.fire("modeMix", "click");
-  app.mixKindButtons[1].events.click();
+  app.pureKindButtons[1].events.click();
   assert.equal(app.contexts.length, 0);
   assert.equal(app.elements.get("mixWorkspace").hidden, true);
   assert.equal(app.elements.get("harmonicWorkspace").hidden, false);
   assert.equal(app.elements.get("harmonicExplanation").hidden, false);
   assert.equal(app.elements.get("noiseWorkspace").hidden, true);
-  assert.equal(app.elements.get("pagePhase").textContent, "05 · Авиа бүтээх");
+  assert.equal(app.elements.get("pureWorkspace").hidden, true);
+  assert.equal(app.elements.get("modePure").getAttribute("aria-pressed"), "true");
   assert.equal(app.harmonicLevelInputs.length, 8);
   assert.equal(app.elements.get("harmonicLevelValue1").textContent, "100%");
   app.harmonicPresetButtons[2].events.click();
@@ -2932,11 +3104,10 @@ test("harmonic builder is an interactive eight-partial synthesis without autopla
 test("noise colors loop filtered model buffers safely; changing experiment silences them", async () => {
   const app = fakePage();
   app.fire("modeMix", "click");
-  app.mixKindButtons[2].events.click();
+  app.mixKindButtons[1].events.click();
   assert.equal(app.contexts.length, 0);
   assert.equal(app.elements.get("noiseWorkspace").hidden, false);
   assert.equal(app.elements.get("noiseChallenge").hidden, false);
-  assert.equal(app.elements.get("pagePhase").textContent, "05 · Шуугиан судлах");
   assert.match(app.elements.get("noiseColorDescription").textContent, /герцийн зурвас/);
   assert.ok(app.elements.get("noiseSpectrumCanvas").drawnText.some(label => label.includes("Гц")));
   await app.fire("noiseButton", "click");
@@ -2965,21 +3136,20 @@ test("noise colors loop filtered model buffers safely; changing experiment silen
 
 test("harmonic and noise pending playback are canceled before any orphan sound starts", async () => {
   const app = fakePage();
+  app.pureKindButtons[1].events.click();
+  const pendingHarmonics = app.fire("harmonicButton", "click");
   app.fire("modeMix", "click");
   app.mixKindButtons[1].events.click();
-  const pendingHarmonics = app.fire("harmonicButton", "click");
-  app.mixKindButtons[2].events.click();
   await pendingHarmonics;
   assert.equal(app.contexts[0].oscillators.length, 0);
   const pendingNoise = app.fire("noiseButton", "click");
   app.fire("modePure", "click");
   await pendingNoise;
   assert.equal(app.contexts[0].sources.length, 0);
-  app.fire("modeMix", "click");
-  app.mixKindButtons[1].events.click();
+  assert.equal(app.elements.get("harmonicWorkspace").hidden, false);
   await app.fire("harmonicButton", "click");
   app.fire("langEn", "click");
-  assert.equal(app.elements.get("pagePhase").textContent, "05 · Build a sound");
+  assert.equal(app.pureKindButtons[1].textContent, "Build timbre");
   assert.equal(app.elements.get("harmonicPlayLabel").textContent, "Stop");
   app.fire("stopAll", "click");
   assert.equal(app.contexts[0].oscillators.at(-1).stopped, true);
@@ -2993,7 +3163,6 @@ test("S034 temperament lattice, fifths and chord experiments stay synchronized w
   assert.equal(app.elements.get("tempChallenge").hidden, false);
   assert.equal(app.elements.get("tempExplanation").hidden, false);
   assert.equal(app.elements.get("limit5Workspace").hidden, true);
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · Темперамент");
   assert.equal(app.elements.get("tempSystemSelect").value, "adjustable");
   assert.equal(app.elements.get("tempTaskSelect").value, "build");
   assert.match(app.elements.get("tempNarrowValue").textContent, /5\.38/);
@@ -3035,7 +3204,6 @@ test("S034 temperament lattice, fifths and chord experiments stay synchronized w
   assert.equal(app.elements.get("tempKeySelect").value, "2");
 
   app.fire("langEn", "click");
-  assert.equal(app.elements.get("pagePhase").textContent, "06 · Temperaments");
   assert.equal(app.tempPlayButtons[0].textContent, "▶ In sequence");
   assert.equal(app.tempPlayButtons[1].textContent, "▶ Together");
   app.fire("tempTaskSelect", "change", { target: { value: "wolf" } });
@@ -3514,4 +3682,350 @@ test("Compose solo Pause works on pointerdown even when Safari does not send a c
   app.fire("composePlayPause", "click");
   assert.match(app.elements.get("composePlayPause").textContent, /Үргэлжлүүлэх/);
   app.fire("composeStop", "click");
+});
+
+async function saveNativeProject(app) {
+  const count = app.objectUrls.length;
+  assert.equal(app.fire("projectSave", "click"), true, app.elements.get("projectStatus").textContent);
+  assert.equal(app.objectUrls.length, count + 1, "Saving creates one local file");
+  const output = app.objectUrls.at(-1);
+  assert.match(output.blob.type, /^application\/json/);
+  const text = await output.blob.text();
+  return { text, data: JSON.parse(text), url: output.url };
+}
+
+function offerNativeProject(app, text, overrides = {}) {
+  const file = { name: "roundtrip.soundlab.json", size: Buffer.byteLength(text), text: async () => text, ...overrides };
+  return app.fire("projectFile", "change", { target: { files: [file] } });
+}
+
+function projectDescendants(node) {
+  return [node, ...node.children.flatMap(projectDescendants)];
+}
+
+function projectTrackControl(app, index, className) {
+  return projectDescendants(app.elements.get("ensembleTrackList").children[index])
+    .find(node => node.className === className);
+}
+
+test("native project toolbar round-trips the latest solo text and settings without replacing the other workspace", async () => {
+  const app = fakePage();
+  assert.equal(app.elements.get("projectToolbar").hidden, true);
+  app.fire("modeCompose", "click");
+  assert.equal(app.elements.get("projectToolbar").hidden, false);
+  assert.equal(app.elements.get("projectSave").textContent, "Төсөл хадгалах");
+  assert.equal(app.elements.get("projectName").placeholder, "Миний аялгуу");
+  app.elements.get("projectName").value = "Миний аялгуу 🌊";
+  app.fire("projectName", "input");
+  for (const [id, value, event] of [
+    ["composeInstrument", "guitar", "change"], ["composeTuning", "just", "change"],
+    ["composeVolume", "47", "input"], ["composeGuitarMode", "up", "change"],
+    ["composeGuitarSpacing", "31", "input"]
+  ]) {
+    app.elements.get(id).value = value;
+    app.fire(id, event);
+  }
+  const source = "\n% Монгол тайлбар · editable source\n" + composeModel.EXAMPLES.strum + "\n  ";
+  app.elements.get("composeText").value = source;
+  app.fire("composeText", "input");
+  const saved = await saveNativeProject(app); // Save before the 180 ms parse debounce.
+  assert.deepEqual(Object.keys(saved.data), ["format", "version", "title", "mode", "content"]);
+  assert.equal(saved.data.format, "soundlab-project");
+  assert.equal(saved.data.version, 1);
+  assert.equal(saved.data.mode, "solo");
+  assert.equal(saved.data.title, "Миний аялгуу 🌊");
+  assert.deepEqual(saved.data.content, { abc: source, instrument: "guitar", tuning: "just", volume: 47,
+    guitar: { mode: "up", spacingMs: 31 } });
+  assert.equal(app.elements.get("projectDownload").href, saved.url);
+  assert.match(app.elements.get("projectDownload").download, /\.soundlab\.json$/);
+  assert.equal(app.elements.get("projectDownload").clickCount, 1);
+  assert.equal(app.elements.get("projectDownload").hidden, false);
+  assert.equal(app.contexts.length, 0, "Save does not initialize or play audio");
+
+  app.elements.get("composeText").value = "unfinished replacement";
+  app.fire("composeText", "input");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("projectName").value = "Keep this arrangement";
+  app.fire("projectName", "input");
+  const otherText = "% This workspace stays independent.\n" + app.elements.get("ensembleText").value;
+  app.elements.get("ensembleText").value = otherText;
+  app.fire("ensembleText", "input");
+  app.fire("projectOpen", "click");
+  assert.equal(app.elements.get("projectFile").clickCount, 1);
+  assert.equal(await offerNativeProject(app, saved.text), true);
+  assert.equal(app.elements.get("projectFile").value, "");
+  assert.equal(app.elements.get("projectConfirm").hidden, false);
+  assert.match(app.elements.get("projectConfirmText").textContent, /Нэг хөгжим/);
+  assert.equal(app.elements.get("composeEnsembleWorkspace").hidden, false, "Reading alone does not switch modes");
+  assert.equal(app.elements.get("projectName").value, "Keep this arrangement");
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("projectSave").textContent, "Save project");
+  assert.match(app.elements.get("projectConfirmText").textContent, /One instrument/);
+  assert.match(app.elements.get("projectConfirmText").textContent, /Миний аялгуу 🌊/);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(app.elements.get("projectConfirm").hidden, true);
+  assert.equal(app.elements.get("composeWorkspace").hidden, false);
+  assert.equal(app.elements.get("composeText").value, source);
+  assert.equal(app.elements.get("composeGuitarControls").hidden, false);
+  assert.equal(app.elements.get("composeGuitarMode").value, "up");
+  assert.equal(app.elements.get("composeGuitarSpacing").value, "31");
+  assert.equal(app.elements.get("composeTuning").value, "just");
+  assert.equal(app.elements.get("composeVolume").value, "47");
+  assert.equal(app.elements.get("composePlayPause").disabled, false);
+  assert.equal(app.document.documentElement.lang, "en", "Project files do not change interface language");
+  assert.equal(app.elements.get("ensembleText").value, otherText);
+  const restored = await saveNativeProject(app);
+  assert.deepEqual(restored.data, saved.data);
+  assert.ok(app.revokedUrls.includes(saved.url), "A new save revokes the previous prepared-file URL");
+  app.composeSubtabButtons[1].click();
+  assert.equal(app.elements.get("projectName").value, "Keep this arrangement");
+  assert.equal(app.elements.get("ensembleText").value, otherText);
+  assert.equal(app.contexts.length, 0, "Opening a project remains silent");
+});
+
+test("native ensemble projects retain mixer state, IDs, selection and reusable one-, two- and four-bar patterns", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "guitarStrum";
+  app.fire("ensembleApplyPreset", "click");
+  app.elements.get("projectName").value = "Linked rhythm study";
+  app.fire("projectName", "input");
+  let control = projectTrackControl(app, 0, "ensemble-name");
+  control.value = "Хуур · accompaniment";
+  control.events.change();
+  control = projectTrackControl(app, 0, "ensemble-guitar-mode");
+  control.value = "down";
+  control.events.change();
+  control = projectTrackControl(app, 0, "ensemble-guitar-spacing");
+  control.value = "43";
+  control.events.input();
+  control = projectTrackControl(app, 0, "ensemble-volume");
+  control.value = "61";
+  control.events.input();
+  projectDescendants(app.elements.get("ensembleTrackList").children[0])
+    .find(node => node.textContent === "Solo").click();
+  projectDescendants(app.elements.get("ensembleTrackList").children[1])
+    .find(node => node.textContent === "Mute").click();
+  app.fire("ensembleAdd", "click");
+  app.elements.get("ensembleTrackList").children[3].children[0].children[1].click();
+  app.fire("ensembleAdd", "click"); // An intentional ID gap must survive a file round-trip.
+  app.elements.get("ensembleTuning").value = "pythagorean";
+  app.fire("ensembleTuning", "change");
+  app.elements.get("ensembleTrackList").children[2].children[0].children[0].click();
+  app.elements.get("ensemblePatternLength").value = "2";
+  app.fire("ensemblePatternGroup", "click");
+  app.elements.get("ensemblePatternBar").value = "3";
+  app.fire("ensemblePatternBar", "change");
+  app.elements.get("ensemblePatternLength").value = "4";
+  app.fire("ensemblePatternGroup", "click");
+  app.elements.get("ensemblePatternBar").value = "7";
+  app.fire("ensemblePatternBar", "change");
+  app.elements.get("ensemblePatternChoice").value = "2";
+  app.fire("ensemblePatternChoice", "change"); // B repeats at 1–2 and 7–8; A is now unused.
+  app.elements.get("ensemblePatternBar").value = "3";
+  app.fire("ensemblePatternBar", "change");
+  app.elements.get("ensembleText").value = app.elements.get("ensembleText").value.replace("T:C", "T:Дөрвөн такт");
+  app.fire("ensembleText", "input");
+  app.elements.get("ensembleGridBar").value = "2";
+  app.fire("ensembleGridBar", "change");
+  app.elements.get("ensembleGridStep").value = "8";
+  app.fire("ensembleGridStep", "change");
+  app.elements.get("ensembleGridStrength").value = "p";
+  const saved = await saveNativeProject(app);
+  const content = saved.data.content;
+  assert.equal(saved.data.mode, "ensemble");
+  assert.equal(content.tuning, "pythagorean");
+  assert.deepEqual(content.tracks.map(track => track.id), [1, 2, 3, 5]);
+  assert.equal(content.nextId, 6);
+  assert.equal(content.selectedId, 3);
+  assert.deepEqual(content.editor, { gridBar: 2, gridStep: 8, gridStrength: "p" });
+  assert.equal(content.tracks[0].name, "Хуур · accompaniment");
+  assert.equal(content.tracks[0].volume, 61);
+  assert.equal(content.tracks[0].solo, true);
+  assert.equal(content.tracks[1].mute, true);
+  assert.deepEqual(content.tracks[0].guitar, { mode: "down", spacingMs: 43 });
+  const savedDrums = content.tracks[2];
+  assert.deepEqual(savedDrums.patterns.patterns.map(pattern => pattern.bars.length), [1, 2, 4]);
+  assert.equal(savedDrums.patterns.patterns[2].name, "Дөрвөн такт");
+  assert.ok(!savedDrums.patterns.sequence.some(slot => slot.id === 1), "Unused A definition is retained");
+  assert.equal(savedDrums.patternBar, 3);
+  assert.equal(savedDrums.patternId, 3);
+  assert.equal(savedDrums.textMode, "pattern");
+  assert.equal(app.contexts.length, 0);
+
+  app.elements.get("ensemblePreset").value = "starter";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 2);
+  assert.equal(await offerNativeProject(app, saved.text), true);
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 2, "A checked candidate is not yet applied");
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 4);
+  assert.equal(app.elements.get("ensembleGridBar").value, "2");
+  assert.equal(app.elements.get("ensembleGridStep").value, "8");
+  assert.equal(app.elements.get("ensembleGridStrength").value, "p");
+  assert.equal(app.elements.get("ensemblePatternChoice").value, "3");
+  assert.match(app.elements.get("ensembleText").value, /T:Дөрвөн такт/);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.deepEqual((await saveNativeProject(app)).data, saved.data);
+  app.elements.get("ensemblePatternBar").value = "1";
+  app.fire("ensemblePatternBar", "change");
+  app.elements.get("ensembleGridCells").children[4].children[1].children[0].click();
+  app.elements.get("ensemblePatternTextMode").value = "full";
+  app.fire("ensemblePatternTextMode", "change");
+  const bars = drumABC.gridOf(drumABC.parse(app.elements.get("ensembleText").value));
+  assert.equal(bars[0].cells[0].woodblock, .55);
+  assert.equal(bars[6].cells[0].woodblock, .55, "The reopened repeated pattern still edits both occurrences");
+  assert.equal(bars.filter(bar => bar.cells[0].woodblock === .55).length, 2);
+  assert.equal(savedDrums.patterns.patterns[1].bars[0].cells[0].woodblock, undefined);
+  assert.equal(app.contexts.length, 0);
+});
+
+test("native projects preserve invalid and empty solo drafts before parsing has caught up", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  for (const draft of ["", "% unfinished\nM:4/4\nL:1/4\nQ:1/4=96\nK:C\n[CE"]) {
+    app.elements.get("composeText").value = draft;
+    app.fire("composeText", "input");
+    const saved = await saveNativeProject(app);
+    assert.equal(saved.data.content.abc, draft);
+    assert.match(app.elements.get("projectStatus").textContent, /Draft project/i);
+    app.elements.get("composeExample").value = "first";
+    app.fire("composeExample", "change");
+    assert.equal(app.elements.get("composePlayPause").disabled, false);
+    assert.equal(await offerNativeProject(app, saved.text), true);
+    assert.equal(app.fire("projectReplace", "click"), true);
+    assert.equal(app.elements.get("composeText").value, draft);
+    assert.equal(app.elements.get("composePlayPause").disabled, true);
+    assert.match(app.elements.get("projectStatus").textContent, /as a draft/);
+    assert.deepEqual((await saveNativeProject(app)).data, saved.data);
+  }
+  assert.equal(app.contexts.length, 0);
+});
+
+test("native ensemble files keep an empty pattern draft, last valid links, and detached raw drafts", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.fire("ensembleAddDrums", "click");
+  app.elements.get("ensembleText").value = "";
+  app.fire("ensembleText", "input");
+  const saved = await saveNativeProject(app);
+  const drums = saved.data.content.tracks[2];
+  assert.equal(drums.patternDraft.text, "");
+  assert.match(drums.abc, /%%MIDI channel 10/);
+  assert.equal(drums.patterns.sequence.length, 4);
+  assert.match(app.elements.get("projectStatus").textContent, /Draft project/i);
+  app.elements.get("ensemblePreset").value = "starter";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(await offerNativeProject(app, saved.text), true);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(app.elements.get("ensembleText").value, "", "Empty text is a real draft, not a missing field");
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, true);
+  assert.equal(app.elements.get("ensemblePatternRevert").hidden, false);
+  app.fire("langMn", "click");
+  assert.match(app.elements.get("projectStatus").textContent, /нооргоор/);
+  app.elements.get("ensembleTrackList").children[0].children[0].children[0].click();
+  app.elements.get("ensembleTrackList").children[2].children[0].children[0].click();
+  assert.equal(app.elements.get("ensembleText").value, "", "Track redraw must not replace an empty draft with valid pattern ABC");
+  assert.deepEqual((await saveNativeProject(app)).data, saved.data);
+  app.fire("ensemblePatternRevert", "click");
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.match(app.elements.get("ensembleText").value, /%%MIDI channel 10/);
+
+  app.elements.get("ensemblePatternTextMode").value = "full";
+  app.fire("ensemblePatternTextMode", "change");
+  const rawDraft = app.elements.get("ensembleText").value.replace("channel 10", "channel 9") + "\n% unfinished whole song";
+  app.elements.get("ensembleText").value = rawDraft;
+  app.fire("ensembleText", "input");
+  const rawSaved = await saveNativeProject(app);
+  assert.equal(rawSaved.data.content.tracks[2].patterns, null);
+  assert.equal(rawSaved.data.content.tracks[2].abc, rawDraft);
+  app.elements.get("ensemblePreset").value = "starter";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(await offerNativeProject(app, rawSaved.text), true);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(app.elements.get("ensembleText").value, rawDraft);
+  assert.equal(app.elements.get("ensemblePatternTools").hidden, true);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, true);
+  assert.deepEqual((await saveNativeProject(app)).data, rawSaved.data);
+  assert.equal(app.contexts.length, 0);
+});
+
+test("failed and cancelled project opens preserve running music; confirmed replacement stops without autoplay", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.elements.get("projectName").value = "Do not lose this";
+  app.fire("projectName", "input");
+  app.elements.get("composeInstrument").value = "guitar";
+  app.fire("composeInstrument", "change");
+  await app.fire("composePlayPause", "click");
+  const context = app.contexts[0], active = context.sources[0];
+  const saved = await saveNativeProject(app);
+  assert.match(app.elements.get("composePlayPause").textContent, /Pause/);
+  assert.notEqual(active.stopped, true, "Saving must not stop playback");
+  const current = app.elements.get("composeText").value;
+  const malformed = ["{ broken", JSON.stringify({ ...saved.data, version: 99 }),
+    JSON.stringify({ ...saved.data, format: "unrelated-file" }),
+    JSON.stringify({ ...saved.data, content: { ...saved.data.content, volume: "47" } })];
+  for (const bad of malformed) {
+    assert.equal(await offerNativeProject(app, bad), false);
+    assert.equal(app.elements.get("projectConfirm").hidden, true);
+    assert.equal(app.elements.get("composeText").value, current);
+    assert.equal(app.elements.get("projectName").value, "Do not lose this");
+    assert.match(app.elements.get("projectStatus").textContent, /unchanged/);
+    assert.match(app.elements.get("composePlayPause").textContent, /Pause/);
+    assert.notEqual(active.stopped, true);
+  }
+  let read = false;
+  assert.equal(await offerNativeProject(app, saved.text, { size: 16 * 1024 * 1024 + 1,
+    text: async () => { read = true; return saved.text; } }), false);
+  assert.equal(read, false, "An oversized file is rejected before reading");
+  assert.equal(await offerNativeProject(app, saved.text, { text: async () => { throw new Error("unreadable"); } }), false);
+  assert.match(app.elements.get("projectStatus").textContent, /could not be read/);
+  assert.equal(app.elements.get("composeText").value, current);
+  assert.notEqual(active.stopped, true);
+  const next = JSON.stringify({ ...saved.data, title: "Replacement", content: { ...saved.data.content, volume: 22 } });
+  assert.equal(await offerNativeProject(app, next), true);
+  assert.equal(app.elements.get("composeVolume").value, "38");
+  assert.notEqual(active.stopped, true, "Reviewing a candidate does not change the current transport");
+  app.fire("projectCancel", "click");
+  assert.equal(app.elements.get("projectConfirm").hidden, true);
+  assert.match(app.elements.get("projectStatus").textContent, /cancelled/);
+  assert.equal(app.elements.get("composeText").value, current);
+  assert.notEqual(active.stopped, true);
+  assert.equal(await offerNativeProject(app, next), true);
+  const voicesBefore = context.oscillators.length + context.sources.length;
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(active.stopped, true);
+  assert.equal(context.oscillators.length + context.sources.length, voicesBefore,
+    "Opening initializes no new playback voices");
+  assert.equal(app.elements.get("composeVolume").value, "22");
+  assert.match(app.elements.get("composePlayPause").textContent, /Play/);
+  assert.match(app.elements.get("projectStatus").textContent, /Nothing plays until/);
+  assert.equal(app.elements.get("projectName").value, "Replacement");
+});
+
+test("a late project-file read cannot replace a newer candidate or reopen after cancellation", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  const saved = await saveNativeProject(app);
+  const oldText = JSON.stringify({ ...saved.data, title: "Older request" });
+  const newText = JSON.stringify({ ...saved.data, title: "Newest request" });
+  let resolveOld;
+  const delayed = offerNativeProject(app, oldText, { text: () => new Promise(resolve => { resolveOld = resolve; }) });
+  assert.equal(await offerNativeProject(app, newText), true);
+  resolveOld(oldText);
+  assert.equal(await delayed, false);
+  assert.match(app.elements.get("projectConfirmText").textContent, /Newest request/);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(app.elements.get("projectName").value, "Newest request");
+  let resolveCancelled;
+  const cancelled = offerNativeProject(app, oldText, { text: () => new Promise(resolve => { resolveCancelled = resolve; }) });
+  app.fire("projectCancel", "click");
+  resolveCancelled(oldText);
+  assert.equal(await cancelled, false);
+  assert.equal(app.elements.get("projectConfirm").hidden, true);
+  assert.equal(app.elements.get("projectName").value, "Newest request");
+  assert.equal(app.contexts.length, 0);
 });

@@ -44,14 +44,13 @@ h1, h2, p { margin-top: 0; }
 
 .container { max-width: 1320px; margin: auto; padding: 22px 26px 44px; }
 .mode-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-.pill { display: inline-block; flex: none; border-radius: 90px; background: #e1f4ef; color: #206f6b; padding: 9px 14px; font-size: 12px; font-weight: 800; }
 
 .mode-switch { display: flex; flex-wrap: wrap; gap: 9px; }
 .mode-button { min-height: 44px; padding: 10px 17px; border: 1px solid #c7d8ed; border-radius: 11px; background: #fff; color: #466788; font-size: 13px; font-weight: 800; }
 .mode-button:hover { border-color: #78a9df; }
 .mode-button.active { background: #2769ba; color: white; border-color: #2769ba; box-shadow: 0 3px 10px #2769ba25; }
 .experiment-switch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-.mix-experiment-switch { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pure-experiment-switch, .mix-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tuning-experiment-switch { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .experiment-switch button { min-height: 52px; border: 1px solid #c7d8ed; border-radius: 10px; padding: 8px 5px; background: #fff; color: #486b88; font-size: 12px; font-weight: 800; line-height: 1.25; }
 .tuning-experiment-switch button { font-size: 11px; padding: 9px 3px; min-height: 52px; overflow-wrap: anywhere; }
@@ -414,6 +413,35 @@ h1, h2, p { margin-top: 0; }
   background: #fff; color: #3e6180; font-size: 13px; font-weight: 850; }
 .compose-subtabs button.selected { background: #2869b9; color: #fff; border-color: #2869b9; }
 .compose-subtabs button:hover:not(.selected) { background: #edf5ff; }
+.project-toolbar { margin: 0 0 17px; padding: 15px 17px; border: 1px solid #c6dbe8;
+  border-radius: 13px; background: #f3f9fc; min-width: 0; }
+.project-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; }
+.project-name-field { flex: 1 1 240px; min-width: 0; }
+.project-name-field label { display: block; margin-bottom: 6px; color: #345a79; font-size: 12px; font-weight: 800; }
+.project-name-field input { width: 100%; min-width: 0; min-height: 44px; padding: 9px 11px;
+  border: 1px solid #b7cddd; border-radius: 9px; background: #fff; color: #304f6c; font: inherit; font-size: 14px; }
+.project-toolbar button { min-height: 44px; border: 1px solid #9ebed4; border-radius: 9px;
+  background: #fff; color: #345b7c; padding: 10px 14px; font-size: 13px; font-weight: 800; }
+.project-toolbar button:hover:not(:disabled) { background: #e2effa; }
+.project-toolbar button:disabled { opacity: .5; cursor: not-allowed; }
+#projectSave { border-color: #68a6a1; background: #e2f4f0; color: #176b64; }
+#projectSave:hover { background: #d4eee7; }
+.project-hint, .project-status, .project-confirm p { margin: 9px 0 0; font-size: 12px; line-height: 1.55;
+  color: #57738a; overflow-wrap: anywhere; }
+.project-status:empty { display: none; }
+.project-status.error { color: #a73c35; }
+.project-download { display: inline-block; max-width: 100%; overflow-wrap: anywhere;
+  margin-top: 7px; padding: 6px 0; font-size: 12px; color: #236e9d; }
+.project-confirm { margin-top: 12px; padding: 12px; border: 1px solid #d8ba79;
+  border-radius: 9px; background: #fff8e8; }
+.project-confirm p { margin-top: 0; color: #705728; }
+.project-confirm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#projectReplace { border-color: #bc9150; color: #795420; }
+@media (max-width: 480px) {
+  .project-toolbar { padding: 13px; }
+  .project-actions > button { flex: 1 1 auto; }
+  .project-name-field { flex-basis: 100%; }
+}
 .ensemble-preset-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .ensemble-preset-row button { min-width: 70px; min-height: 44px; padding: 9px 12px;
   border: 1px solid #73b7b6; border-radius: 9px; background: #e7f7f5;
@@ -659,7 +687,7 @@ h1, h2, p { margin-top: 0; }
   .number-wrap input { width: 124px; min-width: 124px; }
   .mix-comparison { grid-template-columns: 1fr; }
   .experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mix-experiment-switch { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pure-experiment-switch, .mix-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .interval-facts, .scale-facts { grid-template-columns: 1fr; }
   .tuning-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .temp-key-row { grid-template-columns: 1fr 1fr; }

@@ -218,6 +218,35 @@
     resetTimer() {
       if (this.parseTimer !== null) { clearTimeout(this.parseTimer); this.parseTimer = null; }
     }
+    captureProject() {
+      // textInput updates the track/draft immediately, ahead of parse's debounce.
+      // The codec makes the independent, explicit-field copy at the file boundary.
+      return { tuning: this.$("ensembleTuning").value, tracks: this.tracks,
+        selectedId: this.selectedId, nextId: this.nextId,
+        editor: { gridBar: this.gridBar, gridStep: Number(this.$("ensembleGridStep").value),
+          gridStrength: this.$("ensembleGridStrength").value } };
+    }
+    isProjectDraft() {
+      if (this.tracks.some(track => track.patternDraft)) return true;
+      try {
+        parseTracks(this.tracks, this.$("ensembleTuning").value, this.temperamentModel);
+        return false;
+      } catch (_) { return true; }
+    }
+    restoreProject(content) {
+      // Only normalized, independent project data reaches this method.
+      this.resetTimer();
+      this.player.stop();
+      this.tracks = content.tracks;
+      this.selectedId = content.selectedId;
+      this.nextId = content.nextId;
+      this.gridBar = content.editor.gridBar;
+      this.$("ensembleTuning").value = content.tuning;
+      this.$("ensembleGridStep").value = String(content.editor.gridStep);
+      this.$("ensembleGridStrength").value = content.editor.gridStrength;
+      this.setEditorText();
+      this.parse();
+    }
     textInput() {
       const track = this.selected(), text = this.$("ensembleText").value;
       if (track.instrument === "drums" && track.patterns && track.textMode === "pattern") {
@@ -247,7 +276,7 @@
     setEditorText() {
       const track = this.selected();
       this.$("ensembleText").value = track.instrument === "drums" && track.patterns && track.textMode === "pattern" ?
-        (track.patternDraft?.text || drumPatterns.patternABC(track.patterns, track.patternId)) : track.abc;
+        (track.patternDraft?.text ?? drumPatterns.patternABC(track.patterns, track.patternId)) : track.abc;
       this.renderEditorLabel();
     }
     activatePatterns() {

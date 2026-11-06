@@ -1,10 +1,30 @@
 # Sound Lab (ideal signals, modeled instruments, moving pitch, tuning and composition)
 
-Standalone browser-based music and acoustics laboratory. Open [index.html](index.html) or serve this repository as a static website. No build, external dependencies, microphone permission, network uploads or server are required. Compose can read a local `.abc`/`.txt` score entirely in the browser. Local WAV recording uses the browser's AudioWorklet API and requires a supported browser on a secure origin (as provided by the deployed site).
+Standalone browser-based music and acoustics laboratory. Open [index.html](index.html) or serve this repository as a static website. No build, external dependencies, microphone permission, network uploads or server are required. Compose can read a local `.abc`/`.txt` score and save/open editable `.soundlab.json` projects entirely in the browser. Local WAV recording uses the browser's AudioWorklet API and requires a supported browser on a secure origin (as provided by the deployed site).
 
 **Project:** [Sound Lab](https://github.com/gantemur/soundlab) · [Live application](https://gantemur.github.io/soundlab/) · Private plans and unpublished scores: `gantemur/soundlab-private`. This application was developed under [Sol](https://github.com/gantemur/sol) until the standalone extraction on 2026-11-04, based on Sol main `6d0493cd72736d2382604c4a99450ffa932215ee`. Its earlier source history remains in that repository. After extraction, Sol contains neither the application files nor an automatic homepage link.
 
 **License and sources:** Independently authored Sound Lab code is made available under the [MIT license](LICENSE). The underlying traditional/public-domain compositions, source editions and transcriptions have independent rights and provenance; see [third-party and score notes](THIRD_PARTY_NOTICES.md) and each preset's source metadata. A source recording or a modern score edition is not implicitly included in the MIT grant.
+
+## Save and open Compose projects
+
+The shared Compose toolbar has **Project name**, **Save project** and **Open project…** controls in Mongolian and English. Save downloads the **currently selected One instrument or Many instruments workspace** as a `.soundlab.json` file. It is an editable project, not a recording or WAV export. The two workspaces keep separate project names; saving one does not bundle the other.
+
+- A solo project keeps the exact ABC text, instrument, tuning, volume and guitar technique/spacing.
+- An ensemble keeps its ordered tracks, names, instruments, volumes, mute/solo settings, ABC, guitar techniques, selected track, drum-grid settings, and complete linked drum patterns—including unused definitions and multi-bar assignments.
+- Unfinished ABC can be saved. An invalid or empty drum-pattern draft is preserved alongside its last valid pattern and links. Opening a draft shows the usual score error and leaves Play disabled until the score is corrected.
+- Open checks the entire file before showing a **Replace workspace / Cancel** confirmation. Only the workspace named in the project is replaced; the other remains unchanged. A malformed, incompatible or oversized file does not replace the current work. Successful replacement stops sound and never starts playback.
+- Project files remain local. No sign-in, upload, microphone permission, database or third-party service is used. Keep downloaded copies yourself; this feature is not automatic recovery or cloud storage. A download link remains available if the browser does not begin the automatic download.
+
+The native format is explicitly versioned (`format: "soundlab-project"`, `version: 1`) and rejects unsupported versions and unknown structural fields. Files are limited to 16 MiB, each ABC/draft string to 8,192 characters, and model collections to their existing bounds. Imported settings are type-checked and reconstructed field by field. Current playback limits remain **four ensemble tracks, 1,024 combined note/drum events and 90 seconds**; Save/Open does not add longer movements, more instruments or a full symphony editor. Language, audio playback position, recorder contents and other experiment tabs are not stored in a Compose project.
+
+The pure [project codec](sound-project.js) is separate from [file controls](sound-project-ui.js), with round-trip, draft and hostile-input tests. Existing `.abc`/`.txt` inputs still load only notation into their respective editors. **Direct offline WAV export is not part of this feature**; the existing local REC/WAV recorder is unchanged.
+
+## Navigation
+
+The main tabs are ordered **Pure tones → Moving pitch → Blow/Bow → Strike/Pluck → Combine waves → Tuning → Compose**. Redundant numbered section badges have been removed to reduce phone clutter.
+
+**Pure tones** now has two panels: **Waveforms** (the existing sine, triangle, square and sawtooth choices) and **Build timbre** (the existing eight-harmonic additive builder). **Combine waves** retains **Two frequencies** and **Noise**. Switching panels keeps their settings, stops existing or pending sound, and never starts playback. The synthesis and local recording path are unchanged.
 
 ## Compose guitar strumming
 
@@ -29,7 +49,7 @@ C, E, [C,E,G,CE] [C,E,G,CE] |]
 
 The two bass notes are picked individually; the two chords use the selected technique. The model plays the pitches written in ABC using the existing plucked-string synthesis. It does not infer a six-string fingering from a chord name, add missing chord tones, or check fretboard playability. Guitar score playback accepts 80–880 Hz, including the open low E; other instrument ranges are unchanged. Per-chord direction marks and independent durations inside a chord are not part of this first implementation.
 
-Try **Guitar · Pick and strum** under **Writing exercises**: a four-bar solo study or an eight-bar ensemble study with quiet bass and a reusable drum pattern. Both are original Sound Lab exercises with no imported song, recording or outside arrangement. Guitar settings belong to their own track and survive track/language changes; selecting a preset restores that preset's technique. Changing technique or spacing stops playback and does not autoplay. The current ABC file input loads notes; it does not store the separate instrument/technique controls.
+Try **Guitar · Pick and strum** under **Writing exercises**: a four-bar solo study or an eight-bar ensemble study with quiet bass and a reusable drum pattern. Both are original Sound Lab exercises with no imported song, recording or outside arrangement. Guitar settings belong to their own track and survive track/language changes; selecting a preset restores that preset's technique. Changing technique or spacing stops playback and does not autoplay. The ABC file input loads notes; use **Save project** to retain the separate instrument/technique controls as well.
 
 ## Folk and historical song presets
 

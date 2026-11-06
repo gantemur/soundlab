@@ -193,7 +193,7 @@
     en: {
       mode: "Compose", phase: "07 · Write a melody", title: "Make a melody",
       intro: "Write a short ABC score, choose one instrument and hear it follow your notes. No sound plays until you press Play.",
-      example: "Example score", exampleFirst: "First melody", exampleRests: "Notes and rests",
+      example: "Example score", exampleCustom: "Saved / edited score", exampleFirst: "First melody", exampleRests: "Notes and rests",
       exampleWaltz: "Waltz in G", exampleMinor: "Minor tune",
       exampleStrum: "Guitar · Pick and strum (4 bars)",
       exampleStudies: "Writing exercises", exampleClassics: "Classical music",
@@ -243,7 +243,7 @@
     mn: {
       mode: "Ая зохиох", phase: "07 · Ая зохиох", title: "Аялгуу зохиох",
       intro: "ABC тэмдэглэгээгээр богино ая бичиж, нэг хөгжмөөр тоглуулаарай. «Тоглуулах»-ыг дарахаас өмнө дуу гарахгүй.",
-      example: "Жишээ ая", exampleFirst: "Энгийн аялгуу", exampleRests: "Нот ба завсарлага",
+      example: "Жишээ ая", exampleCustom: "Хадгалсан / зассан нот", exampleFirst: "Энгийн аялгуу", exampleRests: "Нот ба завсарлага",
       exampleWaltz: "Соль мажор вальс", exampleMinor: "Минор аялгуу",
       exampleStrum: "Гитар · Цохих/татах (4 такт)",
       exampleStudies: "Нот бичих дасгал", exampleClassics: "Сонгодог хөгжим",
@@ -375,6 +375,37 @@
     }
 
     t(key) { return UI[this.language][key]; }
+    captureProject() {
+      // Read the editor, not the parsed score: an input debounce may still be pending.
+      return { abc: this.$("composeText").value, instrument: this.$("composeInstrument").value,
+        tuning: this.$("composeTuning").value, volume: Number(this.$("composeVolume").value),
+        guitar: { mode: this.$("composeGuitarMode").value,
+          spacingMs: Number(this.$("composeGuitarSpacing").value) } };
+    }
+
+    isProjectDraft() {
+      const content = this.captureProject();
+      try {
+        playerModel.validateEnsemble([{ ...content, score: abc.parse(content.abc) }],
+          content.tuning, this.player.temperamentModel);
+        return false;
+      } catch (_) { return true; }
+    }
+
+    restoreProject(content) {
+      // The project codec has validated and independently copied this content.
+      if (this.parseTimer !== null) { clearTimeout(this.parseTimer); this.parseTimer = null; }
+      this.player.stop();
+      this.$("composeText").value = content.abc;
+      this.$("composeInstrument").value = content.instrument;
+      this.$("composeTuning").value = content.tuning;
+      this.$("composeVolume").value = String(content.volume);
+      this.$("composeGuitarMode").value = content.guitar.mode;
+      this.$("composeGuitarSpacing").value = String(content.guitar.spacingMs);
+      this.$("composeExample").value = Object.keys(EXAMPLES).find(id => EXAMPLES[id] === content.abc.trim()) || "";
+      this.parseScore();
+    }
+
     renderLanguage(language) {
       if (!UI[language]) return;
       this.language = language;

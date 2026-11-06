@@ -17,12 +17,13 @@
   const recorderModel = window.SoundLabRecorder;
   const composeModel = window.SoundLabCompose;
   const ensembleModel = window.SoundLabEnsemble;
+  const projectUI = window.SoundLabProjectUI;
   const $ = id => document.getElementById(id);
 
   const messages = {
     en: {
       backLabel: "Back to Sol tools", stop: "■ Stop",
-      phase: "01 · Ideal signals", chooseShape: "Choose a wave shape",
+      chooseShape: "Choose a wave shape",
       sine: "Sine", triangle: "Triangle", square: "Square", sawtooth: "Sawtooth",
       play: "Play tone", playCaption: "Tap or click to hear",
       stopTone: "Stop tone", stopCaption: "Sound is playing · tap to stop",
@@ -71,16 +72,16 @@
       unsupported: "This browser does not support Web Audio playback.",
       blocked: "The sound could not start. Check browser audio permission and try Play again.",
       invalid: "Enter a frequency between 20 and 12,000 Hz.",
-      modePure: "Pure tones", modeStrike: "Strike/Pluck", modeSustain: "Blow/Bow", modeMotion: "Moving Pitch",
+      modePure: "Pure tones", modeStrike: "Strike/Pluck", modeSustain: "Blow/Bow", modeMotion: "Moving pitch",
       modeMix: "Combine waves", modeTuning: "Tuning", modeCompose: "Compose",
       composeSolo: "Single instrument", composeEnsemble: "Many instruments",
-      composePhase: "07 · Write a melody", modeSwitchAria: "Sound categories",
+      modeSwitchAria: "Sound categories",
+      pureExperimentsAria: "Wave shapes and timbre experiments",
+      pureExperimentWaves: "Waveforms", pureExperimentHarmonics: "Build timbre",
       mixExperimentsAria: "Explore combined and complex sounds",
-      mixExperimentBeats: "Two frequencies", mixExperimentHarmonics: "Build timbre",
+      mixExperimentBeats: "Two frequencies",
       mixExperimentIntervals: "Interval", mixExperimentNoise: "Noise",
       intervalExperiment: "Ratios", earExperiment: "Tune",
-      harmonicPhase: "05 · Build a sound", noisePhase: "05 · Explore noise",
-      intervalPhase: "06 · Musical intervals", earPhase: "06 · Tune", scalePhase: "06 · 3-limit", limit5Phase: "06 · 5-limit", tempPhase: "06 · Temperaments",
       tuningExperimentsAria: "Tuning experiments", scaleExperiment: "3-limit", limit5Experiment: "5-limit", tempExperiment: "Temperaments",
       earChoose: "Tune the next note",
       earDescription: "Choose a ratio and tune the second note by ear. Try downward intervals and octave shifts too.",
@@ -368,7 +369,6 @@
       noiseWaveAria: "Modeled example of a nonperiodic noise waveform",
       noiseSpectrumAria: "Expected frequency magnitude profile of colored and filtered noise",
       noiseChoicesAria: "Noise color choices",
-      mixPhase: "05 · Two-tone beats",
       mixChoose: "Combine two tones", mixDescription: "Two nearby frequencies reinforce and cancel, making the volume pulse.",
       mixPlay: "Play", mixStop: "Stop",
       mixBase: "First frequency", mixGap: "Frequency difference (Δf)",
@@ -397,7 +397,7 @@
       mixUnsupported: "This browser does not support synthesized sound playback.",
       mixBlocked: "Could not start sound. Check browser audio permission and try again.",
       mixInvalid: "Enter a first frequency between 120 and 1,000 Hz.",
-      strikePhase: "02 · Modeled sounds", strikeChoose: "Choose a modeled sound",
+      strikeChoose: "Choose a modeled sound",
       pluck: "Guitar string", kick: "Drum", piano: "Piano", strikeGroupAria: "Transient sound model",
       strikeCaption: "Tap to sound; tap again to repeat",
       strikePluckButton: "Pluck", strikeStrumButton: "Strum", strikeKickButton: "Strike",
@@ -477,7 +477,7 @@
         kick: "Compare drums, cymbals, a steel pan, chimes and woodblocks. Tap the pads to build a rhythm.",
         piano: "Hammer force changes the brightness of slightly detuned, stiff strings. Their overtones fade at different rates."
       },
-      sustainPhase: "03 · Held sounds", sustainChoose: "Choose a held sound",
+      sustainChoose: "Choose a held sound",
       sustainFlute: "Flute", sustainViolin: "Violin", sustainMorin: "Morin khuur",
       sustainGroupAria: "Held instrument models", sustainGestureTitle: "How to play",
       sustainGestureAria: "Hold or toggle the sound", sustainHold: "Press and hold", sustainToggle: "Tap to toggle",
@@ -513,7 +513,7 @@
         violin: "A bright bowed-string source with pressure-controlled stick–slip sharpness and illustrative body resonances.",
         morin: "The same bowed-string mechanism with a different slip duration and warmer body response, inspired by the morin khuur."
       },
-      motionPhase: "04 · Moving frequency", motionChoose: "Choose a moving sound",
+      motionChoose: "Choose a moving sound",
       theremin: "Theremin", siren: "Fire-truck siren",
       motionDesc: {
         theremin: "Move your finger to change the pitch and loudness continuously.",
@@ -581,7 +581,7 @@
     },
     mn: {
       backLabel: "Sol-ийн хэрэгслүүд рүү буцах", stop: "■ Зогсоох",
-      phase: "01 · Энгийн дохионууд", chooseShape: "Долгионы хэлбэр сонгох",
+      chooseShape: "Долгионы хэлбэр сонгох",
       sine: "Синус", triangle: "Гурвалжин", square: "Дөрвөлжин", sawtooth: "Хөрөө",
       play: "Авиа тоглуулах", playCaption: "Сонсохын тулд товшино уу",
       stopTone: "Авиа зогсоох", stopCaption: "Авиа дуугарч байна · зогсоохын тулд товшино уу",
@@ -633,13 +633,13 @@
       modePure: "Цэвэр авиа", modeStrike: "Цохих/татах", modeSustain: "Үлээх/нумдах", modeMotion: "Хувирдаг давтамж",
       modeMix: "Долгион холих", modeTuning: "Хөг", modeCompose: "Ая зохиох",
       composeSolo: "Нэг хөгжим", composeEnsemble: "Олон хөгжим",
-      composePhase: "07 · Ая зохиох", modeSwitchAria: "Дууны бүлэг",
+      modeSwitchAria: "Дууны бүлэг",
+      pureExperimentsAria: "Долгионы хэлбэр ба өнгөний туршилтууд",
+      pureExperimentWaves: "Долгионы хэлбэр", pureExperimentHarmonics: "Өнгө бүтээх",
       mixExperimentsAria: "Холимог ба нийлмэл авианы туршилтууд",
-      mixExperimentBeats: "Хоёр давтамж", mixExperimentHarmonics: "Өнгө бүтээх",
+      mixExperimentBeats: "Хоёр давтамж",
       mixExperimentIntervals: "Интервал", mixExperimentNoise: "Шуугиан",
       intervalExperiment: "Харьцаа", earExperiment: "Тааруулах",
-      harmonicPhase: "05 · Авиа бүтээх", noisePhase: "05 · Шуугиан судлах",
-      intervalPhase: "06 · Хөгжмийн интервал", earPhase: "06 · Тааруулах", scalePhase: "06 · 3-хязгаар", limit5Phase: "06 · 5-хязгаар", tempPhase: "06 · Темперамент",
       tuningExperimentsAria: "Хөгийн туршилтууд", scaleExperiment: "3-хязгаар", limit5Experiment: "5-хязгаар", tempExperiment: "Темперамент",
       earChoose: "Нот тааруулах",
       earDescription: "Харьцаагаа сонгоод хоёр дахь нотыг чихээр тааруул. Доош алхам, октаваар шилжүүлэхийг ч бас туршаарай.",
@@ -927,7 +927,6 @@
       noiseWaveAria: "Үелдэггүй шуугианы долгионы загвар",
       noiseSpectrumAria: "Өнгөт болон шүүсэн шуугианы давтамжийн хүлээгдэх тархалт",
       noiseChoicesAria: "Шуугианы өнгө сонгох",
-      mixPhase: "05 · Хоёр авианы биение",
       mixChoose: "Хоёр авиа нийлүүлэх", mixDescription: "Ойролцоо хоёр давтамж нийлээд дууны чанга, сул нь ээлжлэн өөрчлөгдөнө.",
       mixPlay: "Тоглуулах", mixStop: "Зогсоох",
       mixBase: "Эхний давтамж", mixGap: "Давтамжийн зөрүү (Δf)",
@@ -956,7 +955,7 @@
       mixUnsupported: "Энэ хөтөч авиа тоглуулах боломжгүй байна.",
       mixBlocked: "Авиа эхэлсэнгүй. Хөтчийн дууны зөвшөөрлийг шалгаад дахин оролдоно уу.",
       mixInvalid: "Эхний давтамжийг 120–1,000 Гц-ийн хооронд оруулна уу.",
-      strikePhase: "02 · Загварчилсан дуу", strikeChoose: "Дууны загвар сонгох",
+      strikeChoose: "Дууны загвар сонгох",
       pluck: "Гитарын чавхдас", kick: "Бөмбөр", piano: "Төгөлдөр хуур", strikeGroupAria: "Цохилтын дууны загвар",
       strikeCaption: "Дарж сонсоод, дахин дарж давтаарай",
       strikePluckButton: "Татах", strikeStrumButton: "Цохих", strikeKickButton: "Цохих",
@@ -1036,7 +1035,7 @@
         kick: "Бөмбөр, цан, ган бөмбөр, хоолойт хонх, модон товшуурыг харьцуул. Товшиж хэмнэл үүсгээрэй.",
         piano: "Алх цохиход өчүүхэн зөрүүтэй чавхдас зэрэг хэлбэлзэнэ. Цохилтын хүчийг өсгөхөд дээд гармоникууд тодорч, авиа хурц болно."
       },
-      sustainPhase: "03 · Үргэлжлэх авиа", sustainChoose: "Үргэлжлэх дуу сонгох",
+      sustainChoose: "Үргэлжлэх дуу сонгох",
       sustainFlute: "Лимбэ", sustainViolin: "Хийл", sustainMorin: "Морин хуур",
       sustainGroupAria: "Үргэлжлэх авианы загвар", sustainGestureTitle: "Дуугаргах арга",
       sustainGestureAria: "Дууг барих эсвэл товшиж асаах", sustainHold: "Дарж барих", sustainToggle: "Товшиж асаах",
@@ -1072,7 +1071,7 @@
         violin: "Нумын даралтаар наалдах–гулсах хөдөлгөөний хурц байдлыг өөрчилж, их биеийн шүүлтүүрээр өнгө оруулсан хийлийн загвар.",
         morin: "Нумдсан чавхдасны ижил зарчимтай боловч гулсах үе, их биеийн өнгө нь өөр морин хуураас санаа авсан загвар."
       },
-      motionPhase: "04 · Хувирдаг давтамж", motionChoose: "Хөдөлгөөнт дуу сонгох",
+      motionChoose: "Хөдөлгөөнт дуу сонгох",
       theremin: "Теремин", siren: "Галын машины дохио",
       motionDesc: {
         theremin: "Гараа хөдөлгөж давтамж ба дууны хэмжээг өөрчил.",
@@ -1144,6 +1143,7 @@
   const state = {
     language: params.get("lang") === "en" ? "en" : "mn",
     mode: "pure",
+    pureKind: "waves",
     composeSubtab: "solo",
     waveform: "sine",
     frequency: 440,
@@ -1370,7 +1370,7 @@
     async start() {
       const ticket = ++this.generation;
       await this.readyContext();
-      if (ticket !== this.generation) return false;
+      if (ticket !== this.generation || state.mode !== "pure" || state.pureKind !== "waves") return false;
       this.createVoice();
       return true;
     }
@@ -2424,7 +2424,7 @@
     async start() {
       const ticket = ++this.generation;
       const context = await this.contextOwner.readyContext();
-      if (ticket !== this.generation || state.mode !== "mix" || state.mixKind !== "harmonics") return false;
+      if (ticket !== this.generation || state.mode !== "pure" || state.pureKind !== "harmonics") return false;
       this.createVoice(context);
       return true;
     }
@@ -2579,6 +2579,18 @@
     transientModel, sustainModel, temperamentModel: tempModel }) : null;
   const ensemble = ensembleModel ? new ensembleModel.Controller({ document, contextOwner: audio,
     transientModel, sustainModel, temperamentModel: tempModel }) : null;
+  const projectFiles = projectUI && compose && ensemble ? new projectUI.Controller({ document,
+    getCurrentMode: () => state.composeSubtab,
+    capture: mode => (mode === "solo" ? compose : ensemble).captureProject(),
+    isDraft: mode => (mode === "solo" ? compose : ensemble).isProjectDraft(),
+    restore: project => {
+      stopAllAudio(true);
+      selectMode("compose");
+      selectComposeSubtab(project.mode);
+      (project.mode === "solo" ? compose : ensemble).restoreProject(project.content);
+      renderTexts();
+    }
+  }) : null;
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
@@ -2950,8 +2962,9 @@
 
   async function toggleHarmonicSound() {
     if (state.harmonicPlaying) { stopHarmonicSound(); return; }
-    if (state.mode !== "mix" || state.mixKind !== "harmonics") return;
+    if (state.mode !== "pure" || state.pureKind !== "harmonics") return;
     setHarmonicStatus("harmonicStarting");
+    const generation = harmonicAudio.generation + 1;
     try {
       if (await harmonicAudio.start()) {
         state.harmonicPlaying = true;
@@ -2959,6 +2972,7 @@
         renderHarmonicControls();
       }
     } catch (error) {
+      if (generation !== harmonicAudio.generation || state.mode !== "pure" || state.pureKind !== "harmonics") return;
       stopHarmonicSound(true, error.message === "unsupported" ? "harmonicUnsupported" : "harmonicBlocked");
       setHarmonicStatus(state.harmonicStatus, true);
     }
@@ -2991,7 +3005,7 @@
     if (state.harmonicError) setHarmonicStatus(state.harmonicPlaying ? "harmonicPlaying" : "harmonicReady");
     harmonicAudio.update();
     renderHarmonicControls();
-    if (state.mode === "mix" && state.mixKind === "harmonics") drawHarmonicPlots();
+    if (state.mode === "pure" && state.pureKind === "harmonics") drawHarmonicPlots();
   }
 
   function setHarmonicPreset(name) {
@@ -3000,7 +3014,7 @@
     state.harmonicPreset = name;
     harmonicAudio.changeMixture();
     renderHarmonicControls();
-    if (state.mode === "mix" && state.mixKind === "harmonics") drawHarmonicPlots();
+    if (state.mode === "pure" && state.pureKind === "harmonics") drawHarmonicPlots();
   }
 
   function setHarmonicLevel(number, percent) {
@@ -3011,7 +3025,7 @@
     state.harmonicPreset = "custom";
     harmonicAudio.changeMixture();
     renderHarmonicControls();
-    if (state.mode === "mix" && state.mixKind === "harmonics") drawHarmonicPlots();
+    if (state.mode === "pure" && state.pureKind === "harmonics") drawHarmonicPlots();
   }
 
   function resetHarmonics() {
@@ -4369,6 +4383,8 @@
   }
 
   function renderMode() {
+    const isPure = state.mode === "pure";
+    const isWaves = isPure && state.pureKind === "waves";
     const isCompose = state.mode === "compose";
     const isStrike = state.mode === "strike";
     const isSustain = state.mode === "sustain";
@@ -4376,17 +4392,18 @@
     const isMix = state.mode === "mix";
     const isTuning = state.mode === "tuning";
     const isBeats = isMix && state.mixKind === "beats";
-    const isHarmonics = isMix && state.mixKind === "harmonics";
+    const isHarmonics = isPure && state.pureKind === "harmonics";
     const isIntervals = isTuning && state.tuningKind === "intervals";
     const isEar = isTuning && state.tuningKind === "ear";
     const isScales = isTuning && state.tuningKind === "scales";
     const isLimit5 = isTuning && state.tuningKind === "limit5";
     const isTemp = isTuning && state.tuningKind === "temperaments";
     const isNoise = isMix && state.mixKind === "noise";
-    $("pureWorkspace").hidden = isStrike || isSustain || isMotion || isMix || isTuning || isCompose;
-    $("pureChallenge").hidden = isStrike || isSustain || isMotion || isMix || isTuning || isCompose;
-    $("pureExplanation").hidden = isStrike || isSustain || isMotion || isMix || isTuning || isCompose;
+    $("pureWorkspace").hidden = !isWaves;
+    $("pureChallenge").hidden = !isWaves;
+    $("pureExplanation").hidden = !isWaves;
     $("composeSubtabs").hidden = !isCompose;
+    $("projectToolbar").hidden = !isCompose;
     $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";
     $("composeEnsembleWorkspace").hidden = !isCompose || state.composeSubtab !== "ensemble";
     document.querySelectorAll("[data-compose-subtab]").forEach(button => {
@@ -4427,6 +4444,11 @@
     $("noiseWorkspace").hidden = !isNoise;
     $("noiseChallenge").hidden = !isNoise;
     $("noiseExplanation").hidden = !isNoise;
+    document.querySelectorAll("[data-pure-kind]").forEach(button => {
+      const selected = button.dataset.pureKind === state.pureKind;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
     document.querySelectorAll("[data-mix-kind]").forEach(button => {
       const selected = button.dataset.mixKind === state.mixKind;
       button.classList.toggle("selected", selected);
@@ -4437,20 +4459,18 @@
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
-    for (const [id, mode] of [["modePure", "pure"], ["modeStrike", "strike"], ["modeSustain", "sustain"],
-      ["modeMotion", "motion"], ["modeMix", "mix"], ["modeTuning", "tuning"], ["modeCompose", "compose"]]) {
+    for (const [id, mode] of [["modePure", "pure"], ["modeMotion", "motion"], ["modeSustain", "sustain"],
+      ["modeStrike", "strike"], ["modeMix", "mix"], ["modeTuning", "tuning"], ["modeCompose", "compose"]]) {
       const selected = state.mode === mode;
       $(id).classList.toggle("active", selected);
       $(id).setAttribute("aria-pressed", String(selected));
     }
-    $("pagePhase").textContent = text(isCompose ? "composePhase" : isStrike ? "strikePhase" : isSustain ? "sustainPhase" : isMotion ? "motionPhase" :
-      isHarmonics ? "harmonicPhase" : isIntervals ? "intervalPhase" : isEar ? "earPhase" : isScales ? "scalePhase" : isLimit5 ? "limit5Phase" : isTemp ? "tempPhase" :
-        isNoise ? "noisePhase" : isMix ? "mixPhase" : "phase");
   }
 
   function renderTexts() {
     if (compose) compose.renderLanguage(state.language);
     if (ensemble) ensemble.renderLanguage(state.language);
+    if (projectFiles) projectFiles.renderLanguage(state.language);
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-i18n]").forEach(element => {
       const key = element.getAttribute("data-i18n");
@@ -4848,11 +4868,13 @@
   }
 
   async function toggleSound() {
+    if (state.mode !== "pure" || state.pureKind !== "waves") return;
     if (state.playing) {
       stopSound();
       return;
     }
     setStatus("starting");
+    const generation = audio.generation + 1;
     try {
       if (await audio.start()) {
         state.playing = true;
@@ -4860,6 +4882,7 @@
         renderControls();
       }
     } catch (error) {
+      if (generation !== audio.generation || state.mode !== "pure" || state.pureKind !== "waves") return;
       audio.stop(true);
       state.playing = false;
       setStatus(error.message === "unsupported" ? "unsupported" : "blocked", true);
@@ -4880,9 +4903,16 @@
     if (mode === state.mode || !["pure", "strike", "sustain", "motion", "mix", "tuning", "compose"].includes(mode)) return;
     stopAllAudio(false);
     state.mode = mode;
+    if (mode === "pure") {
+      if (state.pureKind === "harmonics") setHarmonicStatus("harmonicReady");
+      else setStatus("ready");
+    }
     if (mode === "sustain") setSustainStatus("sustainReady");
     if (mode === "motion") setMotionStatus("motionReady");
-    if (mode === "mix") setMixStatus("mixReady");
+    if (mode === "mix") {
+      if (state.mixKind === "noise") setNoiseStatus("noiseReady");
+      else setMixStatus("mixReady");
+    }
     if (mode === "tuning") {
       if (state.tuningKind === "intervals") setIntervalStatus("intervalReady");
       else if (state.tuningKind === "ear") setEarStatus("earReady");
@@ -4898,15 +4928,25 @@
     if (!["solo", "ensemble"].includes(subtab) || subtab === state.composeSubtab) return;
     stopAllAudio();
     state.composeSubtab = subtab;
+    if (projectFiles) projectFiles.modeChanged();
     renderMode();
   }
 
+  function selectPureKind(kind) {
+    if (state.mode !== "pure" || !["waves", "harmonics"].includes(kind) || kind === state.pureKind) return;
+    stopAllAudio();
+    state.pureKind = kind;
+    if (kind === "waves") setStatus("ready");
+    else setHarmonicStatus("harmonicReady");
+    renderTexts();
+    drawPlots();
+  }
+
   function selectMixKind(kind) {
-    if (!["beats", "harmonics", "noise"].includes(kind) || kind === state.mixKind) return;
+    if (!["beats", "noise"].includes(kind) || kind === state.mixKind) return;
     stopAllAudio();
     state.mixKind = kind;
     if (kind === "beats") setMixStatus("mixReady");
-    if (kind === "harmonics") setHarmonicStatus("harmonicReady");
     if (kind === "noise") setNoiseStatus("noiseReady");
     renderTexts();
     drawPlots();
@@ -7006,8 +7046,7 @@
     } else if (state.mode === "motion") {
       drawMotionPlots();
     } else if (state.mode === "mix") {
-      if (state.mixKind === "harmonics") drawHarmonicPlots();
-      else if (state.mixKind === "noise") drawNoisePlots();
+      if (state.mixKind === "noise") drawNoisePlots();
       else drawMixPlots();
     } else if (state.mode === "tuning") {
       if (state.tuningKind === "intervals") drawIntervalPlots();
@@ -7015,7 +7054,9 @@
       else if (state.tuningKind === "scales") drawScalePlots();
       else if (state.tuningKind === "limit5") drawLimit5Plots();
       else drawTempPlots();
-    } else if (state.mode !== "compose") {
+    } else if (state.mode === "pure" && state.pureKind === "harmonics") {
+      drawHarmonicPlots();
+    } else if (state.mode === "pure") {
       drawWave();
       drawSpectrum();
     }
@@ -7065,6 +7106,9 @@
   });
   document.querySelectorAll("[data-mix-gap]").forEach(button => {
     button.addEventListener("click", () => setMixGap(button.dataset.mixGap));
+  });
+  document.querySelectorAll("[data-pure-kind]").forEach(button => {
+    button.addEventListener("click", () => selectPureKind(button.dataset.pureKind));
   });
   document.querySelectorAll("[data-mix-kind]").forEach(button => {
     button.addEventListener("click", () => selectMixKind(button.dataset.mixKind));

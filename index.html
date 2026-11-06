@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s054">
+  <link rel="stylesheet" href="sound-lab.css?v=s055">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -29,10 +29,12 @@
   <script src="sound-drum-abc.js?v=s053" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
   <script src="sound-score-player.js?v=s052" defer></script>
-  <script src="sound-compose.js?v=s053" defer></script>
+  <script src="sound-compose.js?v=s055" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
-  <script src="sound-ensemble.js?v=s053" defer></script>
-  <script src="sound-lab.js?v=s054" defer></script>
+  <script src="sound-ensemble.js?v=s055" defer></script>
+  <script src="sound-project.js?v=s055" defer></script>
+  <script src="sound-project-ui.js?v=s055" defer></script>
+  <script src="sound-lab.js?v=s055" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -73,14 +75,13 @@
     <div class="mode-bar">
       <nav class="mode-switch" aria-label="Дууны бүлэг" id="modeSwitch">
         <button type="button" id="modePure" class="mode-button active" aria-pressed="true" data-i18n="modePure">Цэвэр авиа</button>
-        <button type="button" id="modeStrike" class="mode-button" aria-pressed="false" data-i18n="modeStrike">Цохих/татах</button>
-        <button type="button" id="modeSustain" class="mode-button" aria-pressed="false" data-i18n="modeSustain">Үлээх/нумдах</button>
         <button type="button" id="modeMotion" class="mode-button" aria-pressed="false" data-i18n="modeMotion">Хувирдаг давтамж</button>
+        <button type="button" id="modeSustain" class="mode-button" aria-pressed="false" data-i18n="modeSustain">Үлээх/нумдах</button>
+        <button type="button" id="modeStrike" class="mode-button" aria-pressed="false" data-i18n="modeStrike">Цохих/татах</button>
         <button type="button" id="modeMix" class="mode-button" aria-pressed="false" data-i18n="modeMix">Долгион холих</button>
         <button type="button" id="modeTuning" class="mode-button" aria-pressed="false" data-i18n="modeTuning">Хөг</button>
         <button type="button" id="modeCompose" class="mode-button" aria-pressed="false" data-i18n="modeCompose">Ая зохиох</button>
       </nav>
-      <span class="pill" id="pagePhase" data-i18n="phase">01 · Энгийн дохионууд</span>
     </div>
 
     <div class="workspace" id="pureWorkspace">
@@ -88,6 +89,11 @@
         <div class="section-top">
           <h2 id="controls-title" data-i18n="chooseShape">Choose a wave shape</h2>
           <p id="soundDescription" class="description">One smooth vibration with just one frequency.</p>
+        </div>
+
+        <div class="experiment-switch pure-experiment-switch" role="group" aria-label="Цэвэр авианы туршилтууд" data-i18n-aria="pureExperimentsAria">
+          <button type="button" data-pure-kind="waves" class="selected" aria-pressed="true" data-i18n="pureExperimentWaves">Долгионы хэлбэр</button>
+          <button type="button" data-pure-kind="harmonics" aria-pressed="false" data-i18n="pureExperimentHarmonics">Өнгө бүтээх</button>
         </div>
 
         <div class="wave-choices" role="group" aria-label="Waveform shape" id="waveChoices">
@@ -591,7 +597,6 @@
         </div>
         <div class="experiment-switch mix-experiment-switch" role="group" aria-label="Долгионы туршилт" data-i18n-aria="mixExperimentsAria">
           <button type="button" data-mix-kind="beats" class="selected" aria-pressed="true" data-i18n="mixExperimentBeats">Хоёр давтамж</button>
-          <button type="button" data-mix-kind="harmonics" aria-pressed="false" data-i18n="mixExperimentHarmonics">Өнгө бүтээх</button>
           <button type="button" data-mix-kind="noise" aria-pressed="false" data-i18n="mixExperimentNoise">Шуугиан</button>
         </div>
         <button id="mixButton" type="button" class="play-button" aria-pressed="false">
@@ -1185,10 +1190,9 @@
           <h2 id="harmonic-controls-title" data-i18n="harmonicChoose">Гармоникуудыг нэмэх</h2>
           <p class="description" data-i18n="harmonicDescription">Нэг давтамжийн бүхэл тоон үржвэрүүдийг нийлүүлж шинэ авиа бүтээнэ.</p>
         </div>
-        <div class="experiment-switch mix-experiment-switch" role="group" aria-label="Долгионы туршилт" data-i18n-aria="mixExperimentsAria">
-          <button type="button" data-mix-kind="beats" aria-pressed="false" data-i18n="mixExperimentBeats">Хоёр давтамж</button>
-          <button type="button" data-mix-kind="harmonics" class="selected" aria-pressed="true" data-i18n="mixExperimentHarmonics">Өнгө бүтээх</button>
-          <button type="button" data-mix-kind="noise" aria-pressed="false" data-i18n="mixExperimentNoise">Шуугиан</button>
+        <div class="experiment-switch pure-experiment-switch" role="group" aria-label="Цэвэр авианы туршилтууд" data-i18n-aria="pureExperimentsAria">
+          <button type="button" data-pure-kind="waves" aria-pressed="false" data-i18n="pureExperimentWaves">Долгионы хэлбэр</button>
+          <button type="button" data-pure-kind="harmonics" class="selected" aria-pressed="true" data-i18n="pureExperimentHarmonics">Өнгө бүтээх</button>
         </div>
         <button id="harmonicButton" type="button" class="play-button" aria-pressed="false">
           <span class="play-icon" id="harmonicPlayIcon" aria-hidden="true">▶</span>
@@ -1259,7 +1263,6 @@
         </div>
         <div class="experiment-switch mix-experiment-switch" role="group" aria-label="Долгионы туршилт" data-i18n-aria="mixExperimentsAria">
           <button type="button" data-mix-kind="beats" aria-pressed="false" data-i18n="mixExperimentBeats">Хоёр давтамж</button>
-          <button type="button" data-mix-kind="harmonics" aria-pressed="false" data-i18n="mixExperimentHarmonics">Өнгө бүтээх</button>
           <button type="button" data-mix-kind="noise" class="selected" aria-pressed="true" data-i18n="mixExperimentNoise">Шуугиан</button>
         </div>
         <div class="noise-choices" id="noiseChoices" role="group" aria-label="Шуугианы өнгө">
@@ -1310,6 +1313,28 @@
       <button type="button" data-compose-subtab="ensemble" aria-pressed="false" data-i18n="composeEnsemble">Олон хөгжим</button>
     </div>
 
+    <section id="projectToolbar" class="project-toolbar" aria-labelledby="project-name-label" hidden>
+      <div class="project-actions">
+        <div class="project-name-field">
+          <label id="project-name-label" for="projectName" data-project-i18n="name">Төслийн нэр</label>
+          <input id="projectName" type="text" maxlength="120" autocomplete="off" aria-describedby="projectHint">
+        </div>
+        <button id="projectSave" type="button" data-project-i18n="save">Төсөл хадгалах</button>
+        <button id="projectOpen" type="button" data-project-i18n="open">Төсөл нээх…</button>
+        <input id="projectFile" type="file" accept=".soundlab.json,.json,application/json" hidden>
+      </div>
+      <p id="projectHint" class="project-hint" data-project-i18n="hint">Одоогийн Нэг хөгжим эсвэл Олон хөгжим хэсгийг засаж болох .soundlab.json файлд хадгална. Файл зөвхөн таны төхөөрөмжид байна.</p>
+      <p id="projectStatus" class="project-status" role="status" aria-live="polite"></p>
+      <a id="projectDownload" class="project-download" data-project-i18n="download" hidden>Хадгалсан төслийг татах</a>
+      <div id="projectConfirm" class="project-confirm" hidden>
+        <p id="projectConfirmText"></p>
+        <div class="project-confirm-actions">
+          <button id="projectReplace" type="button" data-project-i18n="replace">Одоогийн төслийг солих</button>
+          <button id="projectCancel" type="button" data-project-i18n="cancel">Болих</button>
+        </div>
+      </div>
+    </section>
+
     <div class="workspace" id="composeWorkspace" hidden>
       <section class="panel controls compose-controls" aria-labelledby="compose-controls-title">
         <div class="section-top">
@@ -1319,6 +1344,7 @@
         <div class="field-group">
           <label class="field-title" for="composeExample" data-compose-i18n="example">Жишээ ая</label>
           <select id="composeExample">
+            <option value="" disabled data-compose-i18n="exampleCustom">Хадгалсан / зассан нот</option>
             <optgroup label="Нот бичих дасгал" data-compose-group-i18n="exampleStudies">
               <option value="first" data-compose-i18n="exampleFirst">Энгийн аялгуу</option>
               <option value="rests" data-compose-i18n="exampleRests">Нот ба завсарлага</option>
