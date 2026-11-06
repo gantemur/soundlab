@@ -176,7 +176,7 @@
   }
 
   return Object.freeze({
-    RATE, TUNING, CHORDS, STRUM_PATTERNS, midiHz, chordFrequencies, validate, pluckAt, strumAt,
+    RATE, TUNING, CHORDS, STRUM_PATTERNS, midiHz, chordFrequencies, validate, pluckWave, pluckAt, strumAt,
     validPosition
   });
 });

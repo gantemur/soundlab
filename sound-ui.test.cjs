@@ -10,6 +10,7 @@ const sustainModel = require("./sound-sustain.js");
 const heldVoiceModel = require("./sound-held-voice.js");
 const marimbaModel = require("./sound-marimba.js");
 const xylophoneModel = require("./sound-xylophone.js");
+const mandolinModel = require("./sound-mandolin.js");
 const spectrumModel = require("./sound-spectrum.js");
 const motionModel = require("./sound-motion.js");
 const beatsModel = require("./sound-beats.js");
@@ -43,16 +44,19 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="modeStrike"[^>]*>Цохих\/татах<\/button>/);
   assert.match(html, /id="modeSustain"[^>]*>Үлээх\/нумдах<\/button>/);
   assert.match(html, /id="fixedTimeCheck" checked/);
-  assert.match(html, /src="sound-string\.js\?v=s037"/);
+  assert.match(html, /src="sound-string\.js\?v=s062"/);
+  assert.match(html, /src="sound-mandolin\.js\?v=s062"/);
   assert.match(html, /src="sound-piano\.js\?v=s019"/);
   assert.match(html, /src="sound-marimba\.js\?v=s059"/);
   assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
-  assert.match(html, /src="sound-transient\.js\?v=s060"/);
+  assert.match(html, /src="sound-transient\.js\?v=s062"/);
   assert.match(html, /src="sound-clarinet\.js\?v=s061"/);
   assert.match(html, /src="sound-sustain\.js\?v=s061"/);
   assert.match(html, /src="sound-held-voice\.js\?v=s061"/);
   assert.ok(html.indexOf('src="sound-marimba.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-xylophone.js') < html.indexOf('src="sound-transient.js'));
+  assert.ok(html.indexOf('src="sound-string.js') < html.indexOf('src="sound-mandolin.js'));
+  assert.ok(html.indexOf('src="sound-mandolin.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-clarinet.js') < html.indexOf('src="sound-sustain.js'));
   assert.ok(html.indexOf('src="sound-sustain.js') < html.indexOf('src="sound-held-voice.js'));
   assert.ok(html.indexOf('src="sound-held-voice.js') < html.indexOf('src="sound-score-player.js'));
@@ -72,16 +76,16 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s061"/);
-  assert.match(html, /src="sound-compose\.js\?v=s061"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s062"/);
+  assert.match(html, /src="sound-compose\.js\?v=s062"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s061"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s062"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
-  assert.match(html, /src="sound-lab\.js\?v=s061"/);
+  assert.match(html, /src="sound-lab\.js\?v=s062"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s059"/);
   for (const module of ["wave-reader", "analysis-dsp", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -241,7 +245,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /data-i18n="strikePitched">Ноттой<\/span>/);
   const pitchedMenu = html.match(/<select id="strikePianoType">([\s\S]*?)<\/select>/)[1];
   assert.deepEqual([...pitchedMenu.matchAll(/value="([^"]+)"/g)].map(match => match[1]),
-    ["acoustic", "electric", "chimes", "marimba", "xylophone"]);
+    ["acoustic", "electric", "chimes", "marimba", "xylophone", "mandolin"]);
   assert.match(html, /data-i18n="pluck">Гитар<\/span>/);
   assert.doesNotMatch(html.match(/<select id="strikeDrumVoice">([\s\S]*?)<\/select>/)[1], /value="chimes"/);
   for (const family of transientModel.DRUM_VOICES) {
@@ -387,10 +391,11 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
     });
   const waveButtons = model.WAVEFORMS.map(wave => element({ wave }));
   const strikeButtons = ["pluck", "kick", "piano"].map(strike => element({ strike }));
-  const strikePlayButtons = ["single", "strum", "press", "tap"].map(strikePlay => element({ strikePlay }));
+  const strikePlayButtons = ["single", "strum", "press", "tap", "pick", "tremolo"].map(strikePlay => element({ strikePlay }));
   const guitarPlayButtons = strikePlayButtons.slice(0, 2);
   const guitarChordButtons = Object.keys(transientModel.STRUM_CHORDS).map(guitarChord => element({ guitarChord }));
-  const pianoTouchButtons = strikePlayButtons.slice(2);
+  const pianoTouchButtons = strikePlayButtons.slice(2, 4);
+  const mandolinPlayButtons = strikePlayButtons.slice(4);
   const sustainButtons = ["air", "bow"].map(sustainFamily => element({ sustainFamily }));
   const drumButtons = Object.keys(transientModel.KICK_SIZES).map(drumSize => element({ drumSize }));
   const spectrumButtons = ["local", "overall"].map(spectrumView => element({ spectrumView }));
@@ -506,6 +511,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
     SoundLabHeldVoice: heldVoiceModel,
     SoundLabMarimba: marimbaModel,
     SoundLabXylophone: xylophoneModel,
+    SoundLabMandolin: mandolinModel,
     SoundLabMotionModel: motionModel,
     SoundLabBeats: beatsModel,
     SoundLabIntervals: intervalModel,
@@ -730,7 +736,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   vm.runInContext(browserCode, vmContext, { filename: "sound-lab.js" });
   return {
     contexts, offlineContexts, exportRequests, elements, document, window, waveButtons, strikeButtons,
-    guitarPlayButtons, guitarChordButtons, pianoTouchButtons, strikePlayButtons, sustainButtons,
+    guitarPlayButtons, guitarChordButtons, pianoTouchButtons, mandolinPlayButtons, strikePlayButtons, sustainButtons,
     drumButtons, spectrumButtons,
     motionButtons, sirenPatternButtons, timbreButtons, vowelButtons, mixGapButtons, pureKindButtons, pureKindGroups, mixKindButtons,
     tuningKindButtons, composeSubtabButtons, scalePlayButtons, scaleTonicButtons,
@@ -2941,6 +2947,43 @@ test("I2a Guitar sub-tab stays concise and Xylophone uses its own range and one-
   assert.equal(app.contexts.length, 1);
   app.fire("stopAll", "click");
   assert.ok(context.sources.every(source => source.stopped));
+});
+
+test("I2c Mandolin uses the Pitched picker, pluck/tremolo buttons and shared model plots", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeStrike", "click");
+  app.strikeButtons[2].click();
+  const menu = app.elements.get("strikePianoType");
+  menu.value = "mandolin";
+  app.fire("strikePianoType", "change");
+  assert.equal(app.contexts.length, 0, "Selecting a string instrument cannot autoplay");
+  assert.equal(app.elements.get("strikePianoPlayModes").hidden, true);
+  assert.equal(app.elements.get("strikeMandolinPlayModes").hidden, false);
+  assert.equal(app.elements.get("strikeButton").hidden, true);
+  assert.equal(app.elements.get("strikeFrequencyInput").min, String(mandolinModel.MIN_HZ));
+  assert.equal(app.elements.get("strikeFrequencyInput").max, String(mandolinModel.MAX_HZ));
+  assert.equal(app.elements.get("strikeFrequencyInput").value, "440");
+  assert.equal(app.elements.get("strikeStrength").value, "64");
+  assert.equal(app.elements.get("strikeDecay").value, String(mandolinModel.DEFAULT_DECAY));
+  assert.match(app.elements.get("strikeSpectrumHint").textContent, /detuning/);
+  await app.mandolinPlayButtons[0].click();
+  const context = app.contexts[0];
+  assert.deepEqual(context.sources[0].buffer.getChannelData(0),
+    transientModel.makeSamples("mandolin", 440, mandolinModel.DEFAULT_DECAY, context.sampleRate,
+      "medium", { velocity: .64, articulation: "pick" }));
+  await app.mandolinPlayButtons[1].click();
+  assert.deepEqual(context.sources[1].buffer.getChannelData(0),
+    transientModel.makeSamples("mandolin", 440, mandolinModel.DEFAULT_DECAY, context.sampleRate,
+      "medium", { velocity: .64, articulation: "tremolo" }));
+  assert.equal(context.sources[0].stopped, false, "New strokes can overlap naturally");
+  app.fire("langMn", "click");
+  assert.match(app.mandolinPlayButtons[0].textContent, /Татах/);
+  assert.match(app.mandolinPlayButtons[1].textContent, /Тремоло/);
+  app.fire("stopAll", "click");
+  assert.ok(context.sources.every(source => source.stopped));
+  menu.value = "acoustic";
+  app.fire("strikePianoType", "change");
+  assert.equal(app.elements.get("strikeMandolinPlayModes").hidden, true);
 });
 
 test("restoring an instrument pitch respects Snap even when its saved pitch was unsnapped", () => {

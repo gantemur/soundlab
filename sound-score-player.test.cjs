@@ -7,6 +7,7 @@ const transient = require("./sound-transient.js");
 const sustain = require("./sound-sustain.js");
 const heldVoice = require("./sound-held-voice.js");
 const marimba = require("./sound-marimba.js");
+const mandolin = require("./sound-mandolin.js");
 const temperaments = require("./sound-temperaments.js");
 const drumABC = require("./sound-drum-abc.js");
 
@@ -208,8 +209,8 @@ test("Pause during asynchronous audio startup cancels late notes; Resume can sta
   player.stop();
 });
 
-test("guitar, piano, chime, marimba and xylophone scores delegate to their shared sound models", async () => {
-  for (const instrument of ["guitar", "piano", "chimes", "marimba", "xylophone"]) {
+test("guitar, mandolin, piano, chime, marimba and xylophone scores delegate to their shared sound models", async () => {
+  for (const instrument of ["guitar", "mandolin", "piano", "chimes", "marimba", "xylophone"]) {
     const { player, context, recipes } = audioFixture();
     player.configure({ score: melody, instrument, tuning: "just", volume: 52 });
     await player.play();
@@ -218,7 +219,11 @@ test("guitar, piano, chime, marimba and xylophone scores delegate to their share
     const recipe = recipes[0];
     assert.equal(recipe.kind, instrument === "guitar" ? "pluck" :
       instrument === "piano" ? "piano" :
-        ["marimba", "xylophone"].includes(instrument) ? instrument : "kick");
+        ["marimba", "xylophone", "mandolin"].includes(instrument) ? instrument : "kick");
+    if (instrument === "mandolin") {
+      assert.equal(recipe.decay, mandolin.DEFAULT_DECAY);
+      assert.deepEqual(recipe.options, { velocity: mandolin.DEFAULT_VELOCITY, articulation: "pick" });
+    }
     if (instrument === "chimes") {
       assert.equal(recipe.options.drumVoice, "chimes");
       assert.ok(Math.abs(recipe.options.chimeHz - 264) < 10);
@@ -836,7 +841,7 @@ test("solo and ensemble guitars admit low open strings while other instrument bo
 
 test("buffer specifications and ending times match the actual shared instrument models", () => {
   const part = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]");
-  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "piano", "fmep", "chimes", "marimba", "xylophone"]) {
+  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "mandolin", "piano", "fmep", "chimes", "marimba", "xylophone"]) {
     const { player, context, calls } = audioFixture();
     context.sampleRate = rate;
     player.transientModel = transient;

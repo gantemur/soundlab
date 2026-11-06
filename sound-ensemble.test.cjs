@@ -146,7 +146,8 @@ test("ensemble validates event limits, instrument names and 1–4 tracks", () =>
   assert.throws(() => playerModel.validateEnsemble([high], "equal", temperament), /outside flute range/);
 });
 
-test("the stable pitched instrument list has bilingual labels including Marimba, Xylophone and Clarinet", () => {
+test("the stable pitched instrument list has bilingual labels including Mandolin, Marimba, Xylophone and Clarinet", () => {
+  assert.equal(playerModel.INSTRUMENTS.includes("mandolin"), true);
   assert.equal(playerModel.INSTRUMENTS.includes("marimba"), true);
   assert.equal(playerModel.INSTRUMENTS.includes("xylophone"), true);
   assert.equal(playerModel.INSTRUMENTS.includes("clarinet"), true);
@@ -154,6 +155,8 @@ test("the stable pitched instrument list has bilingual labels including Marimba,
   assert.equal(ensemble.VOICES.mn.marimba, "Маримба");
   assert.equal(ensemble.VOICES.en.xylophone, "Xylophone");
   assert.equal(ensemble.VOICES.mn.xylophone, "Ксилофон");
+  assert.equal(ensemble.VOICES.en.mandolin, "Mandolin");
+  assert.equal(ensemble.VOICES.mn.mandolin, "Мандолин");
   assert.equal(ensemble.VOICES.en.clarinet, "Clarinet");
   assert.equal(ensemble.VOICES.mn.clarinet, "Кларнет");
   for (const language of ["en", "mn"]) for (const instrument of playerModel.INSTRUMENTS) {

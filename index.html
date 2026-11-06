@@ -8,12 +8,13 @@
   <title>Sound Lab · Дууны лаборатори</title>
   <link rel="stylesheet" href="sound-lab.css?v=s059">
   <script src="sound-model.js" defer></script>
-  <script src="sound-string.js?v=s037" defer></script>
+  <script src="sound-string.js?v=s062" defer></script>
+  <script src="sound-mandolin.js?v=s062" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
   <script src="sound-fm.js?v=s044" defer></script>
   <script src="sound-marimba.js?v=s059" defer></script>
   <script src="sound-xylophone.js?v=s060" defer></script>
-  <script src="sound-transient.js?v=s060" defer></script>
+  <script src="sound-transient.js?v=s062" defer></script>
   <script src="sound-clarinet.js?v=s061" defer></script>
   <script src="sound-sustain.js?v=s061" defer></script>
   <script src="sound-held-voice.js?v=s061" defer></script>
@@ -34,10 +35,10 @@
   <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s053" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s061" defer></script>
-  <script src="sound-compose.js?v=s061" defer></script>
+  <script src="sound-score-player.js?v=s062" defer></script>
+  <script src="sound-compose.js?v=s062" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
-  <script src="sound-ensemble.js?v=s061" defer></script>
+  <script src="sound-ensemble.js?v=s062" defer></script>
   <script src="sound-project.js?v=s055" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s059" defer></script>
@@ -46,7 +47,7 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-examples.js?v=s059" defer></script>
   <script src="sound-analysis.js?v=s058" defer></script>
-  <script src="sound-lab.js?v=s061" defer></script>
+  <script src="sound-lab.js?v=s062" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -252,11 +253,16 @@
             <option value="chimes" data-i18n="strikeDrumChimes">Хоолойт хонх</option>
             <option value="marimba" data-i18n="strikeMarimba">Маримба</option>
             <option value="xylophone" data-i18n="strikeXylophone">Ксилофон</option>
+            <option value="mandolin" data-i18n="strikeMandolin">Мандолин</option>
           </select>
         </div>
         <div id="strikePianoPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikePianoTouchTitle" hidden>
           <button type="button" data-strike-play="press">▶ Товчлуур дарах</button>
           <button type="button" data-strike-play="tap">▶ Товших</button>
+        </div>
+        <div id="strikeMandolinPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikeMandolinPlayTitle" hidden>
+          <button type="button" data-strike-play="pick">▶ Татах</button>
+          <button type="button" data-strike-play="tremolo">▶ Тремоло</button>
         </div>
         <button id="strikeButton" type="button" class="play-button strike-button" hidden>
           <span class="play-icon" aria-hidden="true">✦</span>
@@ -1385,6 +1391,7 @@
                 <option value="chimes" data-compose-i18n="chimes">Хоолойт хонх</option>
                 <option value="marimba" data-compose-i18n="marimba">Маримба</option>
                 <option value="xylophone" data-compose-i18n="xylophone">Ксилофон</option>
+                <option value="mandolin" data-compose-i18n="mandolin">Мандолин</option>
               </optgroup>
               <optgroup label="Электрон авиа" data-compose-group-i18n="instrumentElectronic">
                 <option value="sine" data-compose-i18n="sine">Синус долгион</option>

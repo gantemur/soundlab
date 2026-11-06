@@ -134,6 +134,17 @@ test("I2a stores xylophone and marimba as distinct version-1 solo and ensemble i
   assert.equal(decoded.content.tracks[2].mute, true);
 });
 
+test("I2c Mandolin is a distinct version-1 project instrument in both Compose modes", () => {
+  assert.equal(codec.VERSION, 1);
+  assert.equal(compose.UI.en.mandolin, "Mandolin");
+  assert.equal(compose.UI.mn.mandolin, "Мандолин");
+  const single = solo({ instrument: "mandolin", volume: 38 });
+  assert.deepEqual(codec.decode(codec.encode(single)), single);
+  const whole = arrangement();
+  whole.content.tracks[0].instrument = "mandolin";
+  assert.equal(codec.decode(codec.encode(whole)).content.tracks[0].instrument, "mandolin");
+});
+
 test("I2b Clarinet remains a concert-pitch instrument in unchanged version-1 projects", () => {
   assert.equal(codec.VERSION, 1);
   assert.equal(compose.UI.en.clarinet, "Clarinet");

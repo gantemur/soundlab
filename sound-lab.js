@@ -408,7 +408,8 @@
       strikePluckButton: "Pluck", strikeStrumButton: "Strum", strikeKickButton: "Strike",
       strikePianoButton: "Press a key", strikePianoTapButton: "Tap",
       strikePianoTouchTitle: "How to play", strikePianoPress: "Press", strikePianoTap: "Tap",
-      strikePianoTypeTitle: "Instrument", strikePitched: "Pitched", strikeMarimba: "Marimba", strikeXylophone: "Xylophone",
+      strikePianoTypeTitle: "Instrument", strikePitched: "Pitched", strikeMarimba: "Marimba", strikeXylophone: "Xylophone", strikeMandolin: "Mandolin",
+      strikeMandolinPick: "Pick", strikeMandolinTremolo: "Tremolo", strikeMandolinPlayTitle: "Mandolin technique",
       strikePianoAcoustic: "Acoustic piano",
       strikePianoElectric: "Electric piano",
       strikePianoTouchHint: "Press models a held key with free decay. Tap is gentler and brings the damper back after a short press.",
@@ -417,10 +418,13 @@
       strikeDescChimes: "Strike a pitched chime and follow its bright, inharmonic ringing modes as they decay.",
       strikeDescMarimba: "A soft mallet excites a tuned wooden-bar model. Its upper modes fade faster than the rounded low note.",
       strikeDescXylophone: "A harder mallet excites a brighter wooden-bar model. Compare its 1 : 3 : 6.16 modes and short ring with the marimba's softer 1 : 4 : 10 sound.",
+      strikeDescMandolin: "Two slightly detuned plucked strings ring as one course. Compare a single pick with tremolo: eight distinct alternating strokes, not a volume oscillation.",
       strikeMarimbaHint: "An original teaching model, not a recording: tuned bar modes, a soft mallet and a low-mode resonator. Strength changes both level and attack colour.",
       strikeMarimbaSpectrumHint: "The low bar modes are tuned near 1 : 4 : 10, rather than a complete harmonic series. The upper modes fade faster; these are illustrative parameters, not measurements.",
       strikeXylophoneHint: "A modeled hard strike on a tuned wooden bar, not a recording. It has a brighter onset and shorter decay than the marimba; Strength changes level and overtone content.",
       strikeXylophoneSpectrumHint: "The early bar modes follow approximate ratios 1 : 3 : 6.16 (one published bar example). Higher modes fade quickly; the chosen damping and strengths are illustrative.",
+      strikeMandolinHint: "A simplified doubled-course string and compact-body model, not a recording. Pick sounds once; tremolo makes eight fresh plucks about 0.1 s apart. Strength changes the tone as well as loudness.",
+      strikeMandolinSpectrumHint: "Slight course detuning gives a moving harmonic pattern. Tremolo re-excites both strings at each pick, adding separate attacks instead of a slow amplitude envelope.",
       strikePitchedChimesHint: "Choose a note, then strike once. The metal-like modes ring after the hit; there is no piano key or damper to hold.",
       strikeGuitarPlay: "Play guitar", strikeSingle: "One string", strikeStrum: "Several strings",
       strikeChord: "Strum a chord", strikeMoreChords: "More chords",
@@ -981,7 +985,8 @@
       strikePluckButton: "Татах", strikeStrumButton: "Цохих", strikeKickButton: "Цохих",
       strikePianoButton: "Товчлуур дарах", strikePianoTapButton: "Товших",
       strikePianoTouchTitle: "Тоглох арга", strikePianoPress: "Дарах", strikePianoTap: "Товших",
-      strikePianoTypeTitle: "Хөгжмийн зэмсэг", strikePitched: "Ноттой", strikeMarimba: "Маримба", strikeXylophone: "Ксилофон",
+      strikePianoTypeTitle: "Хөгжмийн зэмсэг", strikePitched: "Ноттой", strikeMarimba: "Маримба", strikeXylophone: "Ксилофон", strikeMandolin: "Мандолин",
+      strikeMandolinPick: "Татах", strikeMandolinTremolo: "Тремоло", strikeMandolinPlayTitle: "Мандолин тоглох арга",
       strikePianoAcoustic: "Төгөлдөр хуур",
       strikePianoElectric: "Цахилгаан хуур",
       strikePianoTouchHint: "Дарахад товчлуурыг барьсан үеийн авиа чөлөөтэй намдана. Товшиход алх зөөлөн цохиж, намжаагч удахгүй буцна.",
@@ -990,10 +995,13 @@
       strikeDescChimes: "Ноттой хоолойт хонхыг цохиж, бүхэл тоон харьцаагүй тод хэлбэлзлүүд нь хэрхэн намдахыг ажиглаарай.",
       strikeDescMarimba: "Зөөлөн цохиураар хөглөсөн модон хавтанг цохих загвар. Дээд хэлбэлзлүүд нь нам, зөөлөн авианаасаа хурдан намдана.",
       strikeDescXylophone: "Хатуу цохиур тод эхлэлтэй модон хавтанг хэлбэлзүүлнэ. 1 : 3 : 6.16 харьцаатай богино цуурайг маримбагийн 1 : 4 : 10-тай харьцуулаарай.",
+      strikeDescMandolin: "Бага зэрэг өөр давтамжтай хос чавхдас нэг нот үүсгэнэ. Нэг удаа татах болон найман тусдаа цохилтоор тремоло тоглуулахыг харьцуулаарай.",
       strikeMarimbaHint: "Бичлэг биш, сургалтын загвар: хөглөсөн модон хавтан, зөөлөн цохиур ба нам авианы резонатор. Цохилтын хүч нь дууны хэмжээ болон өнгийг өөрчилнө.",
       strikeMarimbaSpectrumHint: "Нам хэлбэлзлүүдийн давтамж ойролцоогоор 1 : 4 : 10 харьцаатай, бүх гармоник оролцохгүй. Дээд хэлбэлзлүүд хурдан намдана. Эдгээр нь хэмжилт биш, жишээ параметрүүд юм.",
       strikeXylophoneHint: "Бичлэг биш, хатуу цохиуртай модон хавтангийн загвар. Маримбагаас тод эхлэлтэй, богино намдалттай; цохилтын хүч чанга болон өнгийг өөрчилнө.",
       strikeXylophoneSpectrumHint: "Эхний хэлбэлзлүүд ойролцоогоор 1 : 3 : 6.16 харьцаатай (хэвлэгдсэн нэг хавтангийн жишээ). Дээд хэлбэлзлүүд хурдан намдана; хүч ба намдалтын утгууд нь сургалтын жишээ юм.",
+      strikeMandolinHint: "Бичлэг биш, давхар чавхдас ба жижиг царны хялбарчилсан загвар. «Татах» нь нэг удаа, «Тремоло» нь ойролцоогоор 0.1 сек зайтай найман удаа татна. Хүч нь өнгийг өөрчилнө.",
+      strikeMandolinSpectrumHint: "Хос чавхдасны давтамж бага зэрэг зөрөхөд гармоникуудын далайц өөрчлөгдөнө. Тремолод цохилт бүрээр хоёр чавхдас дахин хэлбэлзэнэ.",
       strikePitchedChimesHint: "Нотоо сонгоод нэг удаа цохино. Металл мэт хэлбэлзлүүд үргэлжлэн эгшиглэнэ; төгөлдөр хуурын товчлуур, намжаагч байхгүй.",
       strikeGuitarPlay: "Гитар тоглуулах", strikeSingle: "Нэг чавхдас", strikeStrum: "Олон чавхдас",
       strikeChord: "Аккорд цохих", strikeMoreChords: "Бусад аккорд",
@@ -1199,8 +1207,9 @@
     strikePluckPosition: .22,
     strikePianoVoice: "acoustic",
     strikePitchByVoice: { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114,
-      marimba: 220, xylophone: 523.251131 },
+      marimba: 220, xylophone: 523.251131, mandolin: 440 },
     strikePianoTouch: "press",
+    strikeMandolinStyle: "pick",
     strikeStrength: 55,
     strikeStrengthByKind: { pluck: 55, kick: 78, piano: 55 },
     strikeDecay: 0.65,
@@ -2607,11 +2616,16 @@
     return state.strikeKind === "piano" && ["acoustic", "electric"].includes(state.strikePianoVoice);
   }
 
+  function isMandolinStrike() {
+    return state.strikeKind === "piano" && state.strikePianoVoice === "mandolin";
+  }
+
   function strikePitchKey() {
     return state.strikeKind === "piano" ? state.strikePianoVoice : "pluck";
   }
 
   function strikeMaxPitch() {
+    if (isMandolinStrike()) return window.SoundLabMandolin.MAX_HZ;
     if (state.strikeKind === "piano" && state.strikePianoVoice === "xylophone") {
       return window.SoundLabXylophone.MAX_HZ;
     }
@@ -2619,6 +2633,7 @@
   }
 
   function strikeMinPitch() {
+    if (isMandolinStrike()) return window.SoundLabMandolin.MIN_HZ;
     return state.strikeKind === "piano" && state.strikePianoVoice === "xylophone" ?
       window.SoundLabXylophone.MIN_HZ : 110;
   }
@@ -2632,14 +2647,17 @@
   }
 
   function pitchedStrikeDecay() {
-    return { acoustic: .8, electric: .8, chimes: .7, marimba: .65, xylophone: .32 }[state.strikePianoVoice];
+    if (isMandolinStrike()) return window.SoundLabMandolin.DEFAULT_DECAY;
+    return { acoustic: .8, electric: .8, chimes: .7, marimba: .65, xylophone: .32,
+    }[state.strikePianoVoice];
   }
 
   function strikeRecipe() {
     const pitchedChimes = state.strikeKind === "piano" && state.strikePianoVoice === "chimes";
     const marimba = state.strikeKind === "piano" && state.strikePianoVoice === "marimba";
     const xylophone = state.strikeKind === "piano" && state.strikePianoVoice === "xylophone";
-    return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : xylophone ? "xylophone" :
+    const mandolin = isMandolinStrike();
+    return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : xylophone ? "xylophone" : mandolin ? "mandolin" :
       state.strikeKind, pitchHz: state.strikePitch,
       decaySec: state.strikeDecay, kickSize: state.strikeDrumSize,
       options: {
@@ -2647,7 +2665,8 @@
         drumVoice: pitchedChimes ? "chimes" : state.strikeDrumVoice,
         drumTension: state.strikeDrumTension,
         ...(pitchedChimes ? { chimeHz: state.strikePitch } : {}),
-        ...(marimba || xylophone ? { velocity: state.strikeStrength / 100 } : {}),
+        ...(marimba || xylophone || mandolin ? { velocity: state.strikeStrength / 100 } : {}),
+        ...(mandolin ? { articulation: state.strikeMandolinStyle } : {}),
         ...(isPianoStrike() ?
           { velocity: state.strikeStrength / 100, touch: state.strikePianoTouch,
             pianoVoice: state.strikePianoVoice } : {}),
@@ -2671,6 +2690,7 @@
       if (state.strikePianoVoice === "chimes") return 8000;
       if (state.strikePianoVoice === "marimba") return Math.min(8000, Math.max(3000, state.strikePitch * 10.5));
       if (state.strikePianoVoice === "xylophone") return Math.min(8000, Math.max(3000, state.strikePitch * 6.5));
+      if (state.strikePianoVoice === "mandolin") return Math.min(8000, Math.max(2500, state.strikePitch * 12));
       return Math.min(8000, Math.max(3000, state.strikePitch * 8.5));
     }
     if (state.strikeKind === "pluck") return state.strikeGuitarPlay === "strum" ? 4000 :
@@ -2717,7 +2737,8 @@
     const hint = state.strikeKind === "kick" ? voiceHints[state.strikeDrumVoice] :
       state.strikeKind === "piano" && state.strikePianoVoice === "chimes" ? "strikeChimesSpectrumHint" :
       state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? "strikeMarimbaSpectrumHint" :
-      state.strikeKind === "piano" && state.strikePianoVoice === "xylophone" ? "strikeXylophoneSpectrumHint" : null;
+      state.strikeKind === "piano" && state.strikePianoVoice === "xylophone" ? "strikeXylophoneSpectrumHint" :
+      isMandolinStrike() ? "strikeMandolinSpectrumHint" : null;
     $("strikeSpectrumHint").textContent = text(state.strikeSpectrumView === "local" ?
       hint || "strikeSpectrumHint" : "strikeSpectrumWholeHint");
   }
@@ -4610,10 +4631,12 @@
     $("strikePianoTypeGroup").hidden = state.strikeKind !== "piano";
     $("strikePianoType").value = state.strikePianoVoice;
     $("strikePianoPlayModes").hidden = !isPianoStrike();
+    $("strikeMandolinPlayModes").hidden = !isMandolinStrike();
     $("strikePianoHint").hidden = state.strikeKind !== "piano";
     $("strikePianoHint").textContent = text({ acoustic: "strikePianoTouchHint", electric: "strikePianoElectricHint",
-      chimes: "strikePitchedChimesHint", marimba: "strikeMarimbaHint", xylophone: "strikeXylophoneHint" }[state.strikePianoVoice]);
-    $("strikeButton").hidden = state.strikeKind !== "kick" && (state.strikeKind !== "piano" || isPianoStrike());
+      chimes: "strikePitchedChimesHint", marimba: "strikeMarimbaHint", xylophone: "strikeXylophoneHint",
+      mandolin: "strikeMandolinHint" }[state.strikePianoVoice]);
+    $("strikeButton").hidden = state.strikeKind !== "kick" && (state.strikeKind !== "piano" || isPianoStrike() || isMandolinStrike());
     $("strikeChordGroup").hidden = state.strikeKind !== "pluck";
     $("strikeGuitarPattern").value = state.strikeGuitarPattern;
     $("strikePluckPositionGroup").hidden = state.strikeKind !== "pluck";
@@ -4637,12 +4660,13 @@
     $("strikeDecay").value = String(state.strikeDecay);
     $("strikeDecayValue").textContent = secondsText(state.strikeDecay);
     const pitchedDescription = { electric: "strikeDescElectric", chimes: "strikeDescChimes",
-      marimba: "strikeDescMarimba", xylophone: "strikeDescXylophone" }[state.strikePianoVoice];
+      marimba: "strikeDescMarimba", xylophone: "strikeDescXylophone", mandolin: "strikeDescMandolin" }[state.strikePianoVoice];
     $("strikeDescription").textContent = state.strikeKind === "piano" && pitchedDescription ?
       text(pitchedDescription) : text("strikeDesc")[state.strikeKind];
     $("strikeButtonLabel").textContent = text("strikeKickButton");
     const strikePlayLabels = { single: "strikePluckButton", strum: "strikeStrumButton",
-      press: "strikePianoButton", tap: "strikePianoTapButton" };
+      press: "strikePianoButton", tap: "strikePianoTapButton",
+      pick: "strikeMandolinPick", tremolo: "strikeMandolinTremolo" };
     document.querySelectorAll("[data-strike-play]").forEach(button => {
       button.textContent = "▶ " + text(strikePlayLabels[button.dataset.strikePlay]);
     });
@@ -5007,15 +5031,20 @@
     if (state.mode !== "strike") return;
     const isGuitar = state.strikeKind === "pluck";
     const isPiano = isPianoStrike();
+    const isMandolin = isMandolinStrike();
     if (isGuitar && !["single", "strum"].includes(mode) ||
         isPiano && !["press", "tap"].includes(mode) ||
-        !isGuitar && !isPiano && mode !== "kick") return;
+        isMandolin && !["pick", "tremolo"].includes(mode) ||
+        !isGuitar && !isPiano && !isMandolin && mode !== "kick") return;
     if (isGuitar) {
       modelChanged ||= state.strikeGuitarPlay !== mode;
       state.strikeGuitarPlay = mode;
     } else if (isPiano) {
       modelChanged ||= state.strikePianoTouch !== mode;
       state.strikePianoTouch = mode;
+    } else if (isMandolin) {
+      modelChanged ||= state.strikeMandolinStyle !== mode;
+      state.strikeMandolinStyle = mode;
     }
     // Capture the recipe before awaiting AudioContext startup. Two rapid taps
     // with different pads must not both adopt the newest selected recipe.
@@ -5057,8 +5086,9 @@
     state.strikePluckPosition = .22;
     state.strikePianoVoice = "acoustic";
     state.strikePitchByVoice = { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114,
-      marimba: 220, xylophone: 523.251131 };
+      marimba: 220, xylophone: 523.251131, mandolin: 440 };
     state.strikePianoTouch = "press";
+    state.strikeMandolinStyle = "pick";
     state.strikeStrength = 55;
     state.strikeStrengthByKind = { pluck: 55, kick: 78, piano: 55 };
     state.strikeDecay = 0.65;
@@ -7582,14 +7612,15 @@
   });
   $("strikePianoType").addEventListener("change", event => {
     const voice = event.target.value;
-    if (!["acoustic", "electric", "chimes", "marimba", "xylophone"].includes(voice) ||
+    if (!["acoustic", "electric", "chimes", "marimba", "xylophone", "mandolin"].includes(voice) ||
         voice === state.strikePianoVoice) return;
     stopStrikeForEdit();
     state.strikePitchByVoice[strikePitchKey()] = state.strikePitch;
     state.strikePianoVoice = voice;
     restoreStrikePitch();
     state.strikeDecay = pitchedStrikeDecay();
-    state.strikeStrength = voice === "marimba" ? 62 : voice === "xylophone" ? 66 : 55;
+    state.strikeStrength = voice === "marimba" ? 62 : voice === "xylophone" ? 66 :
+      voice === "mandolin" ? 64 : 55;
     state.strikeStrengthByKind.piano = state.strikeStrength;
     setStrikeStatus("strikeReady");
     renderStrikeControls();

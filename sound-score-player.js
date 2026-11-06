@@ -15,15 +15,17 @@
     require("./sound-marimba.js") : root.SoundLabMarimba;
   const xylophoneModel = typeof module === "object" && module.exports ?
     require("./sound-xylophone.js") : root.SoundLabXylophone;
-  const api = factory(scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel);
+  const mandolinModel = typeof module === "object" && module.exports ?
+    require("./sound-mandolin.js") : root.SoundLabMandolin;
+  const api = factory(scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel, mandolinModel);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabScorePlayer = api;
-})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel) {
+})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel, mandolinModel) {
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
   const HELD_INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin"]);
-  const INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", "guitar", "piano", "chimes", "marimba", "xylophone",
+  const INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", "guitar", "mandolin", "piano", "chimes", "marimba", "xylophone",
     ...WAVEFORMS, "fmep"]);
   const GUITAR_MODES = Object.freeze(["pluck", "down", "up", "alternate"]);
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
@@ -45,6 +47,7 @@
     if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.rangeFor(instrument);
     if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
     if (instrument === "xylophone") return [xylophoneModel.MIN_HZ, xylophoneModel.MAX_HZ];
+    if (instrument === "mandolin") return [mandolinModel.MIN_HZ, mandolinModel.MAX_HZ];
     return [instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ,
       instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
   }
@@ -362,15 +365,17 @@
       const percussive = instrument === "chimes";
       const kind = instrument === "guitar" ? "pluck" : percussive ? "kick" :
         instrument === "fmep" ? "fmep" :
-          instrument === "marimba" || instrument === "xylophone" ? instrument : "piano";
+          ["marimba", "xylophone", "mandolin"].includes(instrument) ? instrument : "piano";
       const decay = instrument === "piano" || instrument === "fmep" ? .8 : percussive ? .7 :
         instrument === "marimba" ? marimbaModel.DEFAULT_DECAY :
-          instrument === "xylophone" ? xylophoneModel.DEFAULT_DECAY : .65;
+          instrument === "xylophone" ? xylophoneModel.DEFAULT_DECAY :
+            instrument === "mandolin" ? mandolinModel.DEFAULT_DECAY : .65;
       const options = instrument === "guitar" ? { position: .22 } :
         instrument === "piano" ? { velocity: .62, touch: "press" } :
           percussive ? { drumVoice: "chimes", chimeHz: hz } :
             instrument === "marimba" ? { velocity: marimbaModel.DEFAULT_VELOCITY } :
-              instrument === "xylophone" ? { velocity: xylophoneModel.DEFAULT_VELOCITY } : {};
+              instrument === "xylophone" ? { velocity: xylophoneModel.DEFAULT_VELOCITY } :
+                instrument === "mandolin" ? { velocity: mandolinModel.DEFAULT_VELOCITY, articulation: "pick" } : {};
       const seconds = instrument === "fmep" ? fmModel.DURATION_SECONDS :
         this.transientDuration(decay);
       return { key: [sampleRate, kind, hz.toFixed(5), decay, instrument].join("|"),
