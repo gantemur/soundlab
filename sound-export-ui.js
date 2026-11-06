@@ -20,6 +20,7 @@
       silent: "Файл чимээгүй байна. Хүсээгүй бол дуугүй/ганцаар тохиргоо, чанга, нотуудыг шалгаарай.",
       fallback: "Татаж эхлээгүй бол доорх холбоосыг дарна уу.",
       download: "Бэлдсэн WAV файлыг татах",
+      analyze: "Шинжлэх",
       failed: "“{name}” файлыг бэлдэж чадсангүй.",
       unsupported: "Энэ хөтөч офлайн WAV экспорт дэмжихгүй байна.",
       invalid: "Дуугүй болгосон мөрийг оролцуулан бүх мөрийн ABC, нотын хязгаар, бөмбөрийн ноорог, хөгжмийн тохиргоог шалгана уу.",
@@ -38,6 +39,7 @@
       silent: "The file is silent. Check mute/solo, volume and notes if that was not intended.",
       fallback: "Use the link below if the download did not start.",
       download: "Download prepared WAV",
+      analyze: "Analyze",
       failed: "Could not prepare “{name}”.",
       unsupported: "This browser does not support offline WAV export.",
       invalid: "Check the ABC, score limits, drum drafts and instrument settings in every track, including muted ones.",
@@ -83,7 +85,7 @@
   }
 
   class Controller {
-    constructor({ document, capture, getTitle = () => "", render,
+    constructor({ document, capture, getTitle = () => "", render, onAnalyze = null,
       urlAPI = typeof URL !== "undefined" ? URL : null,
       BlobClass = typeof Blob !== "undefined" ? Blob : null }) {
       this.document = document;
@@ -100,10 +102,19 @@
       this.activeJob = null;
       this.downloadUrl = null;
       this.downloadName = "";
+      this.preparedBlob = null;
+      this.onAnalyze = onAnalyze;
       this.status = null;
       this.onClick = () => this.exportWav();
+      this.onAnalyzeClick = () => {
+        if (this.disposed || this.busy || !this.preparedBlob || typeof this.onAnalyze !== "function") return;
+        try { Promise.resolve(this.onAnalyze(this.preparedBlob, this.downloadName)).catch(() => {}); }
+        catch (_) { /* The Analysis controller reports decoder errors in its own panel. */ }
+      };
       this.$("exportWav").addEventListener("click", this.onClick);
+      this.$("exportAnalyze").addEventListener("click", this.onAnalyzeClick);
       this.$("exportDownload").hidden = true;
+      this.$("exportAnalyze").hidden = true;
       this.renderLanguage("mn");
     }
 
@@ -121,6 +132,10 @@
       link.textContent = this.t("download") + (this.downloadName ? ": " + this.downloadName : "");
       if (this.downloadName) link.setAttribute("aria-label", link.textContent);
       else link.removeAttribute?.("aria-label");
+      const analyze = this.$("exportAnalyze");
+      analyze.textContent = this.t("analyze");
+      analyze.disabled = this.busy || this.disposed || !this.preparedBlob;
+      analyze.hidden = !this.preparedBlob || typeof this.onAnalyze !== "function";
     }
 
     renderStatus() {
@@ -184,6 +199,7 @@
         const oldUrl = this.downloadUrl;
         this.downloadUrl = nextUrl;
         this.downloadName = name;
+        this.preparedBlob = blob;
         const link = this.$("exportDownload");
         link.href = nextUrl;
         link.download = name;
@@ -230,10 +246,13 @@
       this.busy = false;
       this.activeJob = null;
       this.$("exportWav").removeEventListener?.("click", this.onClick);
+      this.$("exportAnalyze").removeEventListener?.("click", this.onAnalyzeClick);
       this.releaseUrl(this.downloadUrl);
       this.downloadUrl = null;
       this.downloadName = "";
+      this.preparedBlob = null;
       this.$("exportDownload").hidden = true;
+      this.$("exportAnalyze").hidden = true;
       this.$("exportDownload").removeAttribute?.("href");
       this.status = null;
       this.renderControls();

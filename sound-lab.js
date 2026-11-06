@@ -53,7 +53,7 @@
       lessonTwo: "The wave shape determines the mixture of harmonics. A pure sine wave has only its fundamental. Two instruments can play the same pitch yet sound different because their harmonic mixtures are different.",
       footer: "Sound Lab · Sound and recordings stay on your device; nothing is uploaded.",
       designCredit: "Designed by Gantumur", licenseLink: "App code: MIT License",
-      recordStart: "REC", recordStop: "SAVE", recordSave: "Download WAV",
+      recordStart: "REC", recordStop: "SAVE", recordSave: "Download WAV", recordAnalyze: "Analyze",
       recordStartAria: "Start recording up to {seconds} seconds of Sound Lab audio; no microphone",
       recordStopAria: "Stop recording and save the WAV file",
       recordSavedShort: "Your WAV is ready", recordResultAria: "Last recorded sound",
@@ -630,7 +630,7 @@
       lessonTwo: "Долгионы хэлбэрээс хамааран гармоникуудын найрлага өөрчлөгдөнө. Жишээ нь, цэвэр синусоид долгионд үндсэн давтамжаас өөр найрлага байхгүй. Өөр өөр хөгжмийн зэмсгүүд ижил өндөртэй авиа гаргасан ч ялгаатай сонсогддог нь гармоникуудынх нь найрлага өөр байгаа хэрэг.",
       footer: "Дууны лаборатори · Дуу, бичлэг зөвхөн таны төхөөрөмж дээр байна. Хаашаа ч илгээхгүй.",
       designCredit: "Гантөмөрийн бүтээл", licenseLink: "Программын код: MIT лиценз",
-      recordStart: "REC", recordStop: "WAV", recordSave: "WAV татах",
+      recordStart: "REC", recordStop: "WAV", recordSave: "WAV татах", recordAnalyze: "Шинжлэх",
       recordStartAria: "Дууны лабораторийн авиаг {seconds} сек хүртэл бичих. Микрофон ашиглахгүй",
       recordStopAria: "Бичлэг дуусгаж WAV файл хадгалах",
       recordSavedShort: "WAV бэлэн", recordResultAria: "Сүүлийн бичлэг",
@@ -2490,7 +2490,11 @@
     getTitle: () => $("projectName").value,
     render: snapshot => exportModel.render(snapshot, { transientModel, sustainModel,
       temperamentModel: tempModel,
-      OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext })
+      OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext }),
+    onAnalyze: (blob, name) => {
+      selectMode("analysis");
+      return analysis?.openPrepared(blob, name);
+    }
   }) : null;
   const analysis = analysisModel ? new analysisModel.Controller({ document, window,
     contextOwner: audio, transientModel, sustainModel, temperamentModel: tempModel,
@@ -2498,6 +2502,7 @@
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
+  let recordPreparedBlob = null;
   let showRecordResult = false;
   let saveWhenDone = false;
   let recordFrame = null;
@@ -2548,7 +2553,8 @@
     saveWhenDone = false;
     if (bytes && bytes.length > 44) {
       if (recordUrl) URL.revokeObjectURL(recordUrl);
-      recordUrl = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+      recordPreparedBlob = new Blob([bytes], { type: "audio/wav" });
+      recordUrl = URL.createObjectURL(recordPreparedBlob);
       $("recordPreview").src = recordUrl;
       $("recordDownload").href = recordUrl;
       $("recordDownload").download = "sound-lab-" +
@@ -2556,6 +2562,7 @@
       recordStatusKey = "recordSaved";
       showRecordResult = true;
     } else {
+      recordPreparedBlob = null;
       recordStatusKey = "recordEmpty";
       showRecordResult = false;
     }
@@ -2578,6 +2585,7 @@
     if (recorder.state === "recording") { stopRecording(true); return; }
     if (recorder.state !== "idle") return;
     showRecordResult = false;
+    recordPreparedBlob = null;
     saveWhenDone = false;
     recordStatusKey = "recordPreparing";
     recordError = false;
@@ -7684,6 +7692,14 @@
   });
   $("playButton").addEventListener("click", toggleSound);
   $("recordButton").addEventListener("click", toggleRecording);
+  $("recordAnalyze").addEventListener("click", () => {
+    if (!recordPreparedBlob || !analysis) return;
+    $("recordPreview").pause();
+    selectMode("analysis");
+    analysis.openPrepared(recordPreparedBlob, $("recordDownload").download);
+    showRecordResult = false;
+    renderRecordControls();
+  });
   $("recordDismiss").addEventListener("click", () => {
     showRecordResult = false;
     renderRecordControls();
@@ -7765,6 +7781,7 @@
     observer.observe($("noiseSpectrumCanvas"));
     observer.observe($("analysisWaveCanvas"));
     observer.observe($("analysisSpectrumCanvas"));
+    observer.observe($("analysisSpectroCanvas"));
   } else window.addEventListener("resize", drawPlots);
 
   renderTexts();

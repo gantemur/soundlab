@@ -6,16 +6,24 @@
   const node = typeof module === "object" && module.exports;
   const api = factory(node ? require("./sound-wave-reader.js") : root.SoundLabWaveReader,
     node ? require("./sound-analysis-dsp.js") : root.SoundLabAnalysisDSP,
-    node ? require("./sound-analysis-examples.js") : root.SoundLabAnalysisExamples);
+    node ? require("./sound-analysis-examples.js") : root.SoundLabAnalysisExamples,
+    node ? require("./sound-analysis-spectrogram.js") : root.SoundLabSpectrogram);
   if (node) module.exports = api;
   if (root) root.SoundLabAnalysis = api;
-})(typeof window !== "undefined" ? window : null, function (reader, dsp, examples) {
+})(typeof window !== "undefined" ? window : null, function (reader, dsp, examples, spectro) {
   "use strict";
   const words = {
     en: {
       title: "Analyze a sound", intro: "Choose an example or open a WAV to inspect its waveform and frequency content.",
       classLabel: "Class", exampleLabel: "Example", open: "Open WAV…", local: "Local file",
       generated: "Generated signal", modeled: "Modeled instrument", imported: "Your local file",
+      prepared: "Prepared Sound Lab WAV", chooseView: "Analysis view", viewSpectrum: "Spectrum", viewSpectro: "Spectrogram",
+      spectrogram: "Time–frequency spectrogram", spectroFFT: "Spectrogram window · samples",
+      spectroInfo: "Hann · {n} samples ({ms} ms) · hop {hop} ms · {axis} frequency · {low}–{high} dB (unit peak)",
+      spectroHint: "Same time range, cursor, and A/B selection as the waveform. Color is Hann-window amplitude relative to a unit-peak sample, not dB SPL. Select a point for time and frequency.",
+      spectroCalculating: "Preparing bounded spectrogram tiles…", spectroReady: "Spectrogram ready.",
+      spectroError: "Spectrogram could not finish; try a shorter window or zoom in.",
+      spectroAria: "Linked time–frequency spectrogram; click or use left/right for time and up/down for frequency",
       play: "▶ Play", pause: "Ⅱ Pause", playSelection: "Play selection", volume: "Listening volume",
       atCursor: "At cursor", average: "Selection average", modes: "Spectrum analysis mode",
       channel: "Analysis channel", left: "Left", right: "Right", mono: "Mono", stereo: "Stereo",
@@ -66,6 +74,13 @@
       title: "Дуу шинжлэх", intro: "Жишээ сонгох эсвэл WAV файл нээж, долгион ба давтамжийн бүрэлдэхүүнийг шинжлээрэй.",
       classLabel: "Бүлэг", exampleLabel: "Жишээ", open: "WAV нээх…", local: "Төхөөрөмжийн файл",
       generated: "Тооцоолж үүсгэсэн авиа", modeled: "Хөгжмийн загвар", imported: "Таны төхөөрөмжийн файл",
+      prepared: "Sound Lab-д бэлдсэн WAV", chooseView: "Шинжилгээний харагдац", viewSpectrum: "Спектр", viewSpectro: "Спектрограмм",
+      spectrogram: "Хугацаа–давтамжийн спектрограмм", spectroFFT: "Спектрограммын цонх · сорьц",
+      spectroInfo: "Hann · {n} сорьц ({ms} мс) · алхам {hop} мс · {axis} давтамж · {low}–{high} dB (нэгж оргил)",
+      spectroHint: "Долгионтой ижил хугацааны хүрээ, курсор, A/B хэсэгтэй. Өнгө нь нэгж оргил сорьцтой харьцуулсан Hann амплитуд, dB SPL биш. Дарж хугацаа ба давтамж сонгоно.",
+      spectroCalculating: "Хязгаарлагдсан спектрограммын хэсгүүдийг бэлдэж байна…", spectroReady: "Спектрограмм бэлэн.",
+      spectroError: "Спектрограммыг тооцоолж чадсангүй. Цонхыг богиносгох эсвэл хугацааг томруулна уу.",
+      spectroAria: "Долгионтой холбоотой спектрограмм; дарж эсвэл зүүн/баруун сумаар хугацаа, дээш/доош сумаар давтамж сонгоно",
       play: "▶ Тоглуулах", pause: "Ⅱ Түр зогсоох", playSelection: "Хэсгийг тоглуулах", volume: "Сонсох дууны хэмжээ",
       atCursor: "Курсор дээр", average: "Хэсгийн дундаж", modes: "Давтамж шинжлэх горим",
       channel: "Шинжлэх суваг", left: "Зүүн", right: "Баруун", mono: "Моно", stereo: "Стерео",
@@ -134,8 +149,10 @@
       this.source = null;
       this.channel = 0;
       this.fftSize = 4096;
+      this.spectroFFT = 1024;
       this.axis = "linear";
       this.spectrumMode = "local";
+      this.analysisView = "spectrum";
       this.cursor = .25;
       this.start = 0;
       this.end = 0;
@@ -145,10 +162,15 @@
       this.volume = .2;
       this.loadTicket = 0;
       this.analysisTicket = 0;
+      this.spectroTicket = 0;
       this.playbackTicket = 0;
       this.sourceBusy = false;
       this.analysisBusy = false;
+      this.spectroBusy = false;
       this.spectrum = null;
+      this.spectrogram = null;
+      this.spectroBitmap = null;
+      this.spectroCache = new spectro.TileCache();
       this.measure = null;
       this.statusKey = "ready";
       this.statusProgress = null;
@@ -161,6 +183,7 @@
       this.voice = null;
       this.frame = null;
       this.analysisTimer = null;
+      this.spectroTimer = null;
       this.drag = null;
       this.bind();
       this.renderLanguage("mn");
@@ -197,12 +220,15 @@
       });
       this.on("analysisAtCursor", "click", () => this.setSpectrumMode("local"));
       this.on("analysisAverage", "click", () => this.setSpectrumMode("average"));
+      this.on("analysisViewSpectrum", "click", () => this.setView("spectrum"));
+      this.on("analysisViewSpectro", "click", () => this.setView("spectrogram"));
       this.on("analysisChannel", "change", event => {
         if (!this.pcm) return;
         this.channel = clamp(Number(event.target.value) || 0, 0, this.pcm.channels.length - 1);
         this.measure = null;
         this.recompute(true);
         this.drawWave();
+        this.scheduleSpectrogram();
       });
       this.on("analysisFFT", "change", event => {
         const n = Number(event.target.value);
@@ -215,14 +241,25 @@
         this.axis = event.target.value === "log" ? "log" : "linear";
         this.renderMeasurements();
         this.drawSpectrum();
+        this.scheduleSpectrogram();
+      });
+      this.on("analysisSpectroFFT", "change", event => {
+        const size = Number(event.target.value);
+        if (!spectro.FFT_SIZES.includes(size)) return;
+        this.spectroFFT = size;
+        this.scheduleSpectrogram();
       });
       this.on("analysisCancel", "click", () => this.cancelWork());
-      this.on("analysisRetry", "click", () => this.pcm ? this.recompute(true) : this.loadExample(examples.CATALOGUE[0].id));
+      this.on("analysisRetry", "click", () => {
+        if (!this.pcm) this.loadExample(examples.CATALOGUE[0].id);
+        else if (this.analysisView === "spectrogram") this.scheduleSpectrogram();
+        else this.recompute(true);
+      });
       this.on("analysisZoomIn", "click", () => this.zoom(.5));
       this.on("analysisZoomOut", "click", () => this.zoom(2));
       this.on("analysisFit", "click", () => {
         if (!this.pcm) return;
-        this.viewStart = 0; this.viewSpan = this.pcm.duration; this.drawWave();
+        this.viewStart = 0; this.viewSpan = this.pcm.duration; this.drawWave(); this.scheduleSpectrogram();
       });
       this.on("analysisPanLeft", "click", () => this.pan(-1));
       this.on("analysisPanRight", "click", () => this.pan(1));
@@ -250,6 +287,21 @@
       });
       this.on("analysisSpectrumCanvas", "pointermove", event => this.spectrumPointer(event));
       this.on("analysisSpectrumCanvas", "pointerdown", event => this.spectrumPointer(event));
+      this.on("analysisSpectroCanvas", "pointerdown", event => this.spectrogramPointer(event));
+      this.on("analysisSpectroCanvas", "keydown", event => {
+        if (!this.pcm || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+        event.preventDefault();
+        if (["ArrowUp", "ArrowDown"].includes(event.key)) {
+          const delta = event.shiftKey ? .1 : .02;
+          const fraction = clamp(spectro.frequencyFraction(this.frequency, this.pcm.sampleRate,
+            this.spectroFFT, this.axis) + (event.key === "ArrowUp" ? delta : -delta), 0, 1);
+          this.frequency = spectro.frequencyAtFraction(fraction, this.pcm.sampleRate, this.spectroFFT, this.axis);
+          this.drawSpectrogram();
+        } else {
+          this.setCursor(clamp(this.cursor + (event.key === "ArrowRight" ? 1 : -1) *
+            Math.max(1 / this.pcm.sampleRate, this.viewSpan / (event.shiftKey ? 10 : 100)), 0, this.pcm.duration), true);
+        }
+      });
     }
     setActive(active) {
       if (this.active === active) return;
@@ -257,6 +309,7 @@
       if (!active) this.stop();
       else if (!this.pcm && !this.sourceBusy) this.loadExample(examples.CATALOGUE[0].id);
       else if (!this.spectrum) this.recompute(true);
+      if (active && this.analysisView === "spectrogram" && this.pcm) this.scheduleSpectrogram();
       this.draw();
     }
     async loadExample(id) {
@@ -275,10 +328,25 @@
         return reader.decode(bytes, options);
       }, { kind: "imported", classId: "local", name: safeName(file.name) });
     }
+    // REC and Compose keep their already prepared Blob. The same bounded WAV
+    // decoder as Open WAV is used, without a download, upload, or extra PCM cache.
+    async openPrepared(blob, name) {
+      if (!blob || typeof blob.arrayBuffer !== "function" || !Number.isFinite(blob.size)) return false;
+      if (this.sourceBusy) this.cancelWork(); // Supersede lazy first example on tab entry.
+      return this.load(async options => {
+        if (blob.size > reader.MAX_INPUT_BYTES) {
+          const error = new Error("Input size"); error.code = "limit"; throw error;
+        }
+        const bytes = await blob.arrayBuffer();
+        if (options.isCancelled()) { const error = new Error("Cancelled"); error.code = "cancelled"; throw error; }
+        return reader.decode(bytes, options);
+      }, { kind: "prepared", classId: "local", name: safeName(name || "sound-lab.wav") });
+    }
     async load(create, source) {
       if (this.sourceBusy) return false;
       this.stopPlayback(true);
       this.invalidateAnalysis();
+      this.invalidateSpectrogram(true);
       const ticket = ++this.loadTicket;
       this.sourceBusy = true;
       this.status("loading");
@@ -305,9 +373,11 @@
         this.viewStart = 0; this.viewSpan = pcm.duration; this.position = 0;
         this.frequency = Math.min(440, pcm.sampleRate / 2);
         this.measure = null; this.spectrum = null;
+        this.spectroCache.clear();
         this.sourceBusy = false;
         this.renderSource(); this.renderControls(); this.drawWave();
         await this.recompute(true);
+        this.scheduleSpectrogram();
         return true;
       } catch (error) {
         if (!isCancelled()) {
@@ -325,11 +395,83 @@
       this.analysisTimer = null;
       this.analysisBusy = false;
     }
+    invalidateSpectrogram(clear = false) {
+      this.spectroTicket++;
+      if (this.spectroTimer !== null) this.window.clearTimeout(this.spectroTimer);
+      this.spectroTimer = null;
+      this.spectroBusy = false;
+      if (clear) {
+        this.spectrogram = null;
+        this.spectroBitmap = null;
+      }
+    }
+    scheduleSpectrogram() {
+      if (this.analysisView !== "spectrogram" || !this.active || !this.pcm || this.sourceBusy) {
+        this.invalidateSpectrogram();
+        return;
+      }
+      this.invalidateSpectrogram(true);
+      this.put("analysisSpectroStatus", this.text("spectroCalculating"));
+      this.spectroTimer = this.window.setTimeout(() => {
+        this.spectroTimer = null;
+        this.computeSpectrogram();
+      }, 55);
+      this.drawSpectrogram();
+    }
+    async computeSpectrogram() {
+      this.invalidateSpectrogram(true);
+      if (this.analysisView !== "spectrogram" || !this.active || !this.pcm || this.sourceBusy) return;
+      const ticket = this.spectroTicket, pcm = this.pcm, channel = this.channel;
+      const start = this.viewStart, end = Math.min(pcm.duration, start + this.viewSpan);
+      const size = this.spectroFFT, axis = this.axis;
+      const cancelled = () => ticket !== this.spectroTicket || !this.active ||
+        this.pcm !== pcm || this.analysisView !== "spectrogram";
+      this.spectroBusy = true;
+      this.put("analysisSpectroStatus", this.text("spectroCalculating"));
+      this.renderControls();
+      try {
+        await this.yieldTask();
+        if (cancelled()) return;
+        const result = await this.spectroCache.view(pcm.channels[channel], pcm.sampleRate, start, end, {
+          fftSize: size, axis, rows: 160, isCancelled: cancelled, yieldTask: () => this.yieldTask(),
+          onProgress: fraction => {
+            if (!cancelled()) this.put("analysisSpectroStatus", this.text("spectroCalculating") +
+              " " + Math.round(100 * fraction) + "%");
+          }
+        });
+        if (cancelled()) return;
+        this.spectrogram = result;
+        this.spectroBitmap = null;
+        this.put("analysisSpectroStatus", this.text("spectroReady"));
+        this.renderMeasurements();
+        this.drawSpectrogram();
+      } catch (_) {
+        if (!cancelled()) this.put("analysisSpectroStatus", this.text("spectroError"));
+      } finally {
+        if (!cancelled()) { this.spectroBusy = false; this.renderControls(); }
+      }
+    }
+    setView(view) {
+      if (!["spectrum", "spectrogram"].includes(view) || this.analysisView === view) return;
+      this.analysisView = view;
+      this.renderControls();
+      if (view === "spectrogram") {
+        this.invalidateAnalysis();
+        if (!this.measure) this.recompute(true);
+        this.scheduleSpectrogram();
+      } else {
+        this.invalidateSpectrogram();
+        this.recompute(false);
+      }
+      this.draw();
+    }
     cancelWork() {
       this.loadTicket++;
       this.sourceBusy = false;
       this.invalidateAnalysis();
+      this.invalidateSpectrogram();
       this.status("cancelled"); this.renderSource();
+      this.put("analysisSpectroStatus", this.text("cancelled"));
     }
     scheduleAnalysis(measurements = false) {
       this.invalidateAnalysis();
@@ -361,8 +503,9 @@
           await dsp.measurements(index, pcm.sampleRate, start, end, { isCancelled, yieldTask: options.yieldTask }) : this.measure;
         if (isCancelled()) return;
         const spectrum = mode === "average" ?
-          await dsp.spectrumAverage(index.samples, pcm.sampleRate, start, end, n, options) :
-          dsp.spectrumAt(index.samples, pcm.sampleRate, cursor, n);
+          (this.analysisView === "spectrum" ?
+            await dsp.spectrumAverage(index.samples, pcm.sampleRate, start, end, n, options) : null) :
+          (this.analysisView === "spectrum" ? dsp.spectrumAt(index.samples, pcm.sampleRate, cursor, n) : null);
         if (isCancelled()) return;
         this.measure = measure; this.spectrum = spectrum;
         this.analysisBusy = false; this.status("complete");
@@ -383,11 +526,15 @@
         this.status("errorTime", true); this.renderTimes(); return;
       }
       this.cursor = Math.round(value * this.pcm.sampleRate) / this.pcm.sampleRate;
+      const previousViewStart = this.viewStart;
       if (this.cursor < this.viewStart || this.cursor > this.viewStart + this.viewSpan) {
         this.viewStart = clamp(this.cursor - this.viewSpan / 2, 0, this.pcm.duration - this.viewSpan);
       }
-      if (this.spectrumMode === "local") delayed ? this.scheduleAnalysis(false) : this.recompute(false);
-      this.renderTimes(); this.drawWave();
+      if (this.analysisView === "spectrum" && this.spectrumMode === "local") {
+        delayed ? this.scheduleAnalysis(false) : this.recompute(false);
+      }
+      if (this.viewStart !== previousViewStart) this.scheduleSpectrogram();
+      this.renderTimes(); this.drawWave(); this.drawSpectrogram();
     }
     setSelection(start, end, delayed = false) {
       if (!this.pcm) return;
@@ -398,7 +545,7 @@
       }
       this.start = Math.round(start * fs) / fs; this.end = Math.round(end * fs) / fs;
       delayed ? this.scheduleAnalysis(true) : this.recompute(true);
-      this.renderTimes(); this.drawWave();
+      this.renderTimes(); this.drawWave(); this.drawSpectrogram();
     }
     zoom(factor) {
       if (!this.pcm) return;
@@ -406,12 +553,12 @@
         this.cursor : this.viewStart + this.viewSpan / 2;
       this.viewSpan = clamp(this.viewSpan * factor, Math.min(this.pcm.duration, 16 / this.pcm.sampleRate), this.pcm.duration);
       this.viewStart = clamp(center - this.viewSpan / 2, 0, this.pcm.duration - this.viewSpan);
-      this.drawWave();
+      this.drawWave(); this.scheduleSpectrogram();
     }
     pan(direction) {
       if (!this.pcm) return;
       this.viewStart = clamp(this.viewStart + direction * this.viewSpan / 2, 0, this.pcm.duration - this.viewSpan);
-      this.drawWave();
+      this.drawWave(); this.scheduleSpectrogram();
     }
     timeFromPointer(event) {
       const rect = this.$("analysisWaveCanvas").getBoundingClientRect();
@@ -466,13 +613,14 @@
         try { voice.node.buffer = null; } catch (_) { /* Browser can release it on collection. */ }
       }
       if (reset) { this.paused = false; this.playEnd = 0; }
-      this.renderPlayback(); this.drawWave();
+      this.renderPlayback(); this.drawWave(); this.drawSpectrogram();
     }
     pause() { this.stopPlayback(false); this.paused = true; this.renderPlayback(); }
     stop() {
       this.stopPlayback(true);
-      const busy = this.sourceBusy || this.analysisBusy || this.analysisTimer !== null;
-      this.loadTicket++; this.sourceBusy = false; this.invalidateAnalysis();
+      const busy = this.sourceBusy || this.analysisBusy || this.spectroBusy ||
+        this.analysisTimer !== null || this.spectroTimer !== null;
+      this.loadTicket++; this.sourceBusy = false; this.invalidateAnalysis(); this.invalidateSpectrogram();
       if (this.pcm || busy) this.status("stopped");
       this.renderSource();
     }
@@ -536,7 +684,7 @@
     }
     followPlayback() {
       if (!this.playing) return;
-      this.drawWave(); this.renderPlayback();
+      this.drawWave(); this.drawSpectrogram(); this.renderPlayback();
       this.frame = this.window.requestAnimationFrame(() => { this.frame = null; this.followPlayback(); });
     }
     status(key, error = false) {
@@ -561,13 +709,16 @@
       });
       for (const [id, key] of [["analysisSpectrumModes", "modes"], ["analysisPanLeft", "panLeft"],
         ["analysisPanRight", "panRight"], ["analysisCursorSlider", "cursorSlider"],
-        ["analysisWaveCanvas", "waveAria"], ["analysisSpectrumCanvas", "spectrumAria"]]) this.$(id).setAttribute("aria-label", this.text(key));
+        ["analysisWaveCanvas", "waveAria"], ["analysisSpectrumCanvas", "spectrumAria"],
+        ["analysisSpectroCanvas", "spectroAria"], ["analysisViewModes", "chooseView"]])
+        this.$(id).setAttribute("aria-label", this.text(key));
+      if (this.spectrogram) this.put("analysisSpectroStatus", this.text("spectroReady"));
       this.renderSource(); this.renderControls(); this.renderMeasurements(); this.renderPlayback(); this.draw();
     }
     renderSource() {
       const entry = examples.CATALOGUE.find(item => item.id === this.source?.exampleId);
       const classes = examples.CLASSES.map(item => [item.id, item.title[this.language]]);
-      if (this.source?.kind === "imported") classes.push(["local", this.text("local")]);
+      if (this.source?.classId === "local") classes.push(["local", this.text("local")]);
       const classId = this.source?.classId || examples.CATALOGUE[0].classId;
       this.options("analysisClass", classes, classId);
       this.options("analysisExample", classId === "local" ? [["local", this.source.name]] :
@@ -588,11 +739,24 @@
     renderControls() {
       for (const id of ["analysisClass", "analysisExample", "analysisOpen"]) this.$(id).disabled = this.sourceBusy;
       for (const id of ["analysisPlay", "analysisPlaySelection", "analysisAtCursor", "analysisAverage",
-        "analysisFFT", "analysisChannel", "analysisCursor", "analysisCursorSlider", "analysisStart", "analysisEnd",
+        "analysisFFT", "analysisSpectroFFT", "analysisChannel", "analysisCursor", "analysisCursorSlider", "analysisStart", "analysisEnd",
         "analysisZoomIn", "analysisZoomOut", "analysisFit", "analysisSelectAll", "analysisFrequency"])
         this.$(id).disabled = !this.pcm || this.sourceBusy;
-      this.$("analysisCancel").hidden = !this.sourceBusy && !this.analysisBusy;
-      this.$("analysisRetry").hidden = this.sourceBusy || this.analysisBusy || (!!this.spectrum && this.statusKey !== "errorAnalysis");
+      this.$("analysisCancel").hidden = !this.sourceBusy && !this.analysisBusy && !this.spectroBusy;
+      const spectroFailed = this.analysisView === "spectrogram" && !this.spectroBusy && !this.spectrogram &&
+        !this.spectroTimer && !!this.pcm;
+      this.$("analysisRetry").hidden = this.sourceBusy || this.analysisBusy || this.spectroBusy ||
+        (this.analysisView === "spectrogram" ? !spectroFailed : (!!this.spectrum && this.statusKey !== "errorAnalysis"));
+      this.$("analysisSpectrumModes").hidden = this.analysisView !== "spectrum";
+      this.$("analysisFFTField").hidden = this.analysisView !== "spectrum";
+      this.$("analysisSpectroFFTField").hidden = this.analysisView !== "spectrogram";
+      this.$("analysisSpectrumView").hidden = this.analysisView !== "spectrum";
+      this.$("analysisSpectroView").hidden = this.analysisView !== "spectrogram";
+      for (const [id, view] of [["analysisViewSpectrum", "spectrum"], ["analysisViewSpectro", "spectrogram"]]) {
+        this.$(id).disabled = !this.pcm || this.sourceBusy;
+        this.$(id).setAttribute("aria-pressed", String(this.analysisView === view));
+        this.$(id).classList.toggle("selected", this.analysisView === view);
+      }
       for (const [id, mode] of [["analysisAtCursor", "local"], ["analysisAverage", "average"]]) {
         this.$(id).setAttribute("aria-pressed", String(mode === this.spectrumMode));
         this.$(id).classList.toggle("selected", mode === this.spectrumMode);
@@ -632,6 +796,11 @@
       this.put("analysisLevelWarning", this.text("warning"));
       this.put("analysisFFTInfo", pcm ? this.text("windowInfo", { n: this.fftSize,
         ms: number(1000 * this.fftSize / pcm.sampleRate, 2), hz: number(pcm.sampleRate / this.fftSize, 3), nyq: number(pcm.sampleRate / 2) }) : "");
+      const grid = this.spectrogram;
+      this.put("analysisSpectroInfo", pcm ? this.text("spectroInfo", { n: this.spectroFFT,
+        ms: number(1000 * this.spectroFFT / pcm.sampleRate, 1),
+        hop: grid ? number(1000 * grid.hopSeconds, 2) : "—", axis: this.text(this.axis),
+        low: spectro.MIN_DB, high: spectro.MAX_DB }) : "");
       let padding = "";
       if (spectrum) {
         padding = this.spectrumMode === "average" ? this.text("averageInfo", { count: spectrum.windowCount, padded: spectrum.paddedWindowCount || 0 }) :
@@ -664,7 +833,7 @@
       ctx.font = "11px system-ui, sans-serif"; ctx.lineWidth = 1; ctx.setLineDash([]);
       return { ctx, width, height, left: 50, right: width - 16, top: 38, bottom: height - 32 };
     }
-    draw() { this.drawWave(); this.drawSpectrum(); }
+    draw() { this.drawWave(); this.drawSpectrum(); this.drawSpectrogram(); }
     drawWave() {
       const p = this.canvas("analysisWaveCanvas");
       if (!p || !this.pcm || !this.indexes[this.channel]) return;
@@ -676,7 +845,7 @@
       ctx.fillStyle = "#d9eee9";
       const a = clamp(x(this.start), left, right), b = clamp(x(this.end), left, right);
       ctx.fillRect(a, top, b - a, bottom - top);
-      if (this.spectrumMode === "local") {
+      if (this.analysisView === "spectrum" && this.spectrumMode === "local") {
         ctx.fillStyle = "#f8dcb2";
         const n = this.fftSize / this.pcm.sampleRate;
         const a = clamp(x(this.cursor - n / 2), left, right), b = clamp(x(this.cursor + n / 2), left, right);
@@ -762,12 +931,12 @@
       this.renderFrequency(); this.drawSpectrum();
     }
     drawSpectrum() {
+      if (this.analysisView !== "spectrum") return;
       const p = this.canvas("analysisSpectrumCanvas");
       if (!p || !this.pcm) return;
       const { ctx, left, right, top, bottom, width } = p;
-      // This scale is fixed for the whole source, not recomputed for quiet tails.
-      const high = Math.max(0, Math.ceil(db(2 * this.indexes[this.channel].peak) / 20) * 20);
-      const low = high - 100;
+      // Fixed, unit-peak amplitude reference shared with the spectrogram.
+      const high = spectro.MAX_DB, low = spectro.MIN_DB;
       const y = value => bottom - (clamp(value, low, high) - low) / (high - low) * (bottom - top);
       const x = frequency => left + this.frequencyToFraction(frequency) * (right - left);
       ctx.strokeStyle = "#d6e2ed"; ctx.fillStyle = "#627e96"; ctx.textAlign = "right";
@@ -807,6 +976,102 @@
         ctx.strokeStyle = "#cf7a22"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
         ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, bottom); ctx.stroke(); ctx.setLineDash([]);
       }
+    }
+    spectrogramPointer(event) {
+      if (!this.pcm || this.analysisView !== "spectrogram") return;
+      const rect = this.$("analysisSpectroCanvas").getBoundingClientRect();
+      const timeFraction = clamp((event.clientX - rect.left - 50) / Math.max(1, rect.width - 66), 0, 1);
+      const frequencyFraction = 1 - clamp((event.clientY - rect.top - 38) /
+        Math.max(1, rect.height - 70), 0, 1);
+      this.frequency = spectro.frequencyAtFraction(frequencyFraction, this.pcm.sampleRate, this.spectroFFT, this.axis);
+      this.setCursor(clamp(this.viewStart + timeFraction * this.viewSpan, 0, this.pcm.duration), true);
+      this.drawSpectrogram();
+    }
+    // Heatmap pixels are built once per completed view. The lightweight
+    // selection/cursor/playback overlays can then follow every pointer or frame.
+    drawSpectrogram() {
+      if (this.analysisView !== "spectrogram") return;
+      const p = this.canvas("analysisSpectroCanvas");
+      if (!p || !this.pcm) return;
+      const { ctx, left, right, top, bottom, width } = p;
+      const x = time => left + (time - this.viewStart) / this.viewSpan * (right - left);
+      const grid = this.spectrogram;
+      ctx.fillStyle = "#101a37";
+      ctx.fillRect(left, top, right - left, bottom - top);
+      if (grid && typeof ctx.drawImage === "function") {
+        if (!this.spectroBitmap || this.spectroBitmap.grid !== grid) {
+          const offscreen = this.document.createElement("canvas");
+          offscreen.width = grid.columns; offscreen.height = grid.rows;
+          const imageCtx = offscreen.getContext("2d");
+          if (imageCtx && typeof imageCtx.createImageData === "function" && typeof imageCtx.putImageData === "function") {
+            const image = imageCtx.createImageData(grid.columns, grid.rows);
+            const stops = [[16, 26, 55], [48, 39, 110], [32, 108, 158], [42, 188, 174], [248, 222, 114]];
+            for (let col = 0; col < grid.columns; col++) {
+              for (let row = 0; row < grid.rows; row++) {
+                const value = grid.pixels[col * grid.rows + row];
+                const scaled = value * (stops.length - 1) / 255;
+                const stop = Math.min(stops.length - 2, Math.floor(scaled));
+                const fraction = scaled - stop;
+                const offset = ((grid.rows - row - 1) * grid.columns + col) * 4;
+                for (let c = 0; c < 3; c++) image.data[offset + c] = Math.round(stops[stop][c] * (1 - fraction) + stops[stop + 1][c] * fraction);
+                image.data[offset + 3] = 255;
+              }
+            }
+            imageCtx.putImageData(image, 0, 0);
+            this.spectroBitmap = { grid, canvas: offscreen };
+          }
+        }
+        if (this.spectroBitmap) {
+          const first = clamp((this.viewStart - grid.timeStart) / grid.hopSeconds, 0, grid.columns);
+          const span = clamp(this.viewSpan / grid.hopSeconds, 0, grid.columns - first);
+          if (span > 0) {
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(this.spectroBitmap.canvas, first, 0, span, grid.rows,
+              left, top, right - left, bottom - top);
+          }
+        }
+      }
+      const a = clamp(x(this.start), left, right), b = clamp(x(this.end), left, right);
+      ctx.fillStyle = "rgba(97, 236, 195, .13)";
+      if (b > a) ctx.fillRect(a, top, b - a, bottom - top);
+      ctx.strokeStyle = "#a5b7cf"; ctx.fillStyle = "#526b8a"; ctx.textAlign = "right";
+      for (let i = 0; i <= 4; i++) {
+        const fraction = i / 4, y = bottom - fraction * (bottom - top);
+        const frequency = spectro.frequencyAtFraction(fraction, this.pcm.sampleRate, this.spectroFFT, this.axis);
+        ctx.fillText(number(frequency, 1), left - 5, y + 4);
+      }
+      ctx.textAlign = "left"; ctx.fillText(this.text("hz"), left, 19);
+      const ticks = width < 420 ? 2 : 4;
+      for (let i = 0; i <= ticks; i++) {
+        const xx = left + i * (right - left) / ticks;
+        ctx.strokeStyle = "rgba(200, 218, 239, .18)"; ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, bottom); ctx.stroke();
+        ctx.fillStyle = "#526b8a";
+        ctx.textAlign = i === 0 ? "left" : i === ticks ? "right" : "center";
+        ctx.fillText(number(this.viewStart + this.viewSpan * i / ticks, 4), xx, bottom + 19);
+      }
+      for (const [time, label] of [[this.start, "A"], [this.end, "B"]]) {
+        if (time < this.viewStart || time > this.viewStart + this.viewSpan) continue;
+        const xx = clamp(x(time), left, right);
+        ctx.strokeStyle = "#90e9c9"; ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, bottom); ctx.stroke();
+        ctx.fillStyle = "#2f786b"; ctx.textAlign = "center"; ctx.fillText(label, xx, top - 12);
+      }
+      const frequencyY = bottom - clamp(spectro.frequencyFraction(this.frequency,
+        this.pcm.sampleRate, this.spectroFFT, this.axis), 0, 1) * (bottom - top);
+      ctx.strokeStyle = "rgba(250, 213, 139, .75)"; ctx.setLineDash([3, 4]); ctx.beginPath();
+      ctx.moveTo(left, frequencyY); ctx.lineTo(right, frequencyY); ctx.stroke(); ctx.setLineDash([]);
+      if (this.cursor >= this.viewStart && this.cursor <= this.viewStart + this.viewSpan) {
+        ctx.strokeStyle = "#f5a54b"; ctx.lineWidth = 1.8; ctx.beginPath();
+        ctx.moveTo(x(this.cursor), top); ctx.lineTo(x(this.cursor), bottom); ctx.stroke();
+      }
+      if (this.playing || this.paused) {
+        const time = this.currentPosition();
+        if (time >= this.viewStart && time <= this.viewStart + this.viewSpan) {
+          ctx.strokeStyle = "#8fb8ff"; ctx.setLineDash([5, 3]); ctx.beginPath();
+          ctx.moveTo(x(time), top); ctx.lineTo(x(time), bottom); ctx.stroke(); ctx.setLineDash([]);
+        }
+      }
+      this.put("analysisSpectroReadout", this.text("cursorPosition", { time: number(this.cursor, 4) }) +
+        " · " + number(this.frequency, 1) + " " + this.text("hz"));
     }
   }
   return Object.freeze({ Controller, messages: words });

@@ -27,8 +27,9 @@ function result(overrides = {}) {
   return { bytes, duration: 4.125, sampleRate: 44100, peak: .6, gain: 1, ...overrides };
 }
 
-function fixture() {
-  const ids = ["exportWav", "exportHint", "exportStatus", "exportDownload", "projectSave", "projectOpen", "playButton", "recordButton"];
+function fixture({ onAnalyze = null } = {}) {
+  const ids = ["exportWav", "exportHint", "exportStatus", "exportDownload", "exportAnalyze",
+    "projectSave", "projectOpen", "playButton", "recordButton"];
   const elements = new Map(ids.map(id => [id, element()]));
   const document = { getElementById: id => elements.get(id) };
   const created = [], revoked = [], requests = [];
@@ -39,6 +40,7 @@ function fixture() {
   const contents = { solo: { abc: "C D E G |]", guitar: { mode: "down", spacingMs: 20 } },
     ensemble: { tracks: [{ abc: "C4 |]", volume: 38 }] } };
   const controller = new exportUI.Controller({ document, urlAPI, BlobClass: Blob,
+    onAnalyze,
     capture() { captures++; return { mode, content: contents[mode] }; },
     getTitle: () => title,
     render(snapshot) {
@@ -50,6 +52,39 @@ function fixture() {
   return { controller, created, revoked, requests, contents, urlAPI, $: id => elements.get(id),
     setTitle(value) { title = value; }, setMode(value) { mode = value; }, captures: () => captures };
 }
+
+test("a prepared Compose WAV can enter Analysis directly using the exact exported Blob, without another render or download", async () => {
+  const handoffs = [];
+  const app = fixture({ onAnalyze: (blob, name) => { handoffs.push({ blob, name }); } });
+  assert.equal(app.$("exportAnalyze").hidden, true);
+  const pending = app.$("exportWav").click();
+  app.requests[0].resolve(result());
+  await pending;
+  assert.equal(app.$("exportAnalyze").hidden, false);
+  assert.equal(app.$("exportAnalyze").textContent, "Шинжлэх");
+  await app.$("exportAnalyze").click();
+  assert.equal(handoffs.length, 1);
+  assert.equal(handoffs[0].blob, app.created[0].blob);
+  assert.equal(handoffs[0].name, "Миний аялгуу.wav");
+  assert.equal(app.requests.length, 1, "Analyze must not initiate another export");
+  assert.equal(app.$("exportDownload").clicks, 1, "Analyze must not cause a second download");
+  app.controller.renderLanguage("en");
+  assert.equal(app.$("exportAnalyze").textContent, "Analyze");
+  const newPending = app.$("exportWav").click();
+  assert.equal(app.$("exportAnalyze").disabled, true);
+  await app.$("exportAnalyze").click();
+  assert.equal(handoffs.length, 1, "A pending export cannot send a stale prepared file");
+  app.requests[1].reject(new Error("failed"));
+  await newPending;
+  assert.equal(app.$("exportAnalyze").disabled, false);
+  await app.$("exportAnalyze").click();
+  assert.equal(handoffs.length, 2, "Failed re-render retains the last prepared file");
+  assert.equal(handoffs[1].blob, app.created[0].blob);
+  app.controller.dispose();
+  assert.equal(app.$("exportAnalyze").hidden, true);
+  await app.$("exportAnalyze").click();
+  assert.equal(handoffs.length, 2, "Disposed controls cannot analyze");
+});
 
 test("offline export defaults to Mongolian and only disables Export while rendering", async () => {
   const app = fixture();

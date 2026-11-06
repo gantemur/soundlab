@@ -638,6 +638,15 @@ h1, h2, p { margin-top: 0; }
 #analysisWaveCanvas { touch-action: none; cursor: crosshair; }
 #analysisWaveCanvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
 #analysisSpectrumCanvas { cursor: crosshair; touch-action: pan-y; }
+#analysisSpectroCanvas { cursor: crosshair; touch-action: manipulation; }
+#analysisSpectroCanvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
+.analysis-spectro-legend { display: flex; align-items: center; gap: 9px; margin: 8px 2px;
+  color: #54718c; font-size: 11px; font-variant-numeric: tabular-nums; }
+.analysis-spectro-gradient { flex: 1; min-width: 36px; height: 12px; border-radius: 3px;
+  background: linear-gradient(to right, #101a37, #30276e, #206c9e, #2abcae, #f8de72);
+  border: 1px solid #becddd; }
+#analysisSpectroInfo { overflow-wrap: anywhere; }
+#analysisSpectroStatus { min-height: 18px; }
 .analysis-cursor-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 6px 12px; margin-top: 12px; color: #466782; font-size: 12px; font-weight: 750; }
 .analysis-cursor-row input[type="range"] { grid-column: 1 / -1; min-height: 34px; }
 .analysis-selection-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 10px 0; }
@@ -669,7 +678,7 @@ h1, h2, p { margin-top: 0; }
   .visuals { grid-template-columns: 1fr 1fr; }
   #mixWorkspace .visuals, #harmonicWorkspace .visuals, #noiseWorkspace .visuals,
   #sustainWorkspace .visuals, #scaleWorkspace .visuals, #limit5Workspace .visuals,
-  #temperamentWorkspace .visuals { grid-template-columns: 1fr; }
+  #temperamentWorkspace .visuals, #analysisWorkspace .visuals { grid-template-columns: 1fr; }
   #temperamentWorkspace .chart-heading { display: block; }
   #temperamentWorkspace .chart-badge { display: inline-block; margin-top: 8px; }
   .temp-lattice-panel #tempLatticeCanvas { min-height: 245px; aspect-ratio: auto; }

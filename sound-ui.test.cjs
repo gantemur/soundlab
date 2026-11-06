@@ -84,11 +84,15 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
-  assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
-  assert.match(html, /src="sound-lab\.js\?v=s062"/);
+  assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
+  assert.match(html, /src="sound-lab\.js\?v=s064"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s059"/);
-  for (const module of ["wave-reader", "analysis-dsp", "analysis"]) {
+  for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
+    assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
+  }
+  for (const module of ["analysis-spectrogram", "analysis"]) {
+    assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s064"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
   assert.ok(html.indexOf('src="sound-fft.js') < html.indexOf('src="sound-spectrum.js'));
@@ -101,7 +105,9 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s059"/);
+  assert.match(html, /href="sound-lab\.css\?v=s064"/);
+  assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
+  assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
   assert.match(html, /id="projectName"[^>]*maxlength="120"/);
   assert.match(html, /id="projectFile"[^>]*type="file"[^>]*accept="[^"]*\.soundlab\.json/);
@@ -227,7 +233,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
   assert.doesNotMatch(html, /id="mixExperimentSwitch"/);
-  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 12);
+  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 13);
   assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-tuning-kind="/g)].length, 25);
   for (const kind of ["waves", "harmonics"]) {
@@ -805,6 +811,54 @@ test("Analysis integrates with navigation, language, resize and the shared Stop 
   assert.equal(app.elements.get("analysisWorkspace").hidden, true);
   assert.equal(app.contexts.length, 0, "Mode changes and language never open live audio");
   assert.equal(typeof calls.owner.readyContext, "function");
+});
+
+test("A2a REC Analyze reuses the prepared audio Blob and enters Analysis without another download", async () => {
+  const handoffs = [];
+  class AnalysisFixture {
+    setActive() {} renderLanguage() {} stop() {} isPlaying() { return false; } draw() {}
+    openPrepared(blob, name) { handoffs.push({ blob, name }); return Promise.resolve(true); }
+  }
+  const app = fakePage("?lang=en", true, AnalysisFixture);
+  await app.fire("recordButton", "click");
+  const worklet = app.contexts[0].worklets[0];
+  worklet.send({ type: "samples", samples: new Float32Array([0, .5, -.25, .75]) });
+  await app.fire("recordButton", "click");
+  worklet.send({ type: "done" });
+  assert.equal(app.elements.get("recordResult").hidden, false);
+  const count = app.elements.get("recordDownload").clickCount;
+  app.fire("recordAnalyze", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(app.elements.get("recordResult").hidden, true);
+  assert.equal(app.elements.get("recordPreview").paused, true);
+  assert.equal(app.elements.get("recordDownload").clickCount, count);
+  assert.equal(handoffs.length, 1);
+  assert.equal(handoffs[0].blob, app.objectUrls[0].blob);
+  assert.equal(handoffs[0].name, app.elements.get("recordDownload").download);
+  assert.equal(app.objectUrls.length, 1, "Analyze does not create another object URL");
+});
+
+test("A2a Compose Analyze reuses rendered WAV and switches modes without rerendering", async () => {
+  const handoffs = [];
+  class AnalysisFixture {
+    setActive() {} renderLanguage() {} stop() {} isPlaying() { return false; } draw() {}
+    openPrepared(blob, name) { handoffs.push({ blob, name }); return Promise.resolve(true); }
+  }
+  const app = fakePage("?lang=en", true, AnalysisFixture);
+  app.fire("modeCompose", "click");
+  assert.equal(app.elements.get("exportAnalyze").hidden, true);
+  assert.equal(await app.fire("exportWav", "click"), true);
+  assert.equal(app.elements.get("exportAnalyze").hidden, false);
+  const downloads = app.elements.get("exportDownload").clickCount;
+  const renders = app.exportRequests.length;
+  app.fire("exportAnalyze", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(handoffs.length, 1);
+  assert.equal(handoffs[0].blob, app.objectUrls[0].blob);
+  assert.equal(handoffs[0].name, app.elements.get("exportDownload").download);
+  assert.equal(app.elements.get("exportDownload").clickCount, downloads);
+  assert.equal(app.exportRequests.length, renders);
+  assert.equal(app.contexts.length, 0, "Analyze does not start playback");
 });
 
 test("held flute plays only while pressed, and release follows the chosen decay", async () => {

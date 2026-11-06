@@ -9,6 +9,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const reader = require("./sound-wave-reader.js");
 const dsp = require("./sound-analysis-dsp.js");
+const spectro = require("./sound-analysis-spectrogram.js");
 const examples = require("./sound-analysis-examples.js");
 const encoder = require("./sound-wav.js");
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
@@ -117,7 +118,7 @@ function fixture({ exampleModel = examples, dspModel = dsp, width = 920 } = {}) 
   const timers = new Map(), frames = new Map();
   const window = {
     devicePixelRatio: 2, SoundLabWaveReader: reader, SoundLabAnalysisDSP: dspModel,
-    SoundLabAnalysisExamples: exampleModel,
+    SoundLabAnalysisExamples: exampleModel, SoundLabSpectrogram: spectro,
     setTimeout(callback, delay) { const id = nextHandle++; timers.set(id, { callback, at: timerNow + delay }); return id; },
     clearTimeout(id) { timers.delete(id); },
     requestAnimationFrame(callback) { const id = nextHandle++; frames.set(id, callback); return id; },
@@ -171,7 +172,8 @@ function fixture({ exampleModel = examples, dspModel = dsp, width = 920 } = {}) 
     throw new Error("Controller did not reach expected state");
   }
   async function settle() {
-    return until(() => !timers.size && !controller.sourceBusy && !controller.analysisBusy && !controller.starting);
+    return until(() => !timers.size && !controller.sourceBusy && !controller.analysisBusy &&
+      !controller.spectroBusy && !controller.starting);
   }
   const api = { controller, document, window, owner, context, buffers, nodes, gains, frames, timers,
     canvasCalls, translations, get: id => document.getElementById(id), until, settle,
@@ -192,7 +194,7 @@ function fixture({ exampleModel = examples, dspModel = dsp, width = 920 } = {}) 
   return api;
 }
 
-test("Analysis is a lazy eighth tab with bilingual local-only controls, collapsed settings and no future placeholder panels", async () => {
+test("Analysis is a lazy eighth tab with bilingual local-only controls, two views and collapsed settings", async () => {
   const f = fixture(), c = f.controller;
   assert.equal(c.pcm, null); assert.equal(c.active, false); assert.equal(f.owner.readyCalls, 0);
   assert.equal(f.timers.size, 0); assert.equal(f.frames.size, 0);
@@ -205,7 +207,7 @@ test("Analysis is a lazy eighth tab with bilingual local-only controls, collapse
   const markup = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisWorkspace"') + 18000);
   assert.equal([...markup.matchAll(/<details class="analysis-settings">/g)].length, 2);
   assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|getUserMedia|decodeAudioData)\s*\(/);
-  assert.doesNotMatch(markup, /id="analysis(?:Microphone|Spectrogram|Pitch|Compare)/);
+  assert.doesNotMatch(markup, /id="analysis(?:Microphone|Pitch|Compare)/);
   for (const element of f.translations) {
     const key = element.getAttribute("data-analysis-i18n");
     assert.ok(f.window.SoundLabAnalysis.messages.mn[key], "MN: " + key);
@@ -223,6 +225,79 @@ test("Analysis is a lazy eighth tab with bilingual local-only controls, collapse
   const old = c.pcm;
   c.setActive(false); c.setActive(true); await f.settle();
   assert.equal(c.pcm, old, "re-entering the tab does not regenerate the source");
+});
+
+test("A2a spectrogram stays linked to waveform time, cursor, selection, channel and frequency without rescanning on pointer moves", async () => {
+  const f = fixture({ width: 390 }), c = f.controller;
+  await f.activate();
+  c.setView("spectrogram");
+  await f.settle();
+  assert.equal(f.get("analysisSpectrumView").hidden, true);
+  assert.equal(f.get("analysisSpectroView").hidden, false);
+  assert.equal(f.get("analysisSpectrumModes").hidden, true);
+  assert.equal(f.get("analysisSpectroFFTField").hidden, false);
+  assert.equal(f.get("analysisViewSpectro").getAttribute("aria-pressed"), "true");
+  assert.ok(c.spectrogram && c.spectrogram.pixels.length > 0);
+  assert.equal(c.spectrogram.minDb, -100); assert.equal(c.spectrogram.maxDb, 0);
+  assert.ok(c.spectrogram.columns <= 384);
+  assert.equal(c.spectrogram.fftSize, 1024);
+  const unchanged = c.spectrogram, oldCursor = c.cursor;
+  c.setCursor(.72, true);
+  c.setSelection(.25, .92);
+  await f.settle();
+  assert.equal(c.spectrogram, unchanged, "cursor and selection overlay should not recompute STFT tiles");
+  assert.notEqual(c.cursor, oldCursor);
+  close(c.start, .25); close(c.end, .92);
+  const pointer = f.get("analysisSpectroCanvas");
+  pointer.dispatch("pointerdown", { clientX: 20 + 50 + (390 - 66) / 2, clientY: 30 + 38 + (280 - 70) / 2 });
+  close(c.cursor, 1, 1 / c.pcm.sampleRate);
+  close(c.frequency, c.pcm.sampleRate / 4, c.pcm.sampleRate / 20);
+  c.zoom(.5); await f.settle();
+  close(c.viewSpan, 1);
+  assert.notEqual(c.spectrogram, unchanged);
+  assert.ok(c.spectrogram.columns <= 384);
+  c.pan(1); await f.settle();
+  assert.ok(c.spectrogram.timeStart <= c.viewStart + c.spectrogram.hopSeconds);
+  assert.ok(c.spectrogram.timeEnd >= c.viewStart + c.viewSpan);
+  f.get("analysisAxis").value = "log"; f.get("analysisAxis").dispatch("change");
+  f.get("analysisSpectroFFT").value = "4096"; f.get("analysisSpectroFFT").dispatch("change");
+  await f.settle();
+  assert.equal(c.spectrogram.axis, "log");
+  assert.equal(c.spectrogram.fftSize, 4096);
+  assert.ok(c.spectroCache.tiles.size <= spectro.MAX_TILES);
+  c.renderLanguage("en");
+  assert.match(f.get("analysisSpectroInfo").textContent, /Hann.*4096 samples/);
+  assert.match(f.get("analysisSpectroHint").textContent, /unit-peak/);
+  c.setView("spectrum"); await f.settle();
+  assert.equal(f.get("analysisSpectrumView").hidden, false);
+  assert.ok(c.spectrum && c.spectrum.magnitudes.length === 2049);
+  assert.equal(c.viewSpan, 1, "switching views preserves waveform zoom");
+  assert.equal(f.owner.readyCalls, 0, "analysis does not start audio on view changes");
+});
+
+test("A2a prepared REC/Compose WAV uses the same decoder as Open WAV and supersedes lazy initial examples", async () => {
+  const f = fixture(), c = f.controller;
+  const samples = sine(.4, 48000, .28, 660);
+  const blob = new Blob([encoder.encodeWav([samples], 48000)], { type: "audio/wav" });
+  c.setActive(true); // Initiates a lazy example which the prepared sound must supersede.
+  assert.equal(c.sourceBusy, true);
+  const pending = c.openPrepared(blob, "My Compose.wav");
+  await f.settle();
+  assert.equal(await pending, true);
+  assert.equal(c.source.kind, "prepared");
+  assert.equal(c.source.name, "My Compose.wav");
+  assert.equal(c.pcm.sampleRate, 48000);
+  assert.equal(c.pcm.frames, samples.length);
+  assert.equal(f.get("analysisClass").value, "local");
+  assert.match(f.get("analysisSourceInfo").textContent, /Sound Lab/);
+  assert.equal(f.get("analysisSourceName").textContent, "My Compose.wav");
+  const previous = c.pcm;
+  const invalid = new Blob([new Uint8Array(50)], { type: "audio/wav" });
+  const fail = c.openPrepared(invalid, "broken.wav");
+  await f.settle();
+  assert.equal(await fail, false);
+  assert.equal(c.pcm, previous, "invalid prepared WAV must not replace previously loaded PCM");
+  assert.equal(f.owner.readyCalls, 0);
 });
 
 test("class/example dropdowns use the catalogue and language changes preserve all inspection state", async () => {
