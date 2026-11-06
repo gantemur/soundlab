@@ -45,7 +45,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="modeSustain"[^>]*>Үлээх\/нумдах<\/button>/);
   assert.match(html, /id="fixedTimeCheck" checked/);
   assert.match(html, /src="sound-string\.js\?v=s062"/);
-  assert.match(html, /src="sound-mandolin\.js\?v=s062"/);
+  assert.match(html, /src="sound-mandolin\.js\?v=s063"/);
   assert.match(html, /src="sound-piano\.js\?v=s019"/);
   assert.match(html, /src="sound-marimba\.js\?v=s059"/);
   assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
@@ -76,10 +76,10 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s062"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s063"/);
   assert.match(html, /src="sound-compose\.js\?v=s062"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s062"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s063"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
