@@ -10,7 +10,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function (wav) {
   "use strict";
 
-  const MAX_SECONDS = 15;
+  const MAX_SECONDS = 30;
 
   function encodeWav(blocks, sampleRate) {
     return wav.encodeWav(blocks, sampleRate, { maxSeconds: MAX_SECONDS, nonFinite: "silence" });

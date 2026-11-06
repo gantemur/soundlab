@@ -64,11 +64,11 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
   assert.match(html, /src="sound-ensemble\.js\?v=s055"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
-  assert.match(html, /src="sound-project-ui\.js\?v=s055"/);
+  assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s056"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
-  assert.match(html, /src="sound-lab\.js\?v=s056"/);
+  assert.match(html, /src="sound-lab\.js\?v=s057"/);
   assert.ok(html.indexOf('src="sound-wav.js') < html.indexOf('src="sound-recorder.js'));
   assert.ok(html.indexOf('src="sound-project.js') < html.indexOf('src="sound-export.js'));
   assert.ok(html.indexOf('src="sound-export.js') < html.indexOf('src="sound-export-ui.js'));
@@ -77,7 +77,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s056"/);
+  assert.match(html, /href="sound-lab\.css\?v=s057"/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
   assert.match(html, /id="projectName"[^>]*maxlength="120"/);
   assert.match(html, /id="projectFile"[^>]*type="file"[^>]*accept="[^"]*\.soundlab\.json/);
@@ -90,7 +90,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(browserCode, /designCredit: "Designed by Gantumur", licenseLink: "App code: MIT License"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
-  assert.match(html, /src="sound-recorder\.js\?v=s056"/);
+  assert.match(html, /src="sound-recorder\.js\?v=s057"/);
   assert.match(html, /id="exportWav"[^>]*aria-describedby="exportHint"/);
   assert.match(html, /id="exportStatus"[^>]*role="status"/);
   assert.match(html, /id="exportDownload"[^>]*hidden/);
@@ -319,6 +319,7 @@ function fakePage(search = "", supportWorklets = true) {
       events: {},
       value: "",
       checked: false,
+      open: false,
       textContent: "",
       style: {},
       classList: classList(),
@@ -954,7 +955,9 @@ test("Record starts silently, captures generated sound, previews and downloads a
   assert.equal(app.elements.get("recordButton").getAttribute("aria-pressed"), "false");
   assert.equal(app.elements.get("recordButtonLabel").textContent, "REC");
   assert.equal(app.elements.get("recordSymbol").textContent, "●");
-  assert.match(app.elements.get("recordButton").getAttribute("aria-label"), /15 сек/);
+  assert.match(app.elements.get("recordButton").getAttribute("aria-label"), /30 сек/);
+  assert.equal(app.elements.get("recordButton").title,
+    app.elements.get("recordButton").getAttribute("aria-label"));
   assert.equal(app.contexts.length, 0);
   await app.fire("recordButton", "click");
   const context = app.contexts[0];
@@ -973,7 +976,7 @@ test("Record starts silently, captures generated sound, previews and downloads a
   assert.equal(context.oscillators.length, 1);
   assert.equal(context.oscillators[0].started, true);
   app.tick(0.12);
-  assert.equal(app.elements.get("recordTimer").textContent, "0.1/15");
+  assert.equal(app.elements.get("recordTimer").textContent, "0.1/30");
   assert.equal(app.elements.get("recordTimer").hidden, false);
   const capture = context.worklets[0];
   capture.send({ type: "samples", samples: new Float32Array([0, 0.5, -0.5, 1]) });
@@ -1038,7 +1041,7 @@ test("recording continues across modes, Stop ends it, and new captures replace o
   assert.notEqual(app.elements.get("recordDownload").href, previous);
   app.fire("langEn", "click");
   assert.equal(app.elements.get("recordButtonLabel").textContent, "REC");
-  assert.match(app.elements.get("recordButton").getAttribute("aria-label"), /15 seconds/);
+  assert.match(app.elements.get("recordButton").getAttribute("aria-label"), /30 seconds/);
   assert.equal(app.elements.get("recordTimer").hidden, true);
 });
 
@@ -1052,15 +1055,22 @@ test("pagehide during recording preparation cancels before worklet installation"
   assert.equal(app.elements.get("recordResult").hidden, true);
 });
 
-test("the 15-second limit automatically downloads, and unsupported browsers show a visible error", async () => {
+test("the 30-second limit automatically downloads, and unsupported browsers show a visible error", async () => {
   const app = fakePage();
   await app.fire("recordButton", "click");
   const context = app.contexts[0];
-  context.worklets[0].send({ type: "samples", samples: new Float32Array(44100 * 15) });
+  app.tick(16);
+  assert.equal(app.elements.get("recordButton").getAttribute("aria-pressed"), "true");
+  assert.equal(app.elements.get("recordTimer").textContent, "16.0/30");
+  assert.equal(app.elements.get("recordResult").hidden, true);
+  context.worklets[0].send({ type: "samples", samples: new Float32Array(44100 * 30) });
   context.worklets[0].send({ type: "done" });
   assert.equal(app.elements.get("recordResult").hidden, false);
   assert.equal(app.elements.get("recordDownload").clickCount, 1);
-  assert.equal(app.objectUrls[0].blob.size, 44 + 44100 * 15 * 2);
+  assert.equal(app.objectUrls[0].blob.size, 44 + 44100 * 30 * 2);
+  const bytes = new Uint8Array(await app.objectUrls[0].blob.arrayBuffer());
+  assert.equal(new DataView(bytes.buffer).getUint32(40, true), 44100 * 30 * 2);
+  assert.equal(app.elements.get("recordButton").getAttribute("aria-pressed"), "false");
 
   const unsupported = fakePage("", false);
   await unsupported.fire("recordButton", "click");
@@ -3751,6 +3761,44 @@ function projectTrackControl(app, index, className) {
     .find(node => node.className === className);
 }
 
+test("Compose file tools start collapsed and preserve the chosen disclosure state, names and prepared files", async () => {
+  const markup = html.match(/<details id="projectToolbar"[\s\S]*?<\/details>/)?.[0];
+  assert.ok(markup, "Project controls use a native keyboard-operable disclosure");
+  assert.doesNotMatch(markup.slice(0, markup.indexOf(">") + 1), /\sopen(?:\s|=|>)/);
+  assert.match(markup, /<summary id="projectSummary" data-project-i18n="files">/);
+  for (const id of ["projectName", "projectSave", "projectOpen", "exportWav", "projectStatus", "exportStatus", "projectConfirm"]) {
+    assert.ok(markup.includes('id="' + id + '"'), id + " belongs inside the disclosure");
+  }
+  assert.match(css, /\.project-toolbar\s*>\s*summary\s*\{\s*min-height:\s*44px/);
+
+  const app = fakePage();
+  const files = app.elements.get("projectToolbar");
+  app.fire("modeCompose", "click");
+  assert.equal(files.hidden, false);
+  assert.equal(files.open, false);
+  assert.equal(app.elements.get("projectSummary").textContent, "Файл · Хадгалах / Нээх / WAV");
+  files.open = true; // Native summary keyboard/click toggling is checked in the live browser.
+  app.elements.get("projectName").value = "Keep this name";
+  app.fire("projectName", "input");
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("projectSummary").textContent, "Files · Save / Open / WAV");
+  assert.equal(files.open, true);
+  const saved = await saveNativeProject(app);
+  files.open = false;
+  app.fire("langMn", "click");
+  app.composeSubtabButtons[1].click();
+  app.composeSubtabButtons[0].click();
+  app.fire("modePure", "click");
+  assert.equal(files.hidden, true);
+  app.fire("modeCompose", "click");
+  assert.equal(files.open, false, "Mode and language changes do not force the file controls open");
+  files.open = true;
+  assert.equal(app.elements.get("projectName").value, "Keep this name");
+  assert.equal(app.elements.get("projectDownload").href, saved.url);
+  assert.equal(app.elements.get("projectDownload").hidden, false);
+  assert.equal(app.contexts.length, 0);
+});
+
 test("native project toolbar round-trips the latest solo text and settings without replacing the other workspace", async () => {
   const app = fakePage();
   assert.equal(app.elements.get("projectToolbar").hidden, true);
@@ -4087,7 +4135,7 @@ async function exportedWav(app) {
   return { bytes, seconds: (bytes.length - 44) / 2 / 44100, url: output.url };
 }
 
-test("Compose exports the latest solo text beyond 15 seconds without a live audio context or recorder", async () => {
+test("Compose exports the latest solo text beyond 30 seconds without a live audio context or recorder", async () => {
   const app = fakePage("", false); // Export does not require AudioWorklet support.
   assert.equal(app.elements.get("exportWav").textContent, "WAV гаргах");
   assert.equal(app.elements.get("exportDownload").hidden, true);
@@ -4098,6 +4146,7 @@ test("Compose exports the latest solo text beyond 15 seconds without a live audi
   app.elements.get("composeInstrument").value = "guitar";
   app.fire("composeInstrument", "change");
   const text = "X:1\nT:Latest unparsed text\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\n" +
+    "C4 | D4 | E4 | F4 | G4 | A4 | B4 | c4 | " +
     "C4 | D4 | E4 | F4 | G4 | A4 | B4 | c4 |]";
   app.elements.get("composeText").value = text;
   app.fire("composeText", "input");
@@ -4111,7 +4160,7 @@ test("Compose exports the latest solo text beyond 15 seconds without a live audi
   assert.equal(app.elements.get("exportDownload").download, "Миний аялгуу.wav");
   assert.equal(app.elements.get("exportDownload").hidden, false);
   const wav = await exportedWav(app);
-  assert.ok(wav.seconds > 16 && wav.seconds < 19, "Written duration and final guitar tail included");
+  assert.ok(wav.seconds > 32 && wav.seconds < 35, "Written duration and final guitar tail included");
   assert.equal(app.offlineContexts.length, 1);
   assert.equal(app.offlineContexts[0].rendered, true);
   assert.equal(app.contexts.length, 0, "Export never constructs the live AudioContext");

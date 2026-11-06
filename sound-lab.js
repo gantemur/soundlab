@@ -52,7 +52,7 @@
       footer: "Sound Lab · Sound and recordings stay on your device; nothing is uploaded.",
       designCredit: "Designed by Gantumur", licenseLink: "App code: MIT License",
       recordStart: "REC", recordStop: "SAVE", recordSave: "Download WAV",
-      recordStartAria: "Start recording up to 15 seconds of Sound Lab audio; no microphone",
+      recordStartAria: "Start recording up to {seconds} seconds of Sound Lab audio; no microphone",
       recordStopAria: "Stop recording and save the WAV file",
       recordSavedShort: "Your WAV is ready", recordResultAria: "Last recorded sound",
       recordDismissAria: "Close recorded sound preview",
@@ -610,7 +610,7 @@
       footer: "Дууны лаборатори · Дуу, бичлэг зөвхөн таны төхөөрөмж дээр байна. Хаашаа ч илгээхгүй.",
       designCredit: "Гантөмөрийн бүтээл", licenseLink: "Программын код: MIT лиценз",
       recordStart: "REC", recordStop: "WAV", recordSave: "WAV татах",
-      recordStartAria: "Дууны лабораторийн авиаг 15 сек хүртэл бичих. Микрофон ашиглахгүй",
+      recordStartAria: "Дууны лабораторийн авиаг {seconds} сек хүртэл бичих. Микрофон ашиглахгүй",
       recordStopAria: "Бичлэг дуусгаж WAV файл хадгалах",
       recordSavedShort: "WAV бэлэн", recordResultAria: "Сүүлийн бичлэг",
       recordDismissAria: "Бичлэгийг сонсох цонхыг хаах",
@@ -2622,7 +2622,8 @@
     button.disabled = busy;
     button.classList.toggle("recording", active);
     button.setAttribute("aria-pressed", String(active));
-    const action = text(active ? "recordStopAria" : "recordStartAria");
+    const action = text(active ? "recordStopAria" : "recordStartAria")
+      .replace("{seconds}", recorderModel.MAX_SECONDS);
     button.setAttribute("aria-label", action);
     button.title = action;
     $("recordSymbol").textContent = active ? "⬇" : "●";

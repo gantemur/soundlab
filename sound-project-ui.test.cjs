@@ -41,7 +41,7 @@ function fixture() {
   const ids = ["projectName", "projectSave", "projectOpen", "projectFile", "projectDownload",
     "projectStatus", "projectConfirm", "projectConfirmText", "projectReplace", "projectCancel"];
   const elements = new Map(ids.map(id => [id, element()]));
-  const labels = ["name", "save", "open", "download", "hint", "replace", "cancel"].map(key => {
+  const labels = ["name", "save", "open", "download", "hint", "replace", "cancel", "files"].map(key => {
     const node = element(); node.setAttribute("data-project-i18n", key); return node;
   });
   const document = { getElementById: id => elements.get(id),
@@ -75,6 +75,20 @@ function fileFrom(value, name = "a-project.soundlab.json") {
   const text = typeof value === "string" ? value : project.encode(value);
   return { name, size: Buffer.byteLength(text), async text() { return text; } };
 }
+
+test("the compact Files disclosure label is translated without changing the workspace", () => {
+  const app = fixture();
+  const label = app.labels.find(node => node.getAttribute("data-project-i18n") === "files");
+  const before = clone(app.work);
+  assert.equal(label.textContent, "Файл · Хадгалах / Нээх / WAV");
+  app.controller.renderLanguage("en");
+  assert.equal(label.textContent, "Files · Save / Open / WAV");
+  app.controller.renderLanguage("mn");
+  assert.equal(label.textContent, "Файл · Хадгалах / Нээх / WAV");
+  assert.deepEqual(app.work, before);
+  assert.equal(app.captured.length, 0);
+  assert.equal(app.restored.length, 0);
+});
 
 test("project Save is local, defaults to Mongolian and prepares editable JSON with a fallback link", async () => {
   const app = fixture();

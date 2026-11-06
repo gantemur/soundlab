@@ -173,10 +173,10 @@ test("offline export starts at score time zero and never invokes live playback o
   cleaned(f.contexts[0]);
 });
 
-test("exports beyond 15 seconds have the exact mono PCM16 header and bounded duration", async () => {
-  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + Array(10).fill("C4").join(" | ") + " |]";
+test("exports beyond the 30-second recorder limit have the exact mono PCM16 header and bounded duration", async () => {
+  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + Array(16).fill("C4").join(" | ") + " |]";
   const f = fixture(), result = await exporter.render(solo({ abc: text }), f.deps);
-  assert.ok(result.duration > 20 && result.duration < 20.1);
+  assert.ok(result.duration > 32 && result.duration < 32.1);
   assert.equal(result.bytes.length, 44 + f.contexts[0].length * 2);
   close(result.duration, f.contexts[0].length / 44100);
   const view = new DataView(result.bytes.buffer);

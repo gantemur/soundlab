@@ -13,6 +13,7 @@
 
   const TEXT = Object.freeze({
     en: {
+      files: "Files · Save / Open / WAV",
       name: "Project name", save: "Save project", open: "Open project…",
       download: "Download prepared file", replace: "Replace workspace", cancel: "Cancel",
       hint: "Save the current One instrument or Many instruments workspace as an editable .soundlab.json file. Files stay on your device; audio is not included.",
@@ -37,6 +38,7 @@
       restoreError: "The project could not be opened. Please try again."
     },
     mn: {
+      files: "Файл · Хадгалах / Нээх / WAV",
       name: "Төслийн нэр", save: "Төсөл хадгалах", open: "Төсөл нээх…",
       download: "Бэлдсэн файлыг татах", replace: "Одоогийн ажлыг солих", cancel: "Болих",
       hint: "Нэг хөгжим эсвэл Олон хөгжим хэсгийн одоогийн ажлыг засах боломжтой .soundlab.json файл болгон хадгална. Файлыг серверт илгээхгүй; аудио орохгүй.",

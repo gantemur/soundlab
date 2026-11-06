@@ -413,8 +413,13 @@ h1, h2, p { margin-top: 0; }
   background: #fff; color: #3e6180; font-size: 13px; font-weight: 850; }
 .compose-subtabs button.selected { background: #2869b9; color: #fff; border-color: #2869b9; }
 .compose-subtabs button:hover:not(.selected) { background: #edf5ff; }
-.project-toolbar { margin: 0 0 17px; padding: 15px 17px; border: 1px solid #c6dbe8;
+.project-toolbar { margin: 0 0 17px; padding: 0; border: 1px solid #c6dbe8;
   border-radius: 13px; background: #f3f9fc; min-width: 0; }
+.project-toolbar > summary { min-height: 44px; padding: 12px 17px; border-radius: 13px;
+  color: #345b7c; font-size: 13px; font-weight: 800; cursor: pointer; overflow-wrap: anywhere; }
+.project-toolbar > summary:hover { background: #e2effa; }
+.project-toolbar[open] > summary { border-bottom: 1px solid #d6e5ee; border-radius: 13px 13px 0 0; }
+.project-file-controls { padding: 15px 17px; }
 .project-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 9px; }
 .project-name-field { flex: 1 1 240px; min-width: 0; }
 .project-name-field label { display: block; margin-bottom: 6px; color: #345a79; font-size: 12px; font-weight: 800; }
@@ -440,7 +445,8 @@ h1, h2, p { margin-top: 0; }
 .project-confirm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 #projectReplace { border-color: #bc9150; color: #795420; }
 @media (max-width: 480px) {
-  .project-toolbar { padding: 13px; }
+  .project-toolbar > summary { padding: 12px 13px; }
+  .project-file-controls { padding: 13px; }
   .project-actions > button { flex: 1 1 auto; }
   .project-name-field { flex-basis: 100%; }
   #exportWav { flex-basis: 100%; }
