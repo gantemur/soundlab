@@ -41,7 +41,7 @@ test("all three ensemble presets contain complete published melodies and synchro
 });
 
 test("ensemble presets work in available tunings without pitch or duration errors", () => {
-  for (const { id } of [...pieces, { id: "guitarStrum" }, { id: "bella" }, { id: "chopin7" }, { id: "chopin20" }]) {
+  for (const { id } of presets.CATALOG.filter(piece => piece.id !== "starter")) {
     for (const tuning of ["equal", "pythagorean", "just"]) {
       assert.doesNotThrow(() => ensemble.parseTracks(presets.create(id), tuning, temperament),
         id + " " + tuning);
@@ -59,7 +59,45 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 8);
+  assert.equal(presets.CATALOG.length, 11);
+});
+
+test("Greensleeves, Daisy Bell and La Paloma align sourced melodies with strummed accompaniment", () => {
+  for (const [id, count] of [["greensleeves", 3], ["daisy", 4], ["paloma", 4]]) {
+    const tracks = presets.create(id, "en");
+    assert.equal(tracks.length, count, id);
+    assert.equal(tracks[0].abc, compose.EXAMPLES[id], id + " shares the Solo melody");
+    assert.equal(tracks[1].instrument, "guitar");
+    assert.ok(["down", "alternate"].includes(tracks[1].guitar.mode));
+    assert.equal(tracks[1].guitar.spacingMs, 20);
+    const { prepared, summary } = ensemble.parseTracks(tracks, "equal", temperament);
+    const lead = prepared[0].score;
+    assert.ok(summary.eventCount <= 1024);
+    assert.ok(lead.totalBeats * score.secondsPerBeat(lead) <= 90);
+    for (const track of prepared) {
+      assert.ok(Math.abs(track.score.totalBeats - lead.totalBeats) < 1e-7, id);
+      assert.equal(track.score.bars.length, lead.bars.length);
+      assert.ok(track.score.bars.every((bar, index) =>
+        Math.abs(bar.durationBeats - lead.bars[index].durationBeats) < 1e-7 &&
+        Math.abs(bar.startBeat - lead.bars[index].startBeat) < 1e-7),
+      id + " keeps every pickup and bar aligned, including rational triplet durations");
+    }
+    assert.ok(prepared[1].score.parts[0].events.some(event => event.type === "chord"),
+      id + " actually includes chords to strum");
+    const drumTrack = tracks.find(track => track.instrument === "drums");
+    if (drumTrack) {
+      assert.ok(drumTrack.patterns.patterns.length < lead.bars.length,
+        id + " uses editable, reusable rhythm patterns");
+      assert.equal(drumPatterns.toABC(drumTrack.patterns), drumTrack.abc);
+      drumTrack.patterns.patterns[0].name = "local edit";
+    }
+    tracks[1].guitar.mode = "up";
+    const reloaded = presets.create(id, "mn");
+    assert.equal(reloaded[0].name, "Аялгуу");
+    assert.notEqual(reloaded[1].guitar.mode, "up", id + " reload restores independent settings");
+    const reloadedDrums = reloaded.find(track => track.instrument === "drums");
+    if (reloadedDrums) assert.notEqual(reloadedDrums.patterns.patterns[0].name, "local edit");
+  }
 });
 
 test("complete Bella Ciao arrangement synchronizes four distinct instruments and linked drum patterns", () => {

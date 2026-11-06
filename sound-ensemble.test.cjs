@@ -198,18 +198,22 @@ test("drum score and melodic score must use matching clock, but tuning does not 
   assert.throws(() => ensemble.parseTracks([...ensemble.DEFAULTS, drums], "equal", temperament), /same M: and Q:/);
 });
 
-test("all complete ensemble arrangements accept drums with their original pickup and bars", () => {
+test("all ensemble arrangements can add or regenerate drums with their original pickup and bars", () => {
   for (const preset of ensemblePresets.CATALOG) {
-    if (preset.id === "starter" || preset.id === "bella") continue;
-    const tracks = ensemblePresets.create(preset.id, "en");
+    if (preset.id === "starter") continue;
+    const tracks = ensemblePresets.create(preset.id, "en").filter(track => track.instrument !== "drums");
     const summary = ensemble.parseTracks(tracks, "equal", temperament).summary;
     const source = abc.parse(tracks[0].abc);
-    const percussion = { id: 4, name: "Drums", instrument: "drums", volume: 65,
-      abc: drumABC.groove({ ...summary, barDurations: source.bars.map(bar => bar.durationBeats) }, 4) };
+    const id = Math.max(...tracks.map(track => track.id)) + 1;
+    const percussion = { id, name: "Drums", instrument: "drums", volume: 65,
+      abc: drumABC.groove({ ...summary, barDurations: source.bars.map(bar => bar.durationBeats) }, id) };
     const added = ensemble.parseTracks([...tracks, percussion], "equal", temperament);
     assert.equal(added.summary.totalBeats, summary.totalBeats, preset.id);
     assert.ok(added.summary.eventCount > summary.eventCount, preset.id);
     const score = drumABC.parse(percussion.abc);
-    assert.deepEqual(score.bars.map(bar => bar.durationBeats), source.bars.map(bar => bar.durationBeats), preset.id);
+    assert.equal(score.bars.length, source.bars.length, preset.id);
+    score.bars.forEach((bar, i) => {
+      assert.ok(Math.abs(bar.durationBeats - source.bars[i].durationBeats) < 1e-7, preset.id + " bar " + (i + 1));
+    });
   }
 });

@@ -14,6 +14,38 @@
   "use strict";
 
   const MELODIES = Object.freeze({
+    paloma: "X:18\n" +
+      "T:La Paloma - opening melody\n" +
+      "M:2/4\n" +
+      "L:1/8\n" +
+      "Q:1/4=96\n" +
+      "K:C\n" +
+      "z3 G | G4- | G2/3 F2/3 G2/3 A B | c2/3 d2/3 B2/3 c A |\n" +
+      "F4- | F2 z d | d4- | d2/3 e2/3 c2/3 d B |\n" +
+      "c2/3 B2/3 A2/3 G3/2 F/2 | E4- | E2 z G | G4- |\n" +
+      "G2/3 F2/3 G2/3 A B | c2/3 d2/3 B2/3 c A | F4- | F2 z d |\n" +
+      "d4- | d2/3 e2/3 c2/3 d B | c2/3 B2/3 A2/3 G3/2 F/2 | E4 |]",
+    greensleeves: "X:16\n" +
+      "T:Greensleeves - complete traditional tune\n" +
+      "M:6/8\n" +
+      "L:1/8\n" +
+      "Q:1/4=90\n" +
+      "K:Em\n" +
+      "E |\n" +
+      "G2 A B3/2 c/2 B | A2 F D3/2 E/2 F | G2 E E3/2 ^D/2 E | F3 B,2 E |\n" +
+      "G2 A B3/2 c/2 B | A2 F D3/2 E/2 F | G3/2 F/2 E ^D3/2 ^C/2 ^D | E3 E3 |\n" +
+      "d3 d3/2 c/2 B | A2 F D3/2 E/2 F | G2 E E3/2 ^D/2 E | F2 ^D B,3 |\n" +
+      "d3 d3/2 c/2 B | A2 F D3/2 E/2 F | G3/2 F/2 E ^D3/2 ^C/2 ^D | E3 E2 |]",
+    daisy: "X:17\n" +
+      "T:Daisy Bell - chorus - melody\n" +
+      "M:3/4\n" +
+      "L:1/4\n" +
+      "Q:1/4=144\n" +
+      "K:G\n" +
+      "d3 | B3 | G3 | D2 z | E F G | E2 G | D3- | D2 z |\n" +
+      "A3 | d3 | B3 | G2 z | E F G | A2 B | A3- | A z B |\n" +
+      "c B A | d2 B | A/3 B/3 A/3 G2- | G2 A | B2 G | E2 G | E D2- | D z D |\n" +
+      "G2 B | A z2 | G2 B | A z B/2 c/2 | d B G | A2 D | G3- | G z2 |]",
     first: "X:1\nT:First melody\nM:4/4\nL:1/4\nQ:1/4=96\nK:C\nC D E G | A2 G2 | E F G2 | C4 |]",
     rests: "X:2\nT:Listen to the rests\nM:4/4\nL:1/8\nQ:1/4=104\nK:C\nC2 z2 E2 G2 | A4 z G2 z | F2 E2 D2 C2 | C8 |]",
     waltz: "X:3\nT:Little waltz\nM:3/4\nL:1/4\nQ:1/4=108\nK:G\nG A B | d2 B | A G F | G3 |]",
@@ -76,6 +108,30 @@
   });
 
   const EXAMPLE_INFO = Object.freeze({
+    paloma: {
+      "instrument": "violin",
+      "composer": "Sebastián Iradier (Yradier)",
+      "originalKey": "E-flat major in the 1885 Baker source",
+      "source": "https://tile.loc.gov/storage-services/public/music/mussm-sm1885-10603/mussm-sm1885-10603.pdf",
+      "en": "Complete opening melody section from the 1885 score, transposed from E-flat to C major: 20 bars including a rest-padded pickup. Triplets and ties are retained; two small ornaments, the introduction and later refrain are omitted.",
+      "mn": "1885 оны эх нотны эхний аялгууг бүтнээр нь Ми-бемоль мажороос До мажорт шилжүүлсэн. Завсарлагаар нөхсөн угтвар такттай 20 такт; триоль, залгасан нотуудыг хадгалж, хоёр чимэглэл, удиртгал болон дараах дахилтыг орхисон."
+    },
+    greensleeves: {
+      "instrument": "flute",
+      "composer": "Traditional English melody",
+      "originalKey": "Traditional; E minor in the ca. 1871 source",
+      "source": "https://www.hymnsandcarolsofchristmas.com/Hymns_and_Carols/what_child_is_this_version_1.htm",
+      "en": "Complete verse and refrain from Bramley and Stainer, ca. 1871, in E minor: a 16-bar tune with pickup. The melody rhythm and accidentals are retained; lyrics and the printed harmonization are omitted.",
+      "mn": "Брамли, Стейнерийн 1871 оны орчмын эх нотны бадаг, дахилт бүтнээрээ; Ми минор, угтвар ноттой 16 тактын ая. Аялгууны хэмнэл, диезийг хадгалж, үг болон эх найруулгыг орхисон."
+    },
+    daisy: {
+      "instrument": "flute",
+      "composer": "Harry Dacre (1892)",
+      "originalKey": "G major",
+      "source": "https://old-digitalcollections.nypl.org/items/5e66b3e8-94d1-d471-e040-e00a180654d7",
+      "en": "The complete 32-bar chorus from the 1892 score, in G major; ties and the triplet are retained. Verses, piano postlude and expressive timing are omitted.",
+      "mn": "1892 оны эх нотны бүтэн 32 такттай дахилт, Соль мажор. Залгасан нот ба триолийг хадгалсан; бадгууд, төгөлдөр хуурын төгсгөл, хурдны өөрчлөлтийг орхисон."
+    },
     strum: { instrument: "guitar", guitar: { mode: "alternate", spacingMs: 20 },
       composer: "Sound Lab original exercise", originalKey: "C major",
       source: "https://github.com/gantemur/soundlab#compose-guitar-strumming",
@@ -142,6 +198,10 @@
       exampleStrum: "Guitar · Pick and strum (4 bars)",
       exampleStudies: "Writing exercises", exampleClassics: "Classical music",
       exampleRussian: "Russian folk and historical songs", exampleWestern: "European folk songs",
+      examplePopular: "Historical popular songs",
+      exampleGreensleeves: "Greensleeves · folk (verse and refrain)",
+      exampleDaisy: "Daisy Bell · Dacre (32-bar chorus)",
+      examplePaloma: "La Paloma · Iradier (opening melody)",
       exampleOde: "Beethoven · Ode to Joy (16 bars)",
       exampleMinuetG: "Petzold · Minuet in G (32 bars)",
       exampleLightly: "Lightly Row · folk (16 bars)",
@@ -188,6 +248,10 @@
       exampleStrum: "Гитар · Цохих/татах (4 такт)",
       exampleStudies: "Нот бичих дасгал", exampleClassics: "Сонгодог хөгжим",
       exampleRussian: "Орос ардын болон түүхэн дуунууд", exampleWestern: "Европ ардын дуунууд",
+      examplePopular: "Хуучны нийтийн дуунууд",
+      exampleGreensleeves: "Greensleeves · бадаг ба дахилт",
+      exampleDaisy: "Daisy Bell · Дейкр (32 такттай дахилт)",
+      examplePaloma: "La Paloma · Ирадиер (эхний аялгуу)",
       exampleOde: "Бетховен · Баяр баясгалангийн магтуу (16 такт)",
       exampleMinuetG: "Петцольд · Соль мажор менуэт (32 такт)",
       exampleLightly: "Lightly Row · ардын дуу (16 такт)",

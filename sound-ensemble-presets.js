@@ -26,11 +26,121 @@
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
     { id: "bella", en: "Bella Ciao · folk · with drums", mn: "Bella Ciao · бөмбөртэй найруулга" },
+    { id: "greensleeves", category: "western", en: "Greensleeves · folk (verse and refrain)",
+      mn: "Greensleeves · бадаг ба дахилт" },
+    { id: "daisy", category: "popular", en: "Daisy Bell · Dacre (32-bar chorus)",
+      mn: "Daisy Bell · Дейкр (32 такттай дахилт)" },
+    { id: "paloma", category: "popular", en: "La Paloma · Iradier (opening melody)",
+      mn: "La Paloma · Ирадиер (эхний аялгуу)" },
     { id: "chopin7", en: "Chopin · Prelude Op. 28 No. 7 (complete, 16 bars)",
       mn: "Шопен · Прелюд Op. 28 №7 (бүтэн, 16 такт)" },
     { id: "chopin20", en: "Chopin · Prelude Op. 28 No. 20 (complete, 13 bars)",
       mn: "Шопен · Прелюд Op. 28 №20 (бүтэн, 13 такт)" }
   ]);
+
+  const SONGS = Object.freeze({
+    paloma: Object.freeze({
+      mode: "alternate",
+      guitar: "X:2\n" +
+        "T:La Paloma - original guitar habanera\n" +
+        "M:2/4\n" +
+        "L:1/16\n" +
+        "Q:1/4=96\n" +
+        "K:C\n" +
+        "z6 [B,DFG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 |\n" +
+        "G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 |\n" +
+        "G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 |\n" +
+        "C,3 [G,CEG] [G,CEG]2 [G,CEG]2 | C,3 [G,CEG] [G,CEG]2 [G,CEG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 |\n" +
+        "G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | G,3 [B,DFG] [B,DFG]2 [B,DFG]2 | [C,G,CEG]8 |]\n" +
+        "% Original Sound Lab habanera accompaniment; not copied from the historical piano part.\n" +
+        "% Melody source: https://tile.loc.gov/storage-services/public/music/mussm-sm1885-10603/mussm-sm1885-10603.pdf",
+      bass: "X:3\n" +
+        "T:La Paloma - original bass habanera\n" +
+        "M:2/4\n" +
+        "L:1/16\n" +
+        "Q:1/4=96\n" +
+        "K:C\n" +
+        "z6 G,2 | C,3 G, C,2 G,2 | C,3 G, C,2 G,2 | C,3 G, C,2 G,2 |\n" +
+        "G,3 D, G,2 D,2 | G,3 D, G,2 D,2 | G,3 D, G,2 D,2 | G,3 D, G,2 D,2 |\n" +
+        "G,3 D, G,2 D,2 | C,3 G, C,2 G,2 | C,3 G, C,2 G,2 | C,3 G, C,2 G,2 |\n" +
+        "C,3 G, C,2 G,2 | C,3 G, C,2 G,2 | G,3 D, G,2 D,2 | G,3 D, G,2 D,2 |\n" +
+        "G,3 D, G,2 D,2 | G,3 D, G,2 D,2 | G,3 D, G,2 D,2 | C,8 |]\n" +
+        "% Original Sound Lab habanera accompaniment; not copied from the historical piano part.\n" +
+        "% Melody source: https://tile.loc.gov/storage-services/public/music/mussm-sm1885-10603/mussm-sm1885-10603.pdf",
+      drums: "X:4\n" +
+        "T:La Paloma - original quiet habanera\n" +
+        "M:2/4\n" +
+        "L:1/16\n" +
+        "Q:1/4=96\n" +
+        "K:C clef=perc\n" +
+        "z6 E2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | C3 G D2 G2 | [CE]2 z6 |]\n" +
+        "% Original quiet percussion: pickup, 3+1+2+2 sixteenth-note habanera, and ending patterns."
+    }),
+    greensleeves: Object.freeze({
+      mode: "down",
+      guitar: "X:2\n" +
+        "T:Greensleeves - original guitar accompaniment\n" +
+        "M:6/8\n" +
+        "L:1/8\n" +
+        "Q:1/4=90\n" +
+        "K:Em\n" +
+        "z |\n" +
+        "[E,,B,,E,G,B,E]3 [E,,B,,E,G,B,E]3 | [D,A,DF]3 [D,A,DF]3 | [C,E,G,CE]3 [C,E,G,CE]3 | [B,,^D,A,B,F]3 [B,,^D,A,B,F]3 |\n" +
+        "[E,,B,,E,G,B,E]3 [E,,B,,E,G,B,E]3 | [D,A,DF]3 [D,A,DF]3 | [E,,B,,E,G,B,E]3 [B,,^D,A,B,F]3 | [E,,B,,E,G,B,E]3 [E,,B,,E,G,B,E]3 |\n" +
+        "[G,,B,,D,G,B,G]3 [G,,B,,D,G,B,G]3 | [D,A,DF]3 [D,A,DF]3 | [C,E,G,CE]3 [C,E,G,CE]3 | [B,,^D,A,B,F]3 [B,,^D,A,B,F]3 |\n" +
+        "[G,,B,,D,G,B,G]3 [G,,B,,D,G,B,G]3 | [D,A,DF]3 [D,A,DF]3 | [E,,B,,E,G,B,E]3 [B,,^D,A,B,F]3 | [E,,B,,E,G,B,E]5 |]\n" +
+        "% New Sound Lab accompaniment; not a copy of the source harmonization. Explicit open-position chords; gentle downstrokes at 20 ms between written pitches.\n" +
+        "% Melody source: https://www.hymnsandcarolsofchristmas.com/Hymns_and_Carols/what_child_is_this_version_1.htm",
+      bass: "X:3\n" +
+        "T:Greensleeves - original bass accompaniment\n" +
+        "M:6/8\n" +
+        "L:1/8\n" +
+        "Q:1/4=90\n" +
+        "K:Em\n" +
+        "z |\n" +
+        "E,3 B,,3 | D,3 A,3 | C,3 G,3 | B,,3 F,3 |\n" +
+        "E,3 B,,3 | D,3 A,3 | E,3 B,,3 | E,3 B,,3 |\n" +
+        "G,3 D,3 | D,3 A,3 | C,3 G,3 | B,,3 F,3 |\n" +
+        "G,3 D,3 | D,3 A,3 | E,3 B,,3 | E,5 |]\n" +
+        "% New Sound Lab root/fifth bass part; no source arrangement copied. All triangle-bass notes are B2 or higher.\n" +
+        "% Melody source: https://www.hymnsandcarolsofchristmas.com/Hymns_and_Carols/what_child_is_this_version_1.htm"
+    }),
+    daisy: Object.freeze({
+      mode: "alternate",
+      guitar: "X:2\n" +
+        "T:Daisy Bell - original guitar waltz\n" +
+        "M:3/4\n" +
+        "L:1/4\n" +
+        "Q:1/4=144\n" +
+        "K:G\n" +
+        "G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | C, [E,G,CE] [E,G,CE] | C, [E,G,CE] [E,G,CE] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] |\n" +
+        "D, [D,A,CF] [D,A,CF] | D, [D,A,CF] [D,A,CF] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | C, [E,G,CE] [E,G,CE] | D, [D,A,CF] [D,A,CF] | D, [D,A,CF] [D,A,CF] | D, [D,A,CF] [D,A,CF] |\n" +
+        "C, [E,G,CE] [E,G,CE] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | G,, [D,G,B,G] [D,G,B,G] | C, [E,G,CE] [E,G,CE] | D, [D,A,CF] [D,A,CF] | D, [D,A,CF] [D,A,CF] |\n" +
+        "G,, [D,G,B,G] [D,G,B,G] | D, [D,A,CF] [D,A,CF] | G,, [D,G,B,G] [D,G,B,G] | D, [D,A,CF] [D,A,CF] | G,, [D,G,B,G] [D,G,B,G] | D, [D,A,CF] [D,A,CF] | G,, [D,G,B,G] [D,G,B,G] | [G,,B,,D,G,B,G] z2 |]\n" +
+        "% Original Sound Lab accompaniment, not copied from the historical piano part.\n" +
+        "% Melody source: https://old-digitalcollections.nypl.org/items/5e66b3e8-94d1-d471-e040-e00a180654d7",
+      bass: "X:3\n" +
+        "T:Daisy Bell - original bass waltz\n" +
+        "M:3/4\n" +
+        "L:1/4\n" +
+        "Q:1/4=144\n" +
+        "K:G\n" +
+        "G,3 | G,3 | G,3 | G,3 | C,3 | C,3 | G,3 | G,3 |\n" +
+        "D,3 | D,3 | G,3 | G,3 | C,3 | D,3 | D,3 | D,3 |\n" +
+        "C,3 | G,3 | G,3 | G,3 | G,3 | C,3 | D,3 | D,3 |\n" +
+        "G,3 | D,3 | G,3 | D,3 | G,3 | D,3 | G,3 | G, z2 |]\n" +
+        "% Original Sound Lab accompaniment, not copied from the historical piano part.\n" +
+        "% Melody source: https://old-digitalcollections.nypl.org/items/5e66b3e8-94d1-d471-e040-e00a180654d7",
+      drums: "X:4\n" +
+        "T:Daisy Bell - original quiet waltz\n" +
+        "M:3/4\n" +
+        "L:1/8\n" +
+        "Q:1/4=144\n" +
+        "K:C clef=perc\n" +
+        "[CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 G2 G2 | [CE]2 z4 |]\n" +
+        "% Original quiet percussion; linked repeating waltz and ending patterns."
+    })
+  });
 
   const STRUM_STUDY = Object.freeze({
     guitar: Object.freeze({ mode: "alternate", spacingMs: 20 }),
@@ -271,6 +381,29 @@
     ];
   }
 
+  function createSong(id, language) {
+    const piece = SONGS[id];
+    const names = language === "en" ? ["Melody", "Guitar accompaniment", "Bass", "Quiet drums"] :
+      ["Аялгуу", "Гитар дагалдах", "Басс", "Зөөлөн бөмбөр"];
+    const track = (index, instrument, volume, notes) => ({
+      id: index + 1, name: names[index], instrument, volume,
+      mute: false, solo: false, abc: notes
+    });
+    const tracks = [
+      track(0, compose.EXAMPLE_INFO[id].instrument, 46, compose.EXAMPLES[id]),
+      { ...track(1, "guitar", 38, piece.guitar),
+        guitar: { mode: piece.mode, spacingMs: 20 } },
+      track(2, "triangle", 16, piece.bass)
+    ];
+    if (piece.drums) {
+      const patterns = drumPatterns.fromABC(piece.drums);
+      tracks.push({ ...track(3, "drums", 12, drumPatterns.toABC(patterns)), patterns,
+        patternBar: 1, patternId: drumPatterns.atBar(patterns, 1).pattern.id,
+        textMode: "pattern", patternDraft: null });
+    }
+    return tracks;
+  }
+
   function createChopin(id, language) {
     const piece = CHOPIN[id];
     const title = "Chopin Prelude Op. 28 No. " + (id === "chopin7" ? "7" : "20");
@@ -290,6 +423,7 @@
   function create(id, language = "mn") {
     if (id === "guitarStrum") return createGuitarStrum(language);
     if (id === "bella") return createBella(language);
+    if (Object.hasOwn(SONGS, id)) return createSong(id, language);
     if (Object.hasOwn(CHOPIN, id)) return createChopin(id, language);
     const piece = PIECES[id];
     if (!piece) throw new RangeError("Unknown ensemble preset " + id);

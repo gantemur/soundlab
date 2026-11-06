@@ -19,14 +19,15 @@ test("all Compose examples are valid measured single-part scores", () => {
     assert.equal(parsed.parts.length, 1, name);
     const expectedBars = { ode: 16, minuetG: 32, lightly: 16, mozart40: 20,
       frere: 8, twinkle: 12, korobeiniki: 16, kalinka: 27, birch: 8,
-      bella: 17 }[name] || 4;
+      bella: 17, greensleeves: 17, daisy: 32, paloma: 20 }[name] || 4;
     assert.equal(parsed.bars.length, expectedBars, name);
     assert.equal(parsed.totalBeats, name === "waltz" ? 12 :
       name === "minuetG" ? 96 : name === "lightly" ? 32 :
       name === "mozart40" ? 80 : name === "frere" ? 32 :
       name === "twinkle" ? 48 : name === "ode" ? 64 :
       name === "korobeiniki" ? 32 : name === "kalinka" ? 53 :
-      name === "birch" ? 48 : name === "bella" ? 64 : 16, name);
+      name === "birch" || name === "greensleeves" ? 48 : name === "bella" ? 64 :
+      name === "daisy" ? 96 : name === "paloma" ? 40 : 16, name);
     assert.equal(parsed.parts[0].events[0].startBeat, 0, name);
     assert.equal(parsed.parts[0].events.at(-1).startBeat +
       parsed.parts[0].events.at(-1).durationBeats, parsed.totalBeats, name);
@@ -97,6 +98,57 @@ test("Bella Ciao contains two traditional stanzas, a pickup and a resolved caden
   assert.deepEqual(bella.parts[0].events.slice(0, 3).map(e => score.pitchName(e.pitch)),
     ["A4", "B4", "C5"]);
   assert.equal(score.pitchName(bella.parts[0].events.at(-1).pitch), "A4");
+});
+
+test("Greensleeves retains the pickup, minor cadences and complete verse/refrain", () => {
+  const tune = abc.parse(EXAMPLES.greensleeves);
+  assert.equal(tune.key.name, "Em");
+  assert.deepEqual(tune.bars.filter(bar => bar.partial).map(bar => bar.durationBeats), [0.5, 2.5]);
+  const events = tune.parts[0].events;
+  assert.deepEqual(events.slice(0, 6).map(event => score.pitchName(event.pitch)),
+    ["E4", "G4", "A4", "B4", "C5", "B4"]);
+  assert.equal(score.pitchName(events.find(event => event.bar === 10).pitch), "D5",
+    "The refrain starts after the complete verse");
+  assert.ok(events.some(event => score.pitchName(event.pitch) === "C♯4"));
+  assert.ok(events.some(event => score.pitchName(event.pitch) === "D♯4"));
+  assert.deepEqual(events.slice(-2).map(event => [score.pitchName(event.pitch), event.durationBeats]),
+    [["E4", 1.5], ["E4", 1]]);
+});
+
+test("Daisy Bell preserves the historical chorus ties, triplet and closing rests", () => {
+  const tune = abc.parse(EXAMPLES.daisy);
+  const events = tune.parts[0].events;
+  assert.equal(tune.key.name, "G");
+  assert.deepEqual(events.slice(0, 4).map(event => score.pitchName(event.pitch)),
+    ["D5", "B4", "G4", "D4"]);
+  assert.deepEqual(events.filter(event => event.tieToNext).map(event => event.bar), [7, 15, 19, 23, 31]);
+  const turn = events.filter(event => event.bar === 19);
+  assert.deepEqual(turn.map(event => score.pitchName(event.pitch)), ["A4", "B4", "A4", "G4"]);
+  assert.ok(turn.slice(0, 3).every(event => Math.abs(event.durationBeats - 1 / 3) < 1e-7));
+  assert.equal(turn[3].durationBeats, 2);
+  assert.equal(events.at(-2).tieFromPrevious, true);
+  assert.equal(events.at(-1).type, "rest");
+  assert.equal(events.at(-1).durationBeats, 2);
+});
+
+test("La Paloma retains triplets, tied sustains and rearticulated pickups in its opening section", () => {
+  const tune = abc.parse(EXAMPLES.paloma);
+  const events = tune.parts[0].events;
+  assert.equal(tune.key.name, "C");
+  assert.equal(events[0].type, "rest");
+  assert.equal(events[0].durationBeats, 1.5);
+  assert.deepEqual(events.slice(1, 6).map(event => score.pitchName(event.pitch)),
+    ["G4", "G4", "G4", "F4", "G4"]);
+  assert.deepEqual(events.filter(event => event.tieToNext).map(event => event.bar), [2, 5, 7, 10, 12, 15, 17]);
+  const figure = events.filter(event => event.bar === 9);
+  assert.deepEqual(figure.map(event => score.pitchName(event.pitch)), ["C5", "B4", "A4", "G4", "F4"]);
+  assert.ok(figure.slice(0, 3).every(event => Math.abs(event.durationBeats - 1 / 3) < 1e-7));
+  assert.deepEqual(figure.slice(-2).map(event => event.durationBeats), [0.75, 0.25]);
+  for (const bar of [6, 11, 16]) {
+    assert.ok(!events.filter(event => event.bar === bar).at(-1).tieToNext,
+      "The printed pickup is attacked again at the following bar");
+  }
+  assert.equal(score.pitchName(events.at(-1).pitch), "E4");
 });
 
 test("ABC bracketed chords keep simultaneous pitches, shared durations and accidentals", () => {

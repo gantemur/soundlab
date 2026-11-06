@@ -265,23 +265,32 @@
     return fromGrid(score, bars);
   }
   function groove({ meter, tempoQuarter, totalBeats, barDurations }, id = 1, title = "Drums") {
-    if (!Number.isInteger(totalBeats * 4) || totalBeats <= 0 || totalBeats > 256) throw new DrumABCError("Cannot make a drum groove for this length");
-    const stepsPerBar = meter.quarterBeats * 4;
-    if (!Number.isInteger(stepsPerBar)) throw new DrumABCError("Automatic drum groove needs sixteenth-note-aligned meters");
+    // Triplets can leave tiny rounding errors in otherwise grid-aligned bars.
+    // Use integer grid counts throughout so Array.from cannot truncate a step.
+    const gridSteps = beats => {
+      if (!Number.isFinite(beats)) return NaN;
+      const steps = beats * 4;
+      return Math.abs(steps - Math.round(steps)) <= 1e-7 ? Math.round(steps) : NaN;
+    };
+    const totalSteps = gridSteps(totalBeats);
+    if (!Number.isInteger(totalSteps) || totalSteps <= 0 || totalSteps > 1024) throw new DrumABCError("Cannot make a drum groove for this length");
+    const stepsPerBar = gridSteps(meter.quarterBeats);
+    if (!Number.isInteger(stepsPerBar) || stepsPerBar <= 0) throw new DrumABCError("Automatic drum groove needs sixteenth-note-aligned meters");
     if (!barDurations) {
-      if (totalBeats % meter.quarterBeats !== 0) {
+      if (totalSteps % stepsPerBar !== 0) {
         throw new DrumABCError("A score with pickups needs its actual bar durations");
       }
-      barDurations = Array.from({ length: totalBeats / meter.quarterBeats }, () => meter.quarterBeats);
+      barDurations = Array.from({ length: totalSteps / stepsPerBar }, () => meter.quarterBeats);
     }
-    if (!Array.isArray(barDurations) || !barDurations.length || barDurations.length > 32 ||
-        Math.abs(barDurations.reduce((sum, length) => sum + length, 0) - totalBeats) > 1e-7 ||
-        barDurations.some(length => !Number.isInteger(length * 4) || length <= 0 || length > meter.quarterBeats)) {
+    const barSteps = Array.isArray(barDurations) ? barDurations.map(gridSteps) : [];
+    if (!barSteps.length || barSteps.length > 32 ||
+        barSteps.reduce((sum, steps) => sum + steps, 0) !== totalSteps ||
+        barSteps.some(steps => !Number.isInteger(steps) || steps <= 0 || steps > stepsPerBar)) {
       throw new DrumABCError("Invalid bar durations for generated percussion");
     }
     const bars = [];
-    for (let b = 0; b < barDurations.length; b++) {
-      const cells = Array.from({ length: barDurations[b] * 4 }, (_, step) => {
+    for (let b = 0; b < barSteps.length; b++) {
+      const cells = Array.from({ length: barSteps[b] }, (_, step) => {
         const cell = {};
         if (step % 2 === 0) cell.hat = VELOCITIES.normal;
         if (step === 0 || (meter.numerator >= 4 && step === 8)) cell.kick = VELOCITIES.accent;

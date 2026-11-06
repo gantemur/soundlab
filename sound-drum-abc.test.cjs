@@ -107,3 +107,17 @@ test("a 32-bar drum part fits the full-score bound and waltz preset uses 3 beats
   assert.equal(pickup.bars[0].pickup, true);
   assert.equal(pickup.bars.length, 4);
 });
+
+test("drum generation tolerates triplet roundoff without dropping a grid step or quantizing off-grid bars", () => {
+  const clock = { meter: { numerator: 3, denominator: 4, quarterBeats: 3 },
+    tempoQuarter: 144, totalBeats: 9.000000000000007 };
+  for (const barDurations of [undefined, [3, 2.999999999999993, 3.000000000000007]]) {
+    const score = drums.parse(drums.groove({ ...clock, barDurations }));
+    assert.equal(score.totalBeats, 9);
+    assert.deepEqual(score.bars.map(bar => bar.durationBeats), [3, 3, 3]);
+    assert.deepEqual(drums.gridOf(score).map(bar => bar.cells.length), [12, 12, 12]);
+  }
+  assert.throws(() => drums.groove({ ...clock, totalBeats: 1, barDurations: [1 / 3, 2 / 3] }),
+    /Invalid bar durations/);
+  assert.throws(() => drums.groove({ ...clock, totalBeats: 9.001 }), /Cannot make a drum groove/);
+});

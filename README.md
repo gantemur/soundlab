@@ -31,6 +31,27 @@ The two bass notes are picked individually; the two chords use the selected tech
 
 Try **Guitar · Pick and strum** under **Writing exercises**: a four-bar solo study or an eight-bar ensemble study with quiet bass and a reusable drum pattern. Both are original Sound Lab exercises with no imported song, recording or outside arrangement. Guitar settings belong to their own track and survive track/language changes; selecting a preset restores that preset's technique. Changing technique or spacing stops playback and does not autoplay. The current ABC file input loads notes; it does not store the separate instrument/technique controls.
 
+## Folk and historical song presets
+
+**Greensleeves**, **Daisy Bell** and **La Paloma** are available as editable
+Solo melodies and as Ensemble arrangements. Greensleeves is in **European folk
+songs**; Daisy Bell and La Paloma are in **Historical popular songs**. In Many
+instruments, choose an arrangement and press **Load**, then **Play**.
+
+| Preset | Ensemble setting |
+| --- | --- |
+| Greensleeves | The complete verse and refrain in E minor and 6/8, with flute, strummed guitar and quiet bass (32 seconds) |
+| Daisy Bell | The complete 32-bar chorus, in G major and 3/4; flute, a bass–chord–chord guitar waltz, bass and quiet percussion (40 seconds) |
+| La Paloma | The complete opening melody section, 20 bars in C major and 2/4; violin, guitar, bass and a quiet habanera rhythm (25 seconds). The later refrain is omitted. |
+
+The source melody is shared by Solo and Ensemble. Each preset identifies its
+historical edition, chosen section and adaptations in the Solo source note and
+ABC comments. The guitar and bass parts are new educational accompaniments;
+Daisy Bell and La Paloma also have editable, reusable drum patterns. Guitar
+strumming starts enabled and can be changed independently for that track.
+These are instrumental settings with locally synthesized sound. Historical
+source editions and scope are listed in [the score notices](THIRD_PARTY_NOTICES.md).
+
 ## Shipped in P1
 
 - Sine, triangle, square and sawtooth using Web Audio's built-in oscillators.

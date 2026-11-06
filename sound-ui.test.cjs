@@ -56,12 +56,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s047"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
   assert.match(html, /src="sound-score-player\.js\?v=s052"/);
-  assert.match(html, /src="sound-compose\.js\?v=s052"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s052"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s052"/);
+  assert.match(html, /src="sound-compose\.js\?v=s053"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s053"/);
   assert.match(html, /src="sound-lab\.js\?v=s045"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
@@ -148,13 +148,13 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="composeSubtabs"[^>]*hidden/);
   assert.match(html, /id="composeEnsembleWorkspace"[^>]*hidden/);
   assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 2);
-  for (const group of ["exampleStudies", "exampleClassics", "exampleWestern", "exampleRussian"]) {
+  for (const group of ["exampleStudies", "exampleClassics", "exampleWestern", "examplePopular", "exampleRussian"]) {
     assert.match(html, new RegExp('data-compose-group-i18n="' + group + '"'));
   }
-  for (const group of ["presetStudies", "presetClassics", "presetWestern", "presetRussian"]) {
+  for (const group of ["presetStudies", "presetClassics", "presetWestern", "presetPopular", "presetRussian"]) {
     assert.match(html, new RegExp('data-ensemble-group-i18n="' + group + '"'));
   }
-  for (const choice of ["bella", "chopin7", "chopin20"]) {
+  for (const choice of ["bella", "chopin7", "chopin20", "greensleeves", "daisy", "paloma"]) {
     assert.match(html, new RegExp('<option value="' + choice + '"'));
   }
   for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensembleAddDrums",
@@ -2825,6 +2825,40 @@ test("ensemble guitar controls belong to one track, survive selection/language c
   app.elements.get("ensemblePreset").value = "chopin7";
   app.fire("ensembleApplyPreset", "click");
   assert.equal(guitarControls().mode, undefined, "Piano tracks have no guitar controls");
+});
+
+test("the three sourced songs load silently in Solo and Ensemble with editable guitar parts", () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  for (const [choice, title, count] of [
+    ["greensleeves", /Greensleeves/, 3], ["daisy", /Daisy Bell/, 4], ["paloma", /La Paloma/, 4]
+  ]) {
+    app.composeSubtabButtons[0].click();
+    app.elements.get("composeExample").value = choice;
+    app.fire("composeExample", "change");
+    assert.match(app.elements.get("composeText").value, title);
+    assert.match(app.elements.get("composeText").value, /% Source: https:\/\//);
+    assert.equal(app.elements.get("composePlayPause").disabled, false);
+    assert.equal(app.elements.get("composePresetInfo").hidden, false);
+    assert.match(app.elements.get("composeSource").href, /^https:\/\//);
+    app.composeSubtabButtons[1].click();
+    app.elements.get("ensemblePreset").value = choice;
+    app.fire("ensembleApplyPreset", "click");
+    assert.equal(app.elements.get("ensembleTrackList").children.length, count);
+    assert.equal(app.elements.get("ensembleTimeline").children.length, count);
+    assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+    assert.match(app.elements.get("ensembleText").value, title);
+    app.elements.get("ensembleTrackList").children[1].children[0].children[0].click();
+    assert.match(app.elements.get("ensembleText").value, /original guitar/);
+    const descendants = node => [node, ...node.children.flatMap(descendants)];
+    const mode = descendants(app.elements.get("ensembleTrackList"))
+      .find(node => node.className === "ensemble-guitar-mode");
+    assert.ok(["down", "alternate"].includes(mode.value), "The accompaniment starts with strumming enabled");
+    app.fire("langEn", "click");
+    assert.match(app.elements.get("ensembleEditorTitle").textContent, /ABC for the selected track/);
+    app.fire("langMn", "click");
+    assert.equal(app.contexts.length, 0, "Loading, selecting and translating song parts never autoplays");
+  }
 });
 
 test("Compose draws ties across staff rows and keeps long-score playback visible", async () => {
