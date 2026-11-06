@@ -8,16 +8,37 @@ const fm = require("./sound-fm.js");
 test("all transient kinds are bounded decaying mathematical signals", () => {
   for (const kind of sound.KINDS) {
     const decay = kind === "pluck" ? 0.65 : 0.3;
-    assert.equal(sound.sampleAt(kind, 0, 220, decay), 0);
+    const pitch = kind === "xylophone" ? 523.251131 : 220;
+    assert.equal(sound.sampleAt(kind, 0, pitch, decay), 0);
     assert.ok(sound.envelope(kind, 0.01, decay) > sound.envelope(kind, 1, decay));
     assert.equal(sound.plottedEnvelope(kind, sound.duration(decay), decay), 0);
-    const samples = sound.makeSamples(kind, 220, decay, 16000);
+    const samples = sound.makeSamples(kind, pitch, decay, 16000);
     assert.ok(samples.length > 10000);
     assert.ok(samples.every(sample => Number.isFinite(sample) && Math.abs(sample) <= 1));
     assert.ok(Math.abs(samples.at(-1)) < 0.001, "Output fades at the end");
   }
   assert.notEqual(sound.sampleAt("pluck", 0.012, 220, 0.65), sound.sampleAt("kick", 0.012, 220, 0.65));
   assert.notEqual(sound.sampleAt("piano", 0.012, 220, 0.65), sound.sampleAt("pluck", 0.012, 220, 0.65));
+});
+
+test("xylophone shares the finite transient plot/playback path with bounded, rate-aware samples", () => {
+  assert.ok(sound.KINDS.includes("xylophone"));
+  for (const sampleRate of [8000, 16000, 44100, 48000]) {
+    const options = { velocity: .66, sampleRate };
+    const samples = sound.makeSamples("xylophone", 523.251131, .32, sampleRate, "medium", options);
+    assert.equal(samples.length, Math.ceil(sound.duration(.32) * sampleRate));
+    for (const index of [1, 100, 1700, Math.floor(sampleRate * 1.27)]) {
+      assert.ok(Math.abs(samples[index] -
+        sound.plottedSampleAt("xylophone", index / sampleRate, 523.251131, .32, "medium", options)) < 1e-7);
+    }
+  }
+  assert.equal(sound.plottedEnvelope("xylophone", 1.28, .32), 0);
+  assert.equal(sound.plottedSampleAt("xylophone", 1.28, 523.251131, .32), 0);
+  assert.ok(sound.makeSamples("xylophone", 523.251131, .32, 8000, "medium",
+    { velocity: 0 }).every(value => value === 0));
+  assert.throws(() => sound.validate("xylophone", 220, .32), RangeError);
+  assert.throws(() => sound.validate("xylophone", 523.251131, .32, "medium", { velocity: 1.1 }), RangeError);
+  assert.deepEqual(sound.DRUM_VOICES, ["membrane", "snare", "cymbal", "steelpan", "chimes", "woodblock"]);
 });
 
 test("marimba transient playback and plots share one finite pitched-hit recipe", () => {

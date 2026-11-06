@@ -208,8 +208,8 @@ test("Pause during asynchronous audio startup cancels late notes; Resume can sta
   player.stop();
 });
 
-test("guitar, piano, chime and marimba scores delegate to the shared sound models", async () => {
-  for (const instrument of ["guitar", "piano", "chimes", "marimba"]) {
+test("guitar, piano, chime, marimba and xylophone scores delegate to their shared sound models", async () => {
+  for (const instrument of ["guitar", "piano", "chimes", "marimba", "xylophone"]) {
     const { player, context, recipes } = audioFixture();
     player.configure({ score: melody, instrument, tuning: "just", volume: 52 });
     await player.play();
@@ -217,7 +217,8 @@ test("guitar, piano, chime and marimba scores delegate to the shared sound model
     assert.equal(recipes.length, 1, instrument);
     const recipe = recipes[0];
     assert.equal(recipe.kind, instrument === "guitar" ? "pluck" :
-      instrument === "piano" ? "piano" : instrument === "marimba" ? "marimba" : "kick");
+      instrument === "piano" ? "piano" :
+        ["marimba", "xylophone"].includes(instrument) ? instrument : "kick");
     if (instrument === "chimes") {
       assert.equal(recipe.options.drumVoice, "chimes");
       assert.ok(Math.abs(recipe.options.chimeHz - 264) < 10);
@@ -225,6 +226,10 @@ test("guitar, piano, chime and marimba scores delegate to the shared sound model
     if (instrument === "marimba") {
       assert.equal(recipe.decay, marimba.DEFAULT_DECAY);
       assert.equal(recipe.options.velocity, marimba.DEFAULT_VELOCITY);
+    }
+    if (instrument === "xylophone") {
+      assert.equal(recipe.decay, .32);
+      assert.equal(recipe.options.velocity, .66);
     }
     assert.equal(context.sources[0].buffer.duration, 2);
     player.stop();
@@ -297,6 +302,26 @@ test("held and marimba score ranges are checked before audio starts in both host
   for (const part of [score("G,,4"), score("b'4")]) {
     assert.throws(() => player.configure({ score: part, instrument: "marimba" }), /110–1760/);
     assert.throws(() => playerModel.validateEnsemble([{ score: part, instrument: "marimba", volume: 50 }]), /110–1760/);
+  }
+  assert.equal(calls.length, 0);
+});
+
+test("xylophone range C4–C7 is enforced before audio starts in solo and ensemble", () => {
+  const xylophone = require("./sound-xylophone.js");
+  const { player, calls } = audioFixture();
+  const score = body => abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + body + " |]");
+  assert.deepEqual(playerModel.instrumentRange("xylophone"), [xylophone.MIN_HZ, xylophone.MAX_HZ]);
+  for (const valid of [score("C4"), score("c''4")]) {
+    assert.doesNotThrow(() => player.configure({ score: valid, instrument: "xylophone" }));
+    assert.doesNotThrow(() => playerModel.validateEnsemble([
+      { score: valid, instrument: "xylophone", volume: 50 }
+    ]));
+  }
+  for (const invalid of [score("G,4"), score("d''4")]) {
+    assert.throws(() => player.configure({ score: invalid, instrument: "xylophone" }), /outside (?:the )?xylophone range/);
+    assert.throws(() => playerModel.validateEnsemble([
+      { score: invalid, instrument: "xylophone", volume: 50 }
+    ]), /outside (?:the )?xylophone range/);
   }
   assert.equal(calls.length, 0);
 });
@@ -804,7 +829,7 @@ test("solo and ensemble guitars admit low open strings while other instrument bo
 
 test("buffer specifications and ending times match the actual shared instrument models", () => {
   const part = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]");
-  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "piano", "fmep", "chimes", "marimba"]) {
+  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "piano", "fmep", "chimes", "marimba", "xylophone"]) {
     const { player, context, calls } = audioFixture();
     context.sampleRate = rate;
     player.transientModel = transient;

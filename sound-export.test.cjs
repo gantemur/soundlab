@@ -272,6 +272,44 @@ test("four-part I0/I1 exports preserve mix levels while sharing noise and ringin
   cleaned(context);
 });
 
+test("I2a exports independent xylophone and marimba bar tails from both Compose modes", async () => {
+  const score = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]";
+  const x = fixture(), xResult = await exporter.render(solo({
+    abc: score, instrument: "xylophone"
+  }), x.deps);
+  assert.equal(x.modelCalls.length, 1);
+  assert.equal(x.modelCalls[0].kind, "xylophone");
+  assert.equal(x.modelCalls[0].decay, .32);
+  assert.deepEqual(x.modelCalls[0].settings, { velocity: .66 });
+  assert.equal(x.contexts[0].graph.sources.filter(source => source.kind === "buffer").length, 1);
+  const header = new DataView(xResult.bytes.buffer, xResult.bytes.byteOffset, xResult.bytes.byteLength);
+  assert.equal(header.getUint32(24, true), 44100);
+  assert.equal(header.getUint16(34, true), 16);
+  assert.equal(header.getUint16(22, true), 1);
+  assert.ok(xResult.duration > 2 && xResult.duration < 2.1, "The written bar is longer than its short ring");
+  cleaned(x.contexts[0]);
+
+  const mixed = fixture(), mixedResult = await exporter.render(arrangement([
+    track(1, "xylophone", score, { volume: 35 }),
+    track(2, "marimba", score, { volume: 45 }),
+    track(3, "piano", score, { volume: 25 }),
+    track(4, "flute", score, { volume: 20 })
+  ]), mixed.deps);
+  assert.deepEqual(mixed.modelCalls.map(item => item.kind), ["xylophone", "marimba", "piano"]);
+  assert.deepEqual(mixed.modelCalls.map(item => item.decay), [.32, .65, .8]);
+  assert.deepEqual(mixed.modelCalls[0].settings, { velocity: .66 });
+  assert.deepEqual(mixed.modelCalls[1].settings, { velocity: .62 });
+  const graph = mixed.contexts[0].graph;
+  const bars = graph.sources.filter(source => source.kind === "buffer" && !source.loop);
+  assert.equal(bars.length, 3);
+  assert.ok(bars[0].buffer.duration < bars[1].buffer.duration);
+  assert.equal(bars[0].gain.some(item => item[0] === "target"), false);
+  assert.equal(bars[1].gain.some(item => item[0] === "target"), false);
+  assert.ok(mixedResult.duration > xResult.duration, "The longer marimba tail fits in the same exported WAV");
+  assert.equal(graph.sources.some(source => source.kind === "oscillator"), true);
+  cleaned(mixed.contexts[0]);
+});
+
 test("trailing rests and fully muted or zero-volume projects preserve the full notation duration", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 | z4 | z4 |]";
   const withRest = fixture(), restResult = await exporter.render(solo({ abc: text, instrument: "guitar" }), withRest.deps);

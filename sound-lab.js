@@ -403,12 +403,12 @@
       mixBlocked: "Could not start sound. Check browser audio permission and try again.",
       mixInvalid: "Enter a first frequency between 120 and 1,000 Hz.",
       strikeChoose: "Choose a modeled sound",
-      pluck: "Guitar string", kick: "Drum", piano: "Piano", strikeGroupAria: "Transient sound model",
+      pluck: "Guitar", kick: "Drum", piano: "Piano", strikeGroupAria: "Transient sound model",
       strikeCaption: "Tap to sound; tap again to repeat",
       strikePluckButton: "Pluck", strikeStrumButton: "Strum", strikeKickButton: "Strike",
       strikePianoButton: "Press a key", strikePianoTapButton: "Tap",
       strikePianoTouchTitle: "How to play", strikePianoPress: "Press", strikePianoTap: "Tap",
-      strikePianoTypeTitle: "Instrument", strikePitched: "Pitched", strikeMarimba: "Marimba",
+      strikePianoTypeTitle: "Instrument", strikePitched: "Pitched", strikeMarimba: "Marimba", strikeXylophone: "Xylophone",
       strikePianoAcoustic: "Acoustic piano",
       strikePianoElectric: "Electric piano",
       strikePianoTouchHint: "Press models a held key with free decay. Tap is gentler and brings the damper back after a short press.",
@@ -416,8 +416,11 @@
       strikeDescElectric: "Electronic frequency modulation gives a metallic attack and a mellow, beating tail. Compare it with the acoustic piano model.",
       strikeDescChimes: "Strike a pitched chime and follow its bright, inharmonic ringing modes as they decay.",
       strikeDescMarimba: "A soft mallet excites a tuned wooden-bar model. Its upper modes fade faster than the rounded low note.",
+      strikeDescXylophone: "A harder mallet excites a brighter wooden-bar model. Compare its 1 : 3 : 6.16 modes and short ring with the marimba's softer 1 : 4 : 10 sound.",
       strikeMarimbaHint: "An original teaching model, not a recording: tuned bar modes, a soft mallet and a low-mode resonator. Strength changes both level and attack colour.",
       strikeMarimbaSpectrumHint: "The low bar modes are tuned near 1 : 4 : 10, rather than a complete harmonic series. The upper modes fade faster; these are illustrative parameters, not measurements.",
+      strikeXylophoneHint: "A modeled hard strike on a tuned wooden bar, not a recording. It has a brighter onset and shorter decay than the marimba; Strength changes level and overtone content.",
+      strikeXylophoneSpectrumHint: "The early bar modes follow approximate ratios 1 : 3 : 6.16 (one published bar example). Higher modes fade quickly; the chosen damping and strengths are illustrative.",
       strikePitchedChimesHint: "Choose a note, then strike once. The metal-like modes ring after the hit; there is no piano key or damper to hold.",
       strikeGuitarPlay: "Play guitar", strikeSingle: "One string", strikeStrum: "Several strings",
       strikeChord: "Strum a chord", strikeMoreChords: "More chords",
@@ -969,12 +972,12 @@
       mixBlocked: "Авиа эхэлсэнгүй. Хөтчийн дууны зөвшөөрлийг шалгаад дахин оролдоно уу.",
       mixInvalid: "Эхний давтамжийг 120–1,000 Гц-ийн хооронд оруулна уу.",
       strikeChoose: "Дууны загвар сонгох",
-      pluck: "Гитарын чавхдас", kick: "Бөмбөр", piano: "Төгөлдөр хуур", strikeGroupAria: "Цохилтын дууны загвар",
+      pluck: "Гитар", kick: "Бөмбөр", piano: "Төгөлдөр хуур", strikeGroupAria: "Цохилтын дууны загвар",
       strikeCaption: "Дарж сонсоод, дахин дарж давтаарай",
       strikePluckButton: "Татах", strikeStrumButton: "Цохих", strikeKickButton: "Цохих",
       strikePianoButton: "Товчлуур дарах", strikePianoTapButton: "Товших",
       strikePianoTouchTitle: "Тоглох арга", strikePianoPress: "Дарах", strikePianoTap: "Товших",
-      strikePianoTypeTitle: "Хөгжмийн зэмсэг", strikePitched: "Ноттой", strikeMarimba: "Маримба",
+      strikePianoTypeTitle: "Хөгжмийн зэмсэг", strikePitched: "Ноттой", strikeMarimba: "Маримба", strikeXylophone: "Ксилофон",
       strikePianoAcoustic: "Төгөлдөр хуур",
       strikePianoElectric: "Цахилгаан хуур",
       strikePianoTouchHint: "Дарахад товчлуурыг барьсан үеийн авиа чөлөөтэй намдана. Товшиход алх зөөлөн цохиж, намжаагч удахгүй буцна.",
@@ -982,8 +985,11 @@
       strikeDescElectric: "Давтамжийн модуляцтай цахим авиа эхэндээ тод, сүүлдээ зөөлөрч намдана. Ердийн төгөлдөр хууртай харьцуулаарай.",
       strikeDescChimes: "Ноттой хоолойт хонхыг цохиж, бүхэл тоон харьцаагүй тод хэлбэлзлүүд нь хэрхэн намдахыг ажиглаарай.",
       strikeDescMarimba: "Зөөлөн цохиураар хөглөсөн модон хавтанг цохих загвар. Дээд хэлбэлзлүүд нь нам, зөөлөн авианаасаа хурдан намдана.",
+      strikeDescXylophone: "Хатуу цохиур тод эхлэлтэй модон хавтанг хэлбэлзүүлнэ. 1 : 3 : 6.16 харьцаатай богино цуурайг маримбагийн 1 : 4 : 10-тай харьцуулаарай.",
       strikeMarimbaHint: "Бичлэг биш, сургалтын загвар: хөглөсөн модон хавтан, зөөлөн цохиур ба нам авианы резонатор. Цохилтын хүч нь дууны хэмжээ болон өнгийг өөрчилнө.",
       strikeMarimbaSpectrumHint: "Нам хэлбэлзлүүдийн давтамж ойролцоогоор 1 : 4 : 10 харьцаатай, бүх гармоник оролцохгүй. Дээд хэлбэлзлүүд хурдан намдана. Эдгээр нь хэмжилт биш, жишээ параметрүүд юм.",
+      strikeXylophoneHint: "Бичлэг биш, хатуу цохиуртай модон хавтангийн загвар. Маримбагаас тод эхлэлтэй, богино намдалттай; цохилтын хүч чанга болон өнгийг өөрчилнө.",
+      strikeXylophoneSpectrumHint: "Эхний хэлбэлзлүүд ойролцоогоор 1 : 3 : 6.16 харьцаатай (хэвлэгдсэн нэг хавтангийн жишээ). Дээд хэлбэлзлүүд хурдан намдана; хүч ба намдалтын утгууд нь сургалтын жишээ юм.",
       strikePitchedChimesHint: "Нотоо сонгоод нэг удаа цохино. Металл мэт хэлбэлзлүүд үргэлжлэн эгшиглэнэ; төгөлдөр хуурын товчлуур, намжаагч байхгүй.",
       strikeGuitarPlay: "Гитар тоглуулах", strikeSingle: "Нэг чавхдас", strikeStrum: "Олон чавхдас",
       strikeChord: "Аккорд цохих", strikeMoreChords: "Бусад аккорд",
@@ -1184,7 +1190,8 @@
     strikeGuitarPattern: "down",
     strikePluckPosition: .22,
     strikePianoVoice: "acoustic",
-    strikePitchByVoice: { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114, marimba: 220 },
+    strikePitchByVoice: { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114,
+      marimba: 220, xylophone: 523.251131 },
     strikePianoTouch: "press",
     strikeStrength: 55,
     strikeStrengthByKind: { pluck: 55, kick: 78, piano: 55 },
@@ -2594,31 +2601,42 @@
   }
 
   function strikeMaxPitch() {
+    if (state.strikeKind === "piano" && state.strikePianoVoice === "xylophone") {
+      return window.SoundLabXylophone.MAX_HZ;
+    }
     return state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? 1760 : 880;
+  }
+
+  function strikeMinPitch() {
+    return state.strikeKind === "piano" && state.strikePianoVoice === "xylophone" ?
+      window.SoundLabXylophone.MIN_HZ : 110;
   }
 
   function restoreStrikePitch() {
     const key = strikePitchKey();
     const stored = state.strikePitchByVoice[key];
-    state.strikePitch = state.strikeSnap ? model.snapFrequency(stored) : stored;
+    state.strikePitch = state.strikeSnap ?
+      Math.max(strikeMinPitch(), Math.min(strikeMaxPitch(), model.snapFrequency(stored))) : stored;
     state.strikePitchByVoice[key] = state.strikePitch;
   }
 
   function pitchedStrikeDecay() {
-    return { acoustic: .8, electric: .8, chimes: .7, marimba: .65 }[state.strikePianoVoice];
+    return { acoustic: .8, electric: .8, chimes: .7, marimba: .65, xylophone: .32 }[state.strikePianoVoice];
   }
 
   function strikeRecipe() {
     const pitchedChimes = state.strikeKind === "piano" && state.strikePianoVoice === "chimes";
     const marimba = state.strikeKind === "piano" && state.strikePianoVoice === "marimba";
-    return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : state.strikeKind, pitchHz: state.strikePitch,
+    const xylophone = state.strikeKind === "piano" && state.strikePianoVoice === "xylophone";
+    return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : xylophone ? "xylophone" :
+      state.strikeKind, pitchHz: state.strikePitch,
       decaySec: state.strikeDecay, kickSize: state.strikeDrumSize,
       options: {
         position: state.strikePluckPosition,
         drumVoice: pitchedChimes ? "chimes" : state.strikeDrumVoice,
         drumTension: state.strikeDrumTension,
         ...(pitchedChimes ? { chimeHz: state.strikePitch } : {}),
-        ...(marimba ? { velocity: state.strikeStrength / 100 } : {}),
+        ...(marimba || xylophone ? { velocity: state.strikeStrength / 100 } : {}),
         ...(isPianoStrike() ?
           { velocity: state.strikeStrength / 100, touch: state.strikePianoTouch,
             pianoVoice: state.strikePianoVoice } : {}),
@@ -2641,6 +2659,7 @@
     if (state.strikeKind === "piano") {
       if (state.strikePianoVoice === "chimes") return 8000;
       if (state.strikePianoVoice === "marimba") return Math.min(8000, Math.max(3000, state.strikePitch * 10.5));
+      if (state.strikePianoVoice === "xylophone") return Math.min(8000, Math.max(3000, state.strikePitch * 6.5));
       return Math.min(8000, Math.max(3000, state.strikePitch * 8.5));
     }
     if (state.strikeKind === "pluck") return state.strikeGuitarPlay === "strum" ? 4000 :
@@ -2686,7 +2705,8 @@
       woodblock: "strikeWoodSpectrumHint" };
     const hint = state.strikeKind === "kick" ? voiceHints[state.strikeDrumVoice] :
       state.strikeKind === "piano" && state.strikePianoVoice === "chimes" ? "strikeChimesSpectrumHint" :
-      state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? "strikeMarimbaSpectrumHint" : null;
+      state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? "strikeMarimbaSpectrumHint" :
+      state.strikeKind === "piano" && state.strikePianoVoice === "xylophone" ? "strikeXylophoneSpectrumHint" : null;
     $("strikeSpectrumHint").textContent = text(state.strikeSpectrumView === "local" ?
       hint || "strikeSpectrumHint" : "strikeSpectrumWholeHint");
   }
@@ -4561,9 +4581,12 @@
 
   function renderStrikeControls() {
     const maxPitch = strikeMaxPitch();
-    $("strikeFrequencySlider").value = String(Math.round(1000 * Math.log(state.strikePitch / 110) / Math.log(maxPitch / 110)));
+    const minPitch = strikeMinPitch();
+    $("strikeFrequencySlider").value = String(Math.round(1000 * Math.log(state.strikePitch / minPitch) / Math.log(maxPitch / minPitch)));
     $("strikeFrequencyInput").value = String(Number(state.strikePitch.toFixed(2)));
+    $("strikeFrequencyInput").min = String(minPitch);
     $("strikeFrequencyInput").max = String(maxPitch);
+    $("strikePitchMin").textContent = hzText(minPitch);
     $("strikePitchMax").textContent = hzText(maxPitch);
     const note = model.nearestNote(state.strikePitch);
     const differenceCents = 1200 * Math.log2(state.strikePitch / note.frequency);
@@ -4578,7 +4601,7 @@
     $("strikePianoPlayModes").hidden = !isPianoStrike();
     $("strikePianoHint").hidden = state.strikeKind !== "piano";
     $("strikePianoHint").textContent = text({ acoustic: "strikePianoTouchHint", electric: "strikePianoElectricHint",
-      chimes: "strikePitchedChimesHint", marimba: "strikeMarimbaHint" }[state.strikePianoVoice]);
+      chimes: "strikePitchedChimesHint", marimba: "strikeMarimbaHint", xylophone: "strikeXylophoneHint" }[state.strikePianoVoice]);
     $("strikeButton").hidden = state.strikeKind !== "kick" && (state.strikeKind !== "piano" || isPianoStrike());
     $("strikeChordGroup").hidden = state.strikeKind !== "pluck";
     $("strikeGuitarPattern").value = state.strikeGuitarPattern;
@@ -4602,7 +4625,8 @@
     $("strikeStrengthValue").textContent = state.strikeStrength + "%";
     $("strikeDecay").value = String(state.strikeDecay);
     $("strikeDecayValue").textContent = secondsText(state.strikeDecay);
-    const pitchedDescription = { electric: "strikeDescElectric", chimes: "strikeDescChimes", marimba: "strikeDescMarimba" }[state.strikePianoVoice];
+    const pitchedDescription = { electric: "strikeDescElectric", chimes: "strikeDescChimes",
+      marimba: "strikeDescMarimba", xylophone: "strikeDescXylophone" }[state.strikePianoVoice];
     $("strikeDescription").textContent = state.strikeKind === "piano" && pitchedDescription ?
       text(pitchedDescription) : text("strikeDesc")[state.strikeKind];
     $("strikeButtonLabel").textContent = text("strikeKickButton");
@@ -4938,13 +4962,14 @@
 
   function setStrikePitch(value) {
     const hz = Number(value);
-    if (!Number.isFinite(hz) || hz < 110 || hz > strikeMaxPitch()) {
+    if (!Number.isFinite(hz) || hz < strikeMinPitch() || hz > strikeMaxPitch()) {
       setStrikeStatus("strikeInvalid", true);
       renderStrikeControls();
       return;
     }
     stopStrikeForEdit();
-    state.strikePitch = state.strikeSnap ? model.snapFrequency(hz) : hz;
+    state.strikePitch = state.strikeSnap ?
+      Math.max(strikeMinPitch(), Math.min(strikeMaxPitch(), model.snapFrequency(hz))) : hz;
     state.strikePitchByVoice[strikePitchKey()] = state.strikePitch;
     if (state.strikeStatus === "strikeInvalid") setStrikeStatus("strikeReady");
     renderStrikeControls();
@@ -5004,7 +5029,8 @@
     state.strikeGuitarPattern = "down";
     state.strikePluckPosition = .22;
     state.strikePianoVoice = "acoustic";
-    state.strikePitchByVoice = { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114, marimba: 220 };
+    state.strikePitchByVoice = { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114,
+      marimba: 220, xylophone: 523.251131 };
     state.strikePianoTouch = "press";
     state.strikeStrength = 55;
     state.strikeStrengthByKind = { pluck: 55, kick: 78, piano: 55 };
@@ -7499,7 +7525,8 @@
   $("sustainReset").addEventListener("click", resetSustain);
   $("strikeButton").addEventListener("click", () => triggerStrike("kick"));
   $("strikeFrequencySlider").addEventListener("input", event => {
-    setStrikePitch(110 * Math.pow(strikeMaxPitch() / 110, Number(event.target.value) / 1000));
+    setStrikePitch(strikeMinPitch() * Math.pow(strikeMaxPitch() / strikeMinPitch(),
+      Number(event.target.value) / 1000));
   });
   $("strikeFrequencyInput").addEventListener("change", event => setStrikePitch(event.target.value));
   $("strikeSnap").addEventListener("change", event => {
@@ -7522,13 +7549,14 @@
   });
   $("strikePianoType").addEventListener("change", event => {
     const voice = event.target.value;
-    if (!["acoustic", "electric", "chimes", "marimba"].includes(voice) || voice === state.strikePianoVoice) return;
+    if (!["acoustic", "electric", "chimes", "marimba", "xylophone"].includes(voice) ||
+        voice === state.strikePianoVoice) return;
     stopStrikeForEdit();
     state.strikePitchByVoice[strikePitchKey()] = state.strikePitch;
     state.strikePianoVoice = voice;
     restoreStrikePitch();
     state.strikeDecay = pitchedStrikeDecay();
-    state.strikeStrength = voice === "marimba" ? 62 : 55;
+    state.strikeStrength = voice === "marimba" ? 62 : voice === "xylophone" ? 66 : 55;
     state.strikeStrengthByKind.piano = state.strikeStrength;
     setStrikeStatus("strikeReady");
     renderStrikeControls();

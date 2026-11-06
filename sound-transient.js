@@ -8,19 +8,21 @@
   const piano = typeof module === "object" && module.exports ? require("./sound-piano.js") : root.SoundLabPiano;
   const fm = typeof module === "object" && module.exports ? require("./sound-fm.js") : root.SoundLabFM;
   const marimba = typeof module === "object" && module.exports ? require("./sound-marimba.js") : root.SoundLabMarimba;
-  const model = makeModel(strings, piano, fm, marimba);
+  const xylophone = typeof module === "object" && module.exports ? require("./sound-xylophone.js") : root.SoundLabXylophone;
+  const model = makeModel(strings, piano, fm, marimba, xylophone);
   if (typeof module === "object" && module.exports) module.exports = model;
   if (root) root.SoundLabTransientModel = model;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm, marimba) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm, marimba, xylophone) {
   "use strict";
 
   if (!strings) throw new Error("String synthesis must load before transient synthesis");
   if (!piano) throw new Error("Piano synthesis must load before transient synthesis");
   if (!fm) throw new Error("FM synthesis must load before transient synthesis");
   if (!marimba) throw new Error("Marimba synthesis must load before transient synthesis");
+  if (!xylophone) throw new Error("Xylophone synthesis must load before transient synthesis");
 
   const TAU = 2 * Math.PI;
-  const KINDS = Object.freeze(["pluck", "kick", "piano", "marimba"]);
+  const KINDS = Object.freeze(["pluck", "kick", "piano", "marimba", "xylophone"]);
   const MIN_PITCH_HZ = 110;
   const MAX_PITCH_HZ = 880;
   const MIN_DECAY = 0.12;
@@ -65,6 +67,8 @@
     }
     if (kind === "marimba") marimba.validate(pitchHz, decaySec,
       options.velocity ?? marimba.DEFAULT_VELOCITY, options.sampleRate ?? marimba.REFERENCE_RATE);
+    if (kind === "xylophone") xylophone.validate(pitchHz, decaySec,
+      options.velocity ?? xylophone.DEFAULT_VELOCITY, options.sampleRate ?? xylophone.REFERENCE_RATE);
     if (kind === "kick" && (!Object.hasOwn(KICK_SIZES, kickSize) ||
         !DRUM_VOICES.includes(options.drumVoice ?? "membrane") ||
         !Number.isFinite(options.drumTension ?? 1) ||
@@ -91,6 +95,8 @@
     if (time <= 0) return 0;
     if (kind === "marimba") return marimba.envelope(time, decaySec,
       options.velocity ?? marimba.DEFAULT_VELOCITY);
+    if (kind === "xylophone") return xylophone.envelope(time, decaySec,
+      options.velocity ?? xylophone.DEFAULT_VELOCITY);
     if (kind === "piano") return options.pianoVoice === "electric" ?
       fm.envelopeAt(time, decaySec, options.velocity ?? .55, options.touch ?? "press") :
       piano.envelope(time, decaySec, options.touch ?? "press");
@@ -234,6 +240,8 @@
     }
     if (kind === "marimba") return marimba.sampleAt(time, pitchHz, decaySec,
       options.velocity ?? marimba.DEFAULT_VELOCITY, options.sampleRate ?? marimba.REFERENCE_RATE);
+    if (kind === "xylophone") return xylophone.sampleAt(time, pitchHz, decaySec,
+      options.velocity ?? xylophone.DEFAULT_VELOCITY, options.sampleRate ?? xylophone.REFERENCE_RATE);
     if (options.pianoVoice === "electric") return fm.sampleAt(time, pitchHz,
       options.sampleRate ?? 48000, { decaySec, velocity: options.velocity ?? .55,
         touch: options.touch ?? "press" });
@@ -267,8 +275,9 @@
     const count = Math.ceil(seconds * sampleRate);
     const samples = new Float32Array(count);
     // Supply the playback sample rate to models with sample-rate-aware mode
-    // suppression. Marimba's fixed band cap also matches the 16 kHz plots.
-    const modelOptions = kind === "marimba" || (kind === "piano" && options.pianoVoice === "electric") ?
+    // suppression. Tuned bars' fixed band caps also match the 16 kHz plots.
+    const modelOptions = kind === "marimba" || kind === "xylophone" ||
+      (kind === "piano" && options.pianoVoice === "electric") ?
       { ...options, sampleRate } : options;
     for (let i = 0; i < count; i++) {
       const time = i / sampleRate;

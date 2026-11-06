@@ -113,6 +113,27 @@ test("I0/I1 preserves old instrument IDs and adds marimba without a project sche
   assert.equal(decoded.content.tracks[2].abc, compose.EXAMPLES.first);
 });
 
+test("I2a stores xylophone and marimba as distinct version-1 solo and ensemble instruments", () => {
+  assert.equal(codec.VERSION, 1);
+  assert.equal(compose.UI.en.xylophone, "Xylophone");
+  assert.equal(compose.UI.mn.xylophone, "Ксилофон");
+  const single = solo({ instrument: "xylophone" });
+  assert.deepEqual(codec.decode(codec.encode(single)), single);
+  const previous = solo({ instrument: "marimba" });
+  assert.deepEqual(codec.decode(codec.encode(previous)), previous);
+  const project = arrangement();
+  project.content.tracks = ["xylophone", "marimba", "piano", "flute"].map((instrument, index) => ({
+    id: index + 1, name: instrument, instrument, abc: compose.EXAMPLES.first,
+    volume: 50, mute: index === 2, solo: false
+  }));
+  project.content.selectedId = 1;
+  project.content.nextId = 5;
+  const decoded = codec.decode(codec.encode(project));
+  assert.deepEqual(decoded.content.tracks.map(item => item.instrument),
+    ["xylophone", "marimba", "piano", "flute"]);
+  assert.equal(decoded.content.tracks[2].mute, true);
+});
+
 test("track ordering, IDs, mix settings and editor choices round-trip", () => {
   const project = arrangement();
   project.title = "Өөрчлөлт";
