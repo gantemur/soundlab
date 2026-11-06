@@ -573,6 +573,7 @@ h1, h2, p { margin-top: 0; }
 .explanation summary { cursor: pointer; font-size: 13px; color: #345d86; font-weight: 800; }
 .explanation p { max-width: 850px; font-size: 13px; line-height: 1.65; margin: 13px 0 0; }
 .footer { max-width: 1320px; margin: auto; padding: 4px 26px 32px; display: flex; justify-content: space-between; gap: 16px; color: #8294a7; font-size: 11px; flex-wrap: wrap; }
+.footer a { color: inherit; text-underline-offset: 2px; }
 
 @media (max-width: 990px) {
   .workspace { grid-template-columns: minmax(300px, 350px) minmax(0, 1fr); gap: 12px; }

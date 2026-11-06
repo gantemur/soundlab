@@ -62,10 +62,15 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-compose\.js\?v=s053"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
   assert.match(html, /src="sound-ensemble\.js\?v=s053"/);
-  assert.match(html, /src="sound-lab\.js\?v=s045"/);
+  assert.match(html, /src="sound-lab\.js\?v=s054"/);
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s052"/);
+  assert.match(html, /href="sound-lab\.css\?v=s054"/);
+  assert.match(html, /id="langMn"[^>]*>MN<\/button>[\s\S]*id="langEn"[^>]*>EN<\/button>/);
+  assert.match(html, /href="LICENSE" data-i18n="licenseLink"/);
+  assert.match(html, /data-i18n="designCredit">Гантөмөрийн бүтээл/);
+  assert.doesNotMatch(html, /data-i18n="future"/);
+  assert.match(browserCode, /designCredit: "Designed by Gantumur", licenseLink: "App code: MIT License"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
   assert.match(html, /src="sound-recorder\.js"/);

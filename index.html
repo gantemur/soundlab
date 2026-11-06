@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s052">
+  <link rel="stylesheet" href="sound-lab.css?v=s054">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -32,7 +32,7 @@
   <script src="sound-compose.js?v=s053" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
   <script src="sound-ensemble.js?v=s053" defer></script>
-  <script src="sound-lab.js?v=s045" defer></script>
+  <script src="sound-lab.js?v=s054" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -45,8 +45,8 @@
       </div>
       <div class="top-actions">
         <div class="lang-group" role="group" aria-label="Interface language">
-          <button class="lang-option" id="langEn" type="button" aria-pressed="false">EN</button>
           <button class="lang-option active" id="langMn" type="button" aria-pressed="true">MN</button>
+          <button class="lang-option" id="langEn" type="button" aria-pressed="false">EN</button>
         </div>
         <div class="record-anchor">
           <button id="recordButton" type="button" class="record-button" aria-pressed="false" aria-label="Бичлэг эхлэх" title="Бичлэг эхлэх">
@@ -1703,7 +1703,7 @@
 
   <footer class="footer">
     <span data-i18n="footer">Дууны лаборатори · Дуу, бичлэг зөвхөн таны төхөөрөмж дээр байна. Хаашаа ч илгээхгүй.</span>
-    <span data-i18n="future">More sounds and music-making are planned.</span>
+    <span><span data-i18n="designCredit">Гантөмөрийн бүтээл</span> · <a href="LICENSE" data-i18n="licenseLink">Программын код: MIT лиценз</a></span>
   </footer>
 </body>
 </html>
