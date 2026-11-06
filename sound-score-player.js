@@ -24,6 +24,14 @@
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
+  // Approximate relative loudness calibration for Ensemble only. The source
+  // models have very different native RMS levels (especially periodic waves,
+  // piano/FM and plucked courses). Keep each track fader linear and separate;
+  // Solo/Explore retain their established playback levels.
+  const ENSEMBLE_VOICE_GAIN = Object.freeze({
+    mandolin: 2.1, xylophone: 1.4, piano: .56, chimes: .65, fmep: .38,
+    sine: .30, triangle: .36, square: .30, sawtooth: .50
+  });
   const HELD_INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin"]);
   const INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", "guitar", "mandolin", "piano", "chimes", "marimba", "xylophone",
     ...WAVEFORMS, "fmep"]);
@@ -437,8 +445,9 @@
       const context = this.context;
       const instrument = settings?.instrument || this.instrument;
       const volume = settings?.volume ?? this.volume;
+      const balance = this.instrument === "ensemble" ? (ENSEMBLE_VOICE_GAIN[instrument] ?? 1) : 1;
       const level = Math.min(.35, .19 * volume / 100 * (instrument === "piano" ? 2.35 : 1)) /
-        Math.sqrt(event.chordSize || 1);
+        Math.sqrt(event.chordSize || 1) * balance;
       const output = settings?.output || this.outputBus || this.contextOwner.output;
       if (HELD_INSTRUMENTS.includes(instrument)) {
         let voice;
@@ -640,7 +649,7 @@
     }
   }
 
-  return Object.freeze({ INSTRUMENTS, GUITAR_MODES, DEFAULT_GUITAR, AHEAD_SECONDS,
+  return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, AHEAD_SECONDS,
     MAX_PARTS, MAX_ENSEMBLE_EVENTS,
     noteFrequency, instrumentRange, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

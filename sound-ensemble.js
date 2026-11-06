@@ -26,17 +26,18 @@
       square: "Дөрвөлжин", sawtooth: "Хөрөө", fmep: "Цахилгаан хуур" }
   });
   const TEXT = Object.freeze({
-    en: { heading: "Play several instruments", intro: "Each track has its own ABC score and instrument; every part shares one beat and tempo.",
+    en: { heading: "Play several instruments", intro: "Tracks share one beat. Selecting a track edits it; Play sounds all unmuted tracks. Use Solo to hear just one.",
       tuning: "Tuning", equal: "Equal (12-TET)", pythagorean: "Pythagorean", just: "Just · C-centred",
       presets: "Arrangement examples", loadPreset: "Load", presetHint: "Load replaces the current arrangement. You can edit every instrument's ABC afterward.",
       presetStudies: "Writing exercises", presetClassics: "Classical music",
       presetWestern: "European folk songs", presetRussian: "Russian folk and historical songs",
       presetPopular: "Historical popular songs",
       add: "+ Add melody", addDrums: "+ Add drums", drums: "Drums", play: "▶ Play ensemble", pause: "Ⅱ Pause", resume: "▶ Resume", stop: "■ Stop",
-      ready: "Ready. Choose a track or press Play.", playing: "Playing all active tracks.",
+       ready: "Ready. Select a track to edit, or press Play.", playing: "Playing all active tracks.",
       starting: "Starting instruments…", paused: "Paused. Press Resume to continue.",
       stopped: "Stopped. Play starts from the beginning.",
-      track: "Track", name: "Name", choose: "Edit", remove: "Remove", mute: "Mute", unmute: "Unmute",
+       track: "Track", name: "Name", choose: "Edit", editHint: "Select to edit, not to solo. Use Solo to hear only this track.",
+       remove: "Remove", mute: "Mute", unmute: "Unmute",
       solo: "Solo", unsolo: "Unsolo", volume: "Volume", instrument: "Instrument",
       guitarTechnique: "Guitar technique", guitarPluck: "Pluck together",
       guitarDown: "↓ Downstroke", guitarUp: "↑ Upstroke", guitarAlternate: "↓↑ Alternating strokes",
@@ -64,17 +65,18 @@
       now: "Beat", selected: "Selected", maxTracks: "Four tracks is the current maximum.",
       minTracks: "Keep at least one track.", fileError: "Choose a .abc / .txt score up to 8 KB.",
       error: "Score error", trackError: "Track", noAudio: "Sound could not start. Check audio settings." },
-    mn: { heading: "Олон хөгжим тоглуулах", intro: "Хөгжим тус бүр өөрийн ABC ноттой. Бүгд нэг хэмнэл, хурдтай зэрэг тоглоно.",
+    mn: { heading: "Олон хөгжим тоглуулах", intro: "Бүгд нэг хэмнэлтэй. Хөгжим сонговол нотыг нь засна; тоглуулахад дуугүй болгоогүй бүгд дуугарна. «Ганцаар» нэгийг сонсгоно.",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын", just: "Цэвэр · До төвтэй",
       presets: "Бэлэн найруулга", loadPreset: "Нээх", presetHint: "Нээхэд одоогийн нотууд солигдоно. Хөгжим тус бүрийн ABC-г өөрчилж болно.",
       presetStudies: "Нот бичих дасгал", presetClassics: "Сонгодог хөгжим",
       presetWestern: "Европ ардын дуунууд", presetRussian: "Орос ардын болон түүхэн дуунууд",
       presetPopular: "Хуучны нийтийн дуунууд",
       add: "+ Аялгуу нэмэх", addDrums: "+ Бөмбөр нэмэх", drums: "Бөмбөр", play: "▶ Тоглуулах", pause: "Ⅱ Түр зогсоох", resume: "▶ Үргэлжлүүлэх", stop: "■ Зогсоох",
-      ready: "Бэлэн. Хөгжим сонгох эсвэл тоглуулаарай.", playing: "Сонгосон хөгжмүүд зэрэг тоглож байна.",
+       ready: "Бэлэн. Засах хөгжмөө сонгох эсвэл тоглуулаарай.", playing: "Идэвхтэй хөгжмүүд зэрэг тоглож байна.",
       starting: "Хөгжмүүдийг бэлдэж байна…", paused: "Түр зогслоо. Үргэлжлүүлж болно.",
       stopped: "Зогслоо. Дахин тоглуулахад эхнээсээ эхэлнэ.",
-      track: "Хөгжим", name: "Нэр", choose: "Засах", remove: "Хасах", mute: "Дуугүй", unmute: "Дуутай",
+       track: "Хөгжим", name: "Нэр", choose: "Засах", editHint: "Засах хөгжмөө сонгоно. Дангаар сонсох бол «Ганцаар».",
+       remove: "Хасах", mute: "Дуугүй", unmute: "Дуутай",
       solo: "Ганцаар", unsolo: "Хамт", volume: "Чанга", instrument: "Зэмсэг",
       guitarTechnique: "Гитар тоглох арга", guitarPluck: "Зэрэг татах",
       guitarDown: "↓ Доош цохих", guitarUp: "↑ Дээш цохих", guitarAlternate: "↓↑ Ээлжлэн цохих",
@@ -440,6 +442,7 @@
         const select = this.make("button", "ensemble-select", (track.id === this.selectedId ? "✎ " : "") + track.name, title);
         select.type = "button";
         select.setAttribute("aria-pressed", String(track.id === this.selectedId));
+        select.title = this.t("editHint");
         select.addEventListener("click", () => this.selectTrack(track.id));
         const remove = this.make("button", "ensemble-remove", "×", title);
         remove.type = "button";

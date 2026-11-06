@@ -27,6 +27,10 @@
   const COURSE_DETUNE_CENTS = 1.6;
   const STROKE_INTERVAL = .105;
   const STROKE_COUNT = 8;
+  // A fixed inter-string pick delay can put the two course fundamentals nearly
+  // out of phase at some pitches. Compensate the resulting gross loudness dip
+  // without changing either string, its detuning, or its transient timing.
+  const REFERENCE_RMS = .095;
   const ARTICULATIONS = Object.freeze(["pick", "tremolo"]);
   const cache = new Map();
 
@@ -106,6 +110,20 @@
       const body = .72 * antiAlias + .22 * (mid - low) + .14 * low;
       result[i] = Math.max(-.94, Math.min(.94, gain * body));
     }
+    // Calibrate only the overall level, using an early 10–300 ms window.
+    // Velocity still controls the target level and the excitation spectrum.
+    // Keep headroom instead of hard-clipping a dynamically amplified course.
+    let energy = 0, peak = 0;
+    const start = Math.round(.01 * RATE), end = Math.min(frames, Math.round(.30 * RATE));
+    for (let i = 0; i < frames; i++) {
+      peak = Math.max(peak, Math.abs(result[i]));
+      if (i >= start && i < end) energy += result[i] * result[i];
+    }
+    const measured = Math.sqrt(energy / Math.max(1, end - start));
+    const target = REFERENCE_RMS * Math.pow(velocity / DEFAULT_VELOCITY, .8);
+    const correction = Math.min(3.5, target / Math.max(measured, 1e-6),
+      .90 / Math.max(peak, 1e-6));
+    for (let i = 0; i < frames; i++) result[i] *= correction;
     return result;
   }
 

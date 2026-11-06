@@ -7,6 +7,9 @@ const ensemble = require("./sound-ensemble.js");
 const playerModel = require("./sound-score-player.js");
 const sustain = require("./sound-sustain.js");
 const transient = require("./sound-transient.js");
+const fm = require("./sound-fm.js");
+const marimba = require("./sound-marimba.js");
+const xylophone = require("./sound-xylophone.js");
 const temperament = require("./sound-temperaments.js");
 const ensemblePresets = require("./sound-ensemble-presets.js");
 
@@ -164,7 +167,7 @@ test("the stable pitched instrument list has bilingual labels including Mandolin
   }
 });
 
-test("acoustic score piano gets an RMS level correction; FM piano retains its gain", async () => {
+test("ensemble calibrates acoustic and FM piano levels without changing their track faders", async () => {
   const abcText = "M:4/4\nL:1/4\nQ:1/4=96\nK:C\nC D E F |]";
   const score = abc.parse(abcText);
   const { context, synth } = fixture();
@@ -174,12 +177,45 @@ test("acoustic score piano gets an RMS level correction; FM piano retains its ga
   ] });
   await synth.play();
   const notes = context.gains.slice(3);
+  assert.deepEqual(synth.buses.map(bus => bus.gain.value), [.5, .5],
+    "Track volume sliders remain linear, independent of voice calibration");
   synth.stop();
   assert.equal(notes.length, 2);
-  assert.ok(notes[0].gain.records.some(item => item[0] === "set" && Math.abs(item[1] - .35) < 1e-9),
-    "Acoustic note gain is boosted and capped");
-  assert.ok(notes[1].gain.records.some(item => item[0] === "set" && Math.abs(item[1] - .19) < 1e-9),
-    "FM note retains its level");
+  assert.ok(notes[0].gain.records.some(item => item[0] === "set" &&
+    Math.abs(item[1] - .35 * playerModel.ENSEMBLE_VOICE_GAIN.piano) < 1e-9),
+  "Acoustic piano voice has its ensemble-only balance gain");
+  assert.ok(notes[1].gain.records.some(item => item[0] === "set" &&
+    Math.abs(item[1] - .19 * playerModel.ENSEMBLE_VOICE_GAIN.fmep) < 1e-9),
+  "FM piano voice has its ensemble-only balance gain");
+  assert.deepEqual(synth.buses, [], "Stopping releases the per-track faders");
+});
+
+test("reference pitched models have comparable early RMS in ensemble at equal track volumes", () => {
+  const hz = 440, sampleRate = 16000;
+  const voices = [
+    ["guitar", transient.makeSamples("pluck", hz, .65, sampleRate, "medium", { position: .22 })],
+    ["mandolin", transient.makeSamples("mandolin", hz, .52, sampleRate, "medium", { velocity: .64, articulation: "pick" })],
+    ["marimba", transient.makeSamples("marimba", hz, marimba.DEFAULT_DECAY, sampleRate, "medium", { velocity: marimba.DEFAULT_VELOCITY })],
+    ["xylophone", transient.makeSamples("xylophone", hz, xylophone.DEFAULT_DECAY, sampleRate, "medium", { velocity: xylophone.DEFAULT_VELOCITY })],
+    ["piano", transient.makeSamples("piano", hz, .8, sampleRate, "medium", { velocity: .62, touch: "press" })],
+    ["chimes", transient.makeSamples("kick", hz, .7, sampleRate, "medium", { drumVoice: "chimes", chimeHz: hz })],
+    ["fmep", fm.makeElectricPianoSamples(hz, sampleRate)]
+  ];
+  const levels = voices.map(([instrument, samples]) => {
+    let energy = 0;
+    for (let index = sampleRate * .01; index < sampleRate * .3; index++) energy += samples[index] ** 2;
+    const rms = Math.sqrt(energy / (sampleRate * .29));
+    const gain = (instrument === "piano" ? .35 : .19) *
+      (playerModel.ENSEMBLE_VOICE_GAIN[instrument] ?? 1);
+    return [instrument, rms * gain];
+  });
+  const output = levels.map(([, level]) => level);
+  assert.ok(Math.max(...output) / Math.min(...output) < 1.4,
+    `Default melodic voices should not swamp one another: ${JSON.stringify(levels)}`);
+  // Waveform parts such as the default Bass are deliberately attenuated too.
+  const triangleRms = .19 * playerModel.ENSEMBLE_VOICE_GAIN.triangle / Math.sqrt(3);
+  const mandolinRms = levels.find(([name]) => name === "mandolin")[1];
+  assert.ok(mandolinRms > triangleRms * .8 && mandolinRms < triangleRms * 1.2);
 });
 
 test("C2C percussion attacks use the same audio clock and recorder bus as melody", async t => {

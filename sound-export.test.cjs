@@ -462,7 +462,8 @@ test("ensemble scheduling preserves strums, instrument gains, track volumes, per
     const level = source.gain.find(item => item[0] === "set")[1];
     if (event.type === "drum") close(level, .32 * event.velocity);
     else {
-      close(level, (part.instrument === "piano" ? .35 : .19) / Math.sqrt(event.chordSize || 1));
+      close(level, (part.instrument === "piano" ? .35 : .19) *
+        (players.ENSEMBLE_VOICE_GAIN[part.instrument] ?? 1) / Math.sqrt(event.chordSize || 1));
       close(source.buffer.recipe.hz, players.noteFrequency(event, "just", temperament));
     }
   });

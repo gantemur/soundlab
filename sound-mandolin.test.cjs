@@ -44,6 +44,18 @@ test("Mandolin strength alters brightness as well as energy", () => {
   assert.ok(Math.abs(ratioA - ratioB) > .001);
 });
 
+test("Mandolin course cancellations no longer swallow notes in the ordinary melody range", () => {
+  const levels = [196, 261.625565, 440, 659.255114].map(hz =>
+    rms(mandolin.wave(hz), .01, .30));
+  const spread = Math.max(...levels) / Math.min(...levels);
+  assert.ok(spread < 1.2, `G3–E5 note levels should remain close: ${levels}`);
+  for (const hz of [196, 261.625565, 440, 659.255114, 1318]) {
+    const samples = mandolin.wave(hz);
+    assert.ok(samples.every(Number.isFinite));
+    assert.ok(samples.every(value => Math.abs(value) <= .9), `${hz} Hz exceeded headroom`);
+  }
+});
+
 test("Tremolo is eight offset re-excitations and decays within the same safe note tail", () => {
   const pick = mandolin.wave(440, .52, .64, 48000, "pick");
   const tremolo = mandolin.wave(440, .52, .64, 48000, "tremolo");
