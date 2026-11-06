@@ -77,6 +77,7 @@
       modePure: "Pure tones", modeStrike: "Strike/Pluck", modeSustain: "Blow/Bow", modeMotion: "Moving pitch",
       modeMix: "Combine waves", modeTuning: "Tuning", modeCompose: "Compose",
       composeSolo: "Single instrument", composeEnsemble: "Many instruments",
+      composeModesAria: "Compose mode",
       modeSwitchAria: "Sound categories",
       pureExperimentsAria: "Wave shapes and timbre experiments",
       pureExperimentWaves: "Waveforms", pureExperimentHarmonics: "Build timbre",
@@ -635,6 +636,7 @@
       modePure: "Цэвэр авиа", modeStrike: "Цохих/татах", modeSustain: "Үлээх/нумдах", modeMotion: "Хувирдаг давтамж",
       modeMix: "Долгион холих", modeTuning: "Хөг", modeCompose: "Ая зохиох",
       composeSolo: "Нэг хөгжим", composeEnsemble: "Олон хөгжим",
+      composeModesAria: "Ая зохиох горим",
       modeSwitchAria: "Дууны бүлэг",
       pureExperimentsAria: "Долгионы хэлбэр ба өнгөний туршилтууд",
       pureExperimentWaves: "Долгионы хэлбэр", pureExperimentHarmonics: "Өнгө бүтээх",
@@ -4415,7 +4417,6 @@
     $("pureWorkspace").hidden = !isWaves;
     $("pureChallenge").hidden = !isWaves;
     $("pureExplanation").hidden = !isWaves;
-    $("composeSubtabs").hidden = !isCompose;
     $("projectToolbar").hidden = !isCompose;
     $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";
     $("composeEnsembleWorkspace").hidden = !isCompose || state.composeSubtab !== "ensemble";
@@ -4938,12 +4939,19 @@
     drawPlots();
   }
 
-  function selectComposeSubtab(subtab) {
+  function selectComposeSubtab(subtab, focusPicker = false) {
     if (!["solo", "ensemble"].includes(subtab) || subtab === state.composeSubtab) return;
     stopAllAudio();
     state.composeSubtab = subtab;
     if (projectFiles) projectFiles.modeChanged();
     renderMode();
+    // The active card owns its picker. Keep keyboard focus in the newly visible
+    // card instead of leaving it on a button in the now-hidden workspace.
+    if (focusPicker) {
+      const button = Array.from(document.querySelectorAll("[data-compose-subtab]")).find(choice =>
+        choice.dataset.composeOwner === subtab && choice.dataset.composeSubtab === subtab);
+      if (button) button.focus({ preventScroll: true });
+    }
   }
 
   function selectPureKind(kind) {
@@ -7446,7 +7454,7 @@
   $("modeTuning").addEventListener("click", () => selectMode("tuning"));
   $("modeCompose").addEventListener("click", () => selectMode("compose"));
   document.querySelectorAll("[data-compose-subtab]").forEach(button =>
-    button.addEventListener("click", () => selectComposeSubtab(button.dataset.composeSubtab)));
+    button.addEventListener("click", () => selectComposeSubtab(button.dataset.composeSubtab, true)));
   const sustainPad = $("sustainHoldButton");
   sustainPad.addEventListener("pointerdown", event => {
     if (state.mode !== "sustain" || event.button > 0 || sustainPointerId !== null) return;

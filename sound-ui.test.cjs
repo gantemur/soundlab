@@ -68,7 +68,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s056"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
-  assert.match(html, /src="sound-lab\.js\?v=s057"/);
+  assert.match(html, /src="sound-lab\.js\?v=s057b"/);
   assert.ok(html.indexOf('src="sound-wav.js') < html.indexOf('src="sound-recorder.js'));
   assert.ok(html.indexOf('src="sound-project.js') < html.indexOf('src="sound-export.js'));
   assert.ok(html.indexOf('src="sound-export.js') < html.indexOf('src="sound-export-ui.js'));
@@ -77,7 +77,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s057"/);
+  assert.match(html, /href="sound-lab\.css\?v=s057b"/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
   assert.match(html, /id="projectName"[^>]*maxlength="120"/);
   assert.match(html, /id="projectFile"[^>]*type="file"[^>]*accept="[^"]*\.soundlab\.json/);
@@ -170,9 +170,10 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="noiseWorkspace"[^>]*hidden/);
   assert.match(html, /id="modeCompose"[^>]*data-i18n="modeCompose"/);
   assert.match(html, /id="composeWorkspace"[^>]*hidden/);
-  assert.match(html, /id="composeSubtabs"[^>]*hidden/);
+  assert.match(html, /id="composeSubtabs"[^>]*data-i18n-aria="composeModesAria"/);
+  assert.match(html, /id="ensembleSubtabs"[^>]*data-i18n-aria="composeModesAria"/);
   assert.match(html, /id="composeEnsembleWorkspace"[^>]*hidden/);
-  assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 2);
+  assert.equal([...html.matchAll(/data-compose-subtab="/g)].length, 4);
   for (const group of ["exampleStudies", "exampleClassics", "exampleWestern", "examplePopular", "exampleRussian"]) {
     assert.match(html, new RegExp('data-compose-group-i18n="' + group + '"'));
   }
@@ -202,7 +203,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
   assert.doesNotMatch(html, /id="mixExperimentSwitch"/);
-  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 9);
+  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 11);
   assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-tuning-kind="/g)].length, 25);
   for (const kind of ["waves", "harmonics"]) {
@@ -398,7 +399,17 @@ function fakePage(search = "", supportWorklets = true) {
   const intervalPlayButtons = ["alternating", "together"].map(intervalPlay => element({ intervalPlay }));
   const intervalOptions = intervalModel.PRESETS.map(preset => ({ ...element(), value: preset.ratio }));
   const intervalTuningButtons = ["just", "equal"].map(intervalTuning => element({ intervalTuning }));
-  const composeSubtabButtons = ["solo", "ensemble"].map(composeSubtab => element({ composeSubtab }));
+  const composeSubtabButtons = ["solo", "ensemble"].flatMap(composeOwner =>
+    ["solo", "ensemble"].map(composeSubtab => {
+      const button = element({ composeSubtab, composeOwner });
+      button.setAttribute("data-i18n", composeSubtab === "solo" ? "composeSolo" : "composeEnsemble");
+      return button;
+    }));
+  const composeKindGroups = ["composeSubtabs", "ensembleSubtabs"].map(id => {
+    const group = elements.get(id);
+    group.setAttribute("data-i18n-aria", "composeModesAria");
+    return group;
+  });
   const intervalColorButtons = ["pure", "rich"].map(intervalColor => element({ intervalColor }));
   const harmonicPresetButtons = ["pure", "odd", "rich"].map(harmonicPreset => element({ harmonicPreset }));
   const harmonicLevelInputs = Array.from({ length: harmonicModel.COUNT }, (_, i) =>
@@ -429,8 +440,8 @@ function fakePage(search = "", supportWorklets = true) {
       if (selector === "[data-mix-gap]") return mixGapButtons;
       if (selector === "[data-pure-kind]") return pureKindButtons;
       if (selector === "[data-mix-kind]") return mixKindButtons;
-      if (selector === "[data-i18n]") return pureKindButtons;
-      if (selector === "[data-i18n-aria]") return pureKindGroups;
+      if (selector === "[data-i18n]") return [...pureKindButtons, ...composeSubtabButtons];
+      if (selector === "[data-i18n-aria]") return [...pureKindGroups, ...composeKindGroups];
       if (selector === "[data-tuning-kind]") return tuningKindButtons;
       if (selector === "[data-compose-subtab]") return composeSubtabButtons;
       if (selector === "[data-project-i18n]") return projectLabels;
@@ -3405,11 +3416,46 @@ test("S033 pending browser audio is canceled on tab switch and page hide", async
   assert.equal(app.tempPlayButtons[1].getAttribute("aria-pressed"), "false");
 });
 
+test("Compose mode pickers live inside the left cards and preserve focus, drafts and translations", () => {
+  for (const [workspace, picker, field] of [
+    ["composeWorkspace", "composeSubtabs", "composeExample"],
+    ["composeEnsembleWorkspace", "ensembleSubtabs", "ensemblePreset"]
+  ]) {
+    const card = html.slice(html.indexOf('id="' + workspace + '"'));
+    const controls = card.slice(0, card.indexOf("</section>"));
+    assert.match(controls, /class="panel controls compose-controls"/);
+    assert.ok(controls.includes('id="' + picker + '"'));
+    assert.ok(controls.indexOf('id="' + picker + '"') < controls.indexOf('id="' + field + '"'));
+    assert.equal([...controls.matchAll(/data-compose-subtab="/g)].length, 2);
+  }
+  assert.ok(html.indexOf('id="projectToolbar"') > html.indexOf('id="ensembleGridCells"'),
+    "the shared collapsed file row follows both workspaces");
+  assert.doesNotMatch(css, /\.compose-subtabs/);
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.elements.get("composeText").value += "\n% keep this draft";
+  app.fire("composeText", "input");
+  const draft = app.elements.get("composeText").value;
+  app.composeSubtabButtons[1].click();
+  assert.equal(app.elements.get("composeEnsembleWorkspace").hidden, false);
+  assert.equal(app.composeSubtabButtons[3].focused, true, "focus follows the visible ensemble picker");
+  for (const [index, button] of app.composeSubtabButtons.entries()) {
+    assert.equal(button.getAttribute("aria-pressed"), String(index % 2 === 1));
+  }
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("ensembleSubtabs").getAttribute("aria-label"), "Compose mode");
+  assert.equal(app.composeSubtabButtons[2].textContent, "Single instrument");
+  app.composeSubtabButtons[2].click();
+  assert.equal(app.elements.get("composeWorkspace").hidden, false);
+  assert.equal(app.composeSubtabButtons[0].focused, true, "focus returns to the visible solo picker");
+  assert.equal(app.elements.get("composeText").value, draft);
+  assert.equal(app.contexts.length, 0, "changing cards or language never starts audio");
+});
+
 test("Compose ensemble swaps in a compact shared timeline and synchronizes two instrument parts", async () => {
   const app = fakePage();
   app.fire("modeCompose", "click");
   assert.equal(app.elements.get("composeWorkspace").hidden, false);
-  assert.equal(app.elements.get("composeSubtabs").hidden, false);
   app.composeSubtabButtons[1].click();
   assert.equal(app.elements.get("composeWorkspace").hidden, true);
   assert.equal(app.elements.get("composeEnsembleWorkspace").hidden, false);

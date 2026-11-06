@@ -8,7 +8,9 @@ Standalone browser-based music and acoustics laboratory. Open [index.html](index
 
 ## Save and open Compose projects
 
-Open the compact **Files · Save / Open / WAV / Файл · Хадгалах / Нээх / WAV** row in Compose to reveal **Project name**, **Save project**, **Open project…** and **Export WAV**. The native disclosure starts collapsed, works with touch or keyboard, and keeps its open/closed state when changing workspaces or language during the page session. Collapsing it does not discard names, notes or prepared downloads. Save downloads the **currently selected One instrument or Many instruments workspace** as a `.soundlab.json` file. It is an editable project, not a recording or WAV export. The two workspaces keep separate project names; saving one does not bundle the other.
+Open the compact **Files · Save / Open / WAV / Файл · Хадгалах / Нээх / WAV** row below the Compose workspace to reveal **Project name**, **Save project**, **Open project…** and **Export WAV**. The native disclosure starts collapsed, works with touch or keyboard, and keeps its open/closed state when changing workspaces or language during the page session. Collapsing it does not discard names, notes or prepared downloads. Save downloads the **currently selected One instrument or Many instruments workspace** as a `.soundlab.json` file. It is an editable project, not a recording or WAV export. The two workspaces keep separate project names; saving one does not bundle the other.
+
+The **Single instrument / Many instruments** picker sits inside each left control card, matching the other experiment panels. Switching modes keeps the separate scores and names, updates the selected button, stops playback, and moves keyboard focus to the newly visible picker.
 
 - A solo project keeps the exact ABC text, instrument, tuning, volume and guitar technique/spacing.
 - An ensemble keeps its ordered tracks, names, instruments, volumes, mute/solo settings, ABC, guitar techniques, selected track, drum-grid settings, and complete linked drum patterns—including unused definitions and multi-bar assignments.

@@ -50,7 +50,7 @@ h1, h2, p { margin-top: 0; }
 .mode-button:hover { border-color: #78a9df; }
 .mode-button.active { background: #2769ba; color: white; border-color: #2769ba; box-shadow: 0 3px 10px #2769ba25; }
 .experiment-switch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-.pure-experiment-switch, .mix-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pure-experiment-switch, .mix-experiment-switch, .compose-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tuning-experiment-switch { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .experiment-switch button { min-height: 52px; border: 1px solid #c7d8ed; border-radius: 10px; padding: 8px 5px; background: #fff; color: #486b88; font-size: 12px; font-weight: 800; line-height: 1.25; }
 .tuning-experiment-switch button { font-size: 11px; padding: 9px 3px; min-height: 52px; overflow-wrap: anywhere; }
@@ -408,11 +408,6 @@ h1, h2, p { margin-top: 0; }
 .compose-help-panel p { font-size: 12px; color: #6c8196; margin-bottom: 1px; }
 
 /* Compose C2A — a compact mixer and common time axis instead of four staves. */
-.compose-subtabs { display: flex; flex-wrap: wrap; gap: 9px; margin: -2px 0 15px; }
-.compose-subtabs button { border: 1px solid #bad2e8; border-radius: 10px; padding: 12px 19px;
-  background: #fff; color: #3e6180; font-size: 13px; font-weight: 850; }
-.compose-subtabs button.selected { background: #2869b9; color: #fff; border-color: #2869b9; }
-.compose-subtabs button:hover:not(.selected) { background: #edf5ff; }
 .project-toolbar { margin: 0 0 17px; padding: 0; border: 1px solid #c6dbe8;
   border-radius: 13px; background: #f3f9fc; min-width: 0; }
 .project-toolbar > summary { min-height: 44px; padding: 12px 17px; border-radius: 13px;
