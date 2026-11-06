@@ -607,6 +607,54 @@ h1, h2, p { margin-top: 0; }
 .footer { max-width: 1320px; margin: auto; padding: 4px 26px 32px; display: flex; justify-content: space-between; gap: 16px; color: #8294a7; font-size: 11px; flex-wrap: wrap; }
 .footer a { color: inherit; text-underline-offset: 2px; }
 
+/* File analysis uses the same left-card controls and two-plot workspace. */
+.analysis-controls { gap: 13px; }
+.analysis-field { display: grid; gap: 6px; color: #456581; font-size: 12px; font-weight: 750; min-width: 0; }
+.analysis-field input, .analysis-field select, .analysis-cursor-row input[type="number"],
+.analysis-frequency-readout input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #bfd3e7; border-radius: 9px; padding: 8px 10px; background: #f8fbff; color: #254b70; font-variant-numeric: tabular-nums; }
+.analysis-field input[type="range"] { padding: 0; border: 0; }
+.analysis-field output { float: right; }
+.analysis-primary, .analysis-secondary { min-height: 44px; border-radius: 10px; padding: 10px 12px; font-size: 12px; font-weight: 800; border: 1px solid #b5cfe5; }
+.analysis-primary { background: #2d6dc4; border-color: #2d6dc4; color: #fff; }
+.analysis-secondary { background: #edf5fc; color: #305f84; }
+.analysis-primary:hover { background: #235ca9; }
+.analysis-secondary:hover { background: #dfedf9; }
+.analysis-controls button:disabled { opacity: .48; cursor: default; }
+.analysis-play-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.analysis-play-actions button { min-height: 52px; }
+.analysis-source { display: grid; gap: 5px; padding: 12px; background: #f0f7fc; border: 1px solid #d8e7f1; border-radius: 10px; overflow-wrap: anywhere; }
+.analysis-source strong { color: #315c7d; font-size: 13px; }
+.analysis-source > span { color: #526f88; font-size: 11px; font-variant-numeric: tabular-nums; }
+.analysis-source p { margin: 0; }
+.analysis-controls .field-help { margin: 0; }
+.analysis-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.analysis-status { color: #52718b; font-size: 12px; margin: 0; min-height: 18px; overflow-wrap: anywhere; }
+.analysis-status.error { color: #a43830; }
+.analysis-settings { border-top: 1px solid #dce7f2; padding-top: 10px; }
+.analysis-settings summary { color: #365f80; font-size: 12px; font-weight: 800; cursor: pointer; min-height: 36px; }
+.analysis-settings .analysis-field, .analysis-settings .field-help { margin: 10px 0; }
+.analysis-plot-tools { margin-top: 10px; }
+#analysisWaveCanvas { touch-action: none; cursor: crosshair; }
+#analysisWaveCanvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
+#analysisSpectrumCanvas { cursor: crosshair; touch-action: pan-y; }
+.analysis-cursor-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 6px 12px; margin-top: 12px; color: #466782; font-size: 12px; font-weight: 750; }
+.analysis-cursor-row input[type="range"] { grid-column: 1 / -1; min-height: 34px; }
+.analysis-selection-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 10px 0; }
+.analysis-selection-fields button { grid-column: 1 / -1; justify-self: start; }
+.analysis-frequency-readout { display: grid; grid-template-columns: auto 100px minmax(0, 1fr); align-items: center; gap: 8px; color: #496c88; font-size: 12px; }
+.analysis-frequency-readout output { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.analysis-measurements { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 0 0; margin: 12px 0 0; border-top: 1px solid #dce7f2; }
+.analysis-measurements dt { color: #64809a; font-size: 11px; }
+.analysis-measurements dd { margin: 5px 0 0; color: #295674; font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.analysis-warning { padding: 9px 12px; border-left: 3px solid #d38a26; background: #fff6e5; color: #82521d; font-size: 12px; margin: 12px 0 0; }
+@media (max-width: 630px) {
+  .analysis-frequency-readout { grid-template-columns: minmax(0, 1fr) 100px; }
+  .analysis-frequency-readout output { grid-column: 1 / -1; }
+  .analysis-measurements { grid-template-columns: 1fr; gap: 8px; }
+  .analysis-measurements > div { display: flex; justify-content: space-between; gap: 10px; }
+  .analysis-measurements dd { margin: 0; text-align: right; }
+}
+
 @media (max-width: 990px) {
   .workspace { grid-template-columns: minmax(300px, 350px) minmax(0, 1fr); gap: 12px; }
   .controls { padding: 18px; }

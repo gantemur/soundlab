@@ -20,6 +20,7 @@
   const projectUI = window.SoundLabProjectUI;
   const exportModel = window.SoundLabExport;
   const exportUI = window.SoundLabExportUI;
+  const analysisModel = window.SoundLabAnalysis;
   const $ = id => document.getElementById(id);
 
   const messages = {
@@ -75,7 +76,7 @@
       blocked: "The sound could not start. Check browser audio permission and try Play again.",
       invalid: "Enter a frequency between 20 and 12,000 Hz.",
       modePure: "Pure tones", modeStrike: "Strike/Pluck", modeSustain: "Blow/Bow", modeMotion: "Moving pitch",
-      modeMix: "Combine waves", modeTuning: "Tuning", modeCompose: "Compose",
+      modeMix: "Combine waves", modeTuning: "Tuning", modeCompose: "Compose", modeAnalysis: "Analysis",
       composeSolo: "Single instrument", composeEnsemble: "Many instruments",
       composeModesAria: "Compose mode",
       modeSwitchAria: "Sound categories",
@@ -634,7 +635,7 @@
       blocked: "Авиа эхэлсэнгүй. Хөтчийн дууны зөвшөөрлийг шалгаад дахин оролдоно уу.",
       invalid: "20–12,000 Гц-ийн хооронд давтамж оруулна уу.",
       modePure: "Цэвэр авиа", modeStrike: "Цохих/татах", modeSustain: "Үлээх/нумдах", modeMotion: "Хувирдаг давтамж",
-      modeMix: "Долгион холих", modeTuning: "Хөг", modeCompose: "Ая зохиох",
+      modeMix: "Долгион холих", modeTuning: "Хөг", modeCompose: "Ая зохиох", modeAnalysis: "Шинжлэх",
       composeSolo: "Нэг хөгжим", composeEnsemble: "Олон хөгжим",
       composeModesAria: "Ая зохиох горим",
       modeSwitchAria: "Дууны бүлэг",
@@ -2605,6 +2606,9 @@
       temperamentModel: tempModel,
       OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext })
   }) : null;
+  const analysis = analysisModel ? new analysisModel.Controller({ document, window,
+    contextOwner: audio, transientModel, sustainModel, temperamentModel: tempModel,
+    OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext }) : null;
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
@@ -4401,6 +4405,7 @@
     const isPure = state.mode === "pure";
     const isWaves = isPure && state.pureKind === "waves";
     const isCompose = state.mode === "compose";
+    const isAnalysis = state.mode === "analysis";
     const isStrike = state.mode === "strike";
     const isSustain = state.mode === "sustain";
     const isMotion = state.mode === "motion";
@@ -4418,6 +4423,8 @@
     $("pureChallenge").hidden = !isWaves;
     $("pureExplanation").hidden = !isWaves;
     $("projectToolbar").hidden = !isCompose;
+    $("analysisWorkspace").hidden = !isAnalysis;
+    if (analysis) analysis.setActive(isAnalysis);
     $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";
     $("composeEnsembleWorkspace").hidden = !isCompose || state.composeSubtab !== "ensemble";
     document.querySelectorAll("[data-compose-subtab]").forEach(button => {
@@ -4474,7 +4481,8 @@
       button.setAttribute("aria-pressed", String(selected));
     });
     for (const [id, mode] of [["modePure", "pure"], ["modeMotion", "motion"], ["modeSustain", "sustain"],
-      ["modeStrike", "strike"], ["modeMix", "mix"], ["modeTuning", "tuning"], ["modeCompose", "compose"]]) {
+      ["modeStrike", "strike"], ["modeMix", "mix"], ["modeTuning", "tuning"], ["modeCompose", "compose"],
+      ["modeAnalysis", "analysis"]]) {
       const selected = state.mode === mode;
       $(id).classList.toggle("active", selected);
       $(id).setAttribute("aria-pressed", String(selected));
@@ -4486,6 +4494,7 @@
     if (ensemble) ensemble.renderLanguage(state.language);
     if (projectFiles) projectFiles.renderLanguage(state.language);
     if (wavExport) wavExport.renderLanguage(state.language);
+    if (analysis) analysis.renderLanguage(state.language);
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-i18n]").forEach(element => {
       const key = element.getAttribute("data-i18n");
@@ -4862,6 +4871,7 @@
   }
 
   function stopAllAudio(immediate = false, message = "stopped") {
+    if (analysis) analysis.stop();
     if (compose && compose.hasSession()) compose.stop();
     if (ensemble && ensemble.hasSession()) ensemble.stop();
     strikeTicket++;
@@ -4915,7 +4925,7 @@
   }
 
   function selectMode(mode) {
-    if (mode === state.mode || !["pure", "strike", "sustain", "motion", "mix", "tuning", "compose"].includes(mode)) return;
+    if (mode === state.mode || !["pure", "strike", "sustain", "motion", "mix", "tuning", "compose", "analysis"].includes(mode)) return;
     stopAllAudio(false);
     state.mode = mode;
     if (mode === "pure") {
@@ -7059,7 +7069,9 @@
   function drawTempPlots() { drawTempLattice(); drawTempCircle(); drawTempFifths(); drawTempPartials(); }
 
   function drawPlots() {
-    if (state.mode === "strike") {
+    if (state.mode === "analysis") {
+      if (analysis) analysis.draw();
+    } else if (state.mode === "strike") {
       renderStrikeTime();
       drawStrikeWave();
       drawStrikeSpectrum();
@@ -7453,6 +7465,7 @@
   $("modeMix").addEventListener("click", () => selectMode("mix"));
   $("modeTuning").addEventListener("click", () => selectMode("tuning"));
   $("modeCompose").addEventListener("click", () => selectMode("compose"));
+  $("modeAnalysis").addEventListener("click", () => selectMode("analysis"));
   document.querySelectorAll("[data-compose-subtab]").forEach(button =>
     button.addEventListener("click", () => selectComposeSubtab(button.dataset.composeSubtab, true)));
   const sustainPad = $("sustainHoldButton");
@@ -7690,7 +7703,7 @@
     if (state.sustainPlaying || sustainPointerId !== null || sustainKeyboardHeld ||
         state.motionPlaying || motionStarting || state.mixPlaying || state.intervalPlaying || state.earPlaying || state.scalePlaying || state.limit5Playing || state.limit5Starting || state.tempPlaying || state.tempStarting ||
         state.harmonicPlaying || state.noisePlaying || (compose && compose.isPlaying()) ||
-        (ensemble && ensemble.isPlaying())) {
+        (ensemble && ensemble.isPlaying()) || (analysis && analysis.isPlaying())) {
       stopAllAudio(true, "hidden");
     }
   });
@@ -7732,6 +7745,8 @@
     observer.observe($("harmonicSpectrumCanvas"));
     observer.observe($("noiseWaveCanvas"));
     observer.observe($("noiseSpectrumCanvas"));
+    observer.observe($("analysisWaveCanvas"));
+    observer.observe($("analysisSpectrumCanvas"));
   } else window.addEventListener("resize", drawPlots);
 
   renderTexts();

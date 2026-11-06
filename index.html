@@ -6,14 +6,15 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s057b">
+  <link rel="stylesheet" href="sound-lab.css?v=s058">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
   <script src="sound-fm.js?v=s044" defer></script>
   <script src="sound-transient.js?v=s052" defer></script>
   <script src="sound-sustain.js?v=s020b" defer></script>
-  <script src="sound-spectrum.js?v=s017" defer></script>
+  <script src="sound-fft.js?v=s058" defer></script>
+  <script src="sound-spectrum.js?v=s058" defer></script>
   <script src="sound-motion.js?v=s020c" defer></script>
   <script src="sound-beats.js" defer></script>
   <script src="sound-intervals.js?v=s021" defer></script>
@@ -37,7 +38,11 @@
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s056" defer></script>
   <script src="sound-export-ui.js?v=s056" defer></script>
-  <script src="sound-lab.js?v=s057b" defer></script>
+  <script src="sound-wave-reader.js?v=s058" defer></script>
+  <script src="sound-analysis-dsp.js?v=s058" defer></script>
+  <script src="sound-analysis-examples.js?v=s058" defer></script>
+  <script src="sound-analysis.js?v=s058" defer></script>
+  <script src="sound-lab.js?v=s058" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -84,6 +89,7 @@
         <button type="button" id="modeMix" class="mode-button" aria-pressed="false" data-i18n="modeMix">Долгион холих</button>
         <button type="button" id="modeTuning" class="mode-button" aria-pressed="false" data-i18n="modeTuning">Хөг</button>
         <button type="button" id="modeCompose" class="mode-button" aria-pressed="false" data-i18n="modeCompose">Ая зохиох</button>
+        <button type="button" id="modeAnalysis" class="mode-button" aria-pressed="false" data-i18n="modeAnalysis">Шинжлэх</button>
       </nav>
     </div>
 
@@ -1608,6 +1614,96 @@
         </div>
       </div>
     </details>
+
+    <div class="workspace" id="analysisWorkspace" hidden>
+      <section class="panel controls analysis-controls" aria-labelledby="analysisTitle">
+        <div class="section-top">
+          <h2 id="analysisTitle" data-analysis-i18n="title">Дуу шинжлэх</h2>
+          <p class="description" data-analysis-i18n="intro">Жишээ сонгох эсвэл WAV файл нээж, долгион ба давтамжийн бүрэлдэхүүнийг шинжлээрэй.</p>
+        </div>
+        <label class="analysis-field"><span data-analysis-i18n="classLabel">Бүлэг</span><select id="analysisClass"></select></label>
+        <label class="analysis-field"><span data-analysis-i18n="exampleLabel">Жишээ</span><select id="analysisExample"></select></label>
+        <button id="analysisOpen" type="button" class="analysis-secondary" data-analysis-i18n="open">WAV нээх…</button>
+        <input id="analysisFile" type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
+        <div class="analysis-source">
+          <strong id="analysisSourceName"></strong>
+          <span id="analysisSourceInfo"></span>
+          <p id="analysisSourceDescription" class="field-help"></p>
+        </div>
+        <div class="analysis-play-actions">
+          <button id="analysisPlay" type="button" class="analysis-primary">▶ Тоглуулах</button>
+          <button id="analysisPlaySelection" type="button" class="analysis-secondary" data-analysis-i18n="playSelection">Хэсгийг тоглуулах</button>
+        </div>
+        <p id="analysisPlaybackStatus" class="field-help" aria-live="off"></p>
+        <label class="analysis-field"><span><span data-analysis-i18n="volume">Сонсох дууны хэмжээ</span> <output id="analysisVolumeValue">20%</output></span><input id="analysisVolume" type="range" min="0" max="100" step="1" value="20"></label>
+        <p id="analysisListeningHint" class="field-help"></p>
+        <div class="experiment-switch analysis-experiment-switch" role="group" id="analysisSpectrumModes">
+          <button id="analysisAtCursor" type="button" aria-pressed="true" class="selected" data-analysis-i18n="atCursor">Курсор дээр</button>
+          <button id="analysisAverage" type="button" aria-pressed="false" data-analysis-i18n="average">Хэсгийн дундаж</button>
+        </div>
+        <label id="analysisChannelField" class="analysis-field" hidden><span data-analysis-i18n="channel">Шинжлэх суваг</span><select id="analysisChannel"></select></label>
+        <p id="analysisStatus" class="analysis-status" role="status" aria-live="polite"></p>
+        <button id="analysisCancel" type="button" class="analysis-secondary" data-analysis-i18n="cancel" hidden>Болих</button>
+        <button id="analysisRetry" type="button" class="analysis-secondary" data-analysis-i18n="recalculate" hidden>Дахин тооцоолох</button>
+        <details class="analysis-settings">
+          <summary data-analysis-i18n="settings">Шинжилгээний тохиргоо</summary>
+          <label class="analysis-field"><span data-analysis-i18n="fftSize">FFT цонхны урт · сорьц</span><select id="analysisFFT"><option>1024</option><option selected>4096</option><option>16384</option><option>65536</option></select></label>
+          <label class="analysis-field"><span data-analysis-i18n="frequencyAxis">Давтамжийн тэнхлэг</span><select id="analysisAxis"><option value="linear" data-analysis-i18n="linear">Шугаман</option><option value="log" data-analysis-i18n="log">Логарифмын</option></select></label>
+          <p class="field-help" data-analysis-i18n="settingsHint">Hann цонх. FFT-ийн урт долгионыг томруулахад өөрчлөгдөхгүй. Сорьцын утга болон эх давтамжийг хэвээр хадгална.</p>
+        </details>
+        <details class="analysis-settings">
+          <summary data-analysis-i18n="fileDetails">Файлын тухай ба хязгаар</summary>
+          <p id="analysisEncoding" class="field-help"></p>
+          <p class="field-help" data-analysis-i18n="limits">RIFF-WAV: 8/16/24/32-бит PCM эсвэл 32-бит float; 1–2 суваг. 120 секунд, 32 МиБ файл, 64 МиБ задарсан сорьц хүртэл. Серверт илгээхгүй.</p>
+          <p class="field-help" data-analysis-i18n="unsupportedFormats">Шахсан WAV, RF64, RIFX, WAVE_FORMAT_EXTENSIBLE одоогоор дэмжихгүй. Микрофон ашиглахгүй.</p>
+        </details>
+      </section>
+      <div class="visuals">
+        <section class="panel chart-panel analysis-wave-panel" aria-labelledby="analysisWaveTitle">
+          <div class="chart-heading">
+            <div><h2 id="analysisWaveTitle" data-analysis-i18n="waveform">Долгионы хэлбэр</h2><p data-analysis-i18n="waveHelp">Дарж курсор байрлуулна. Дээд талын A/B бариулаар хэсэг сонгоно.</p></div>
+          </div>
+          <div class="plot-tools analysis-plot-tools">
+            <button id="analysisZoomIn" type="button" data-analysis-i18n="zoomIn">+ Томруулах</button>
+            <button id="analysisZoomOut" type="button" data-analysis-i18n="zoomOut">− Багасгах</button>
+            <button id="analysisFit" type="button" data-analysis-i18n="fit">Бүтнээр</button>
+            <button id="analysisPanLeft" type="button" aria-label="Зүүн тийш">←</button>
+            <button id="analysisPanRight" type="button" aria-label="Баруун тийш">→</button>
+          </div>
+          <canvas id="analysisWaveCanvas" width="920" height="280" tabindex="0" role="img" aria-describedby="analysisWaveHelp analysisViewReadout"></canvas>
+          <p id="analysisViewReadout" class="chart-foot"></p>
+          <div class="analysis-cursor-row">
+            <label for="analysisCursor" data-analysis-i18n="cursor">Шинжлэх курсор · сек</label>
+            <input id="analysisCursor" type="number" min="0" step="0.001" value="0.25">
+            <input id="analysisCursorSlider" type="range" min="0" max="2" step="0.001" value="0.25">
+          </div>
+          <div class="analysis-selection-fields">
+            <label class="analysis-field"><span data-analysis-i18n="selectionStart">A · Хэсгийн эхлэл (сек)</span><input id="analysisStart" type="number" min="0" step="0.001" value="0"></label>
+            <label class="analysis-field"><span data-analysis-i18n="selectionEnd">B · Хэсгийн төгсгөл (сек)</span><input id="analysisEnd" type="number" min="0" step="0.001" value="2"></label>
+            <button id="analysisSelectAll" type="button" class="analysis-secondary" data-analysis-i18n="selectAll">Бүгдийг сонгох</button>
+          </div>
+          <p id="analysisWaveHelp" class="field-help" data-analysis-i18n="keyboardHelp">←/→ товчоор курсор хөдөлгөнө (Shift: том алхам). Эхлэл/төгсгөлийн тоон талбараар нарийн хэсэг сонгоно. Курсор ба тоглуулах байрлал тусдаа.</p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="analysisSpectrumTitle">
+          <div class="chart-heading"><div><h2 id="analysisSpectrumTitle" data-analysis-i18n="spectrum">Давтамжийн бүрэлдэхүүн</h2><p id="analysisFFTInfo"></p></div></div>
+          <canvas id="analysisSpectrumCanvas" width="920" height="280" role="img" aria-describedby="analysisSpectrumReadout analysisSpectrumNote"></canvas>
+          <div class="analysis-frequency-readout">
+            <label for="analysisFrequency" data-analysis-i18n="frequencyReadout">Давтамж · Гц</label>
+            <input id="analysisFrequency" type="number" min="0" step="1" value="440">
+            <output id="analysisSpectrumReadout" aria-live="off"></output>
+          </div>
+          <p id="analysisPadding" class="field-help"></p>
+          <p id="analysisSpectrumNote" class="field-help" data-analysis-i18n="spectrumNote">Амплитудын dB: 1 нэгж оргил сорьцтой харьцуулсан, акустик dB SPL биш. Дундаж нь чадлуудын дундаж; Гц тутмын нягт биш.</p>
+          <dl class="analysis-measurements">
+            <div><dt data-analysis-i18n="selectedDuration">Сонгосон хугацаа</dt><dd id="analysisDuration">—</dd></div>
+            <div><dt data-analysis-i18n="peak">Оргил сорьц</dt><dd id="analysisPeak">—</dd></div>
+            <div><dt data-analysis-i18n="rms">RMS түвшин</dt><dd id="analysisRMS">—</dd></div>
+          </dl>
+          <p id="analysisLevelWarning" class="analysis-warning" hidden></p>
+          <p class="field-help" data-analysis-i18n="levelNote">Хэмжилт нь сонгосон суваг, хэсгийн эх сорьцод хамаарна. Сонсох чангыг өөрчлөхөд хэмжилт өөрчлөгдөхгүй.</p>
+        </section>
+      </div>
+    </div>
 
     <section class="challenge" id="pureChallenge" aria-labelledby="challenge-heading">
       <div class="challenge-icon" aria-hidden="true">✧</div>

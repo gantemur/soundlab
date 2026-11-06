@@ -44,7 +44,8 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-piano\.js\?v=s019"/);
   assert.match(html, /src="sound-transient\.js\?v=s052"/);
   assert.match(html, /src="sound-sustain\.js\?v=s020b"/);
-  assert.match(html, /src="sound-spectrum\.js\?v=s017"/);
+  assert.match(html, /src="sound-fft\.js\?v=s058"/);
+  assert.match(html, /src="sound-spectrum\.js\?v=s058"/);
   assert.match(html, /src="sound-motion\.js\?v=s020c"/);
   assert.match(html, /src="sound-beats\.js"/);
   assert.match(html, /src="sound-intervals\.js\?v=s021"/);
@@ -68,7 +69,13 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s056"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
-  assert.match(html, /src="sound-lab\.js\?v=s057b"/);
+  assert.match(html, /src="sound-lab\.js\?v=s058"/);
+  for (const module of ["wave-reader", "analysis-dsp", "analysis-examples", "analysis"]) {
+    assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
+    assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
+  }
+  assert.ok(html.indexOf('src="sound-fft.js') < html.indexOf('src="sound-spectrum.js'));
+  assert.ok(html.indexOf('src="sound-export.js') < html.indexOf('src="sound-analysis-examples.js'));
   assert.ok(html.indexOf('src="sound-wav.js') < html.indexOf('src="sound-recorder.js'));
   assert.ok(html.indexOf('src="sound-project.js') < html.indexOf('src="sound-export.js'));
   assert.ok(html.indexOf('src="sound-export.js') < html.indexOf('src="sound-export-ui.js'));
@@ -77,7 +84,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s057b"/);
+  assert.match(html, /href="sound-lab\.css\?v=s058"/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
   assert.match(html, /id="projectName"[^>]*maxlength="120"/);
   assert.match(html, /id="projectFile"[^>]*type="file"[^>]*accept="[^"]*\.soundlab\.json/);
@@ -203,7 +210,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
   assert.doesNotMatch(html, /id="mixExperimentSwitch"/);
-  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 11);
+  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 12);
   assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-tuning-kind="/g)].length, 25);
   for (const kind of ["waves", "harmonics"]) {
@@ -235,7 +242,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="sustainBowPressure" type="range" min="0" max="100"/);
   const mainNavigation = html.match(/<nav[^>]*id="modeSwitch"[^>]*>[\s\S]*?<\/nav>/)[0];
   assert.deepEqual([...mainNavigation.matchAll(/id="(mode\w+)"/g)].map(match => match[1]),
-    ["modeSwitch", "modePure", "modeMotion", "modeSustain", "modeStrike", "modeMix", "modeTuning", "modeCompose"]);
+    ["modeSwitch", "modePure", "modeMotion", "modeSustain", "modeStrike", "modeMix", "modeTuning", "modeCompose", "modeAnalysis"]);
   assert.equal([...html.matchAll(/data-pure-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.doesNotMatch(html, /data-mix-kind="harmonics"/);
@@ -285,7 +292,7 @@ test("firetruck Play/Stop icon forwards taps to its enclosing button", () => {
   assert.match(css, /\.siren-button\s*>\s*span\s*\{\s*pointer-events:\s*none;/);
 });
 
-function fakePage(search = "", supportWorklets = true) {
+function fakePage(search = "", supportWorklets = true, analysisController = null) {
   const contexts = [];
   const offlineContexts = [];
   const exportRequests = [];
@@ -691,6 +698,7 @@ function fakePage(search = "", supportWorklets = true) {
     if (name === "sound-wav.js") window.SoundLabWav = vmContext.SoundLabWav;
   }
   const offlineExport = window.SoundLabExport;
+  if (analysisController) window.SoundLabAnalysis = { Controller: analysisController };
   window.SoundLabExport = { ...offlineExport, render(snapshot, dependencies) {
     exportRequests.push(JSON.parse(JSON.stringify(snapshot)));
     return offlineExport.render(snapshot, dependencies);
@@ -728,6 +736,46 @@ function fakePage(search = "", supportWorklets = true) {
     }
   };
 }
+
+test("Analysis integrates with navigation, language, resize and the shared Stop lifecycle", () => {
+  const calls = { active: [], languages: [], stops: 0, draws: 0 };
+  let running = false;
+  class AnalysisFixture {
+    constructor(dependencies) { calls.owner = dependencies.contextOwner; }
+    setActive(active) { calls.active.push(active); }
+    renderLanguage(lang) { calls.languages.push(lang); }
+    stop() { calls.stops++; running = false; }
+    isPlaying() { return running; }
+    draw() { calls.draws++; }
+  }
+  const app = fakePage("?lang=mn", true, AnalysisFixture);
+  assert.equal(app.elements.get("analysisWorkspace").hidden, true);
+  assert.equal(app.contexts.length, 0);
+  app.fire("modeAnalysis", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(app.elements.get("pureWorkspace").hidden, true);
+  assert.equal(app.elements.get("projectToolbar").hidden, true);
+  assert.equal(app.elements.get("modeAnalysis").getAttribute("aria-pressed"), "true");
+  assert.equal(calls.active.at(-1), true);
+  app.fire("langEn", "click");
+  assert.equal(calls.languages.at(-1), "en");
+  const previousDraws = calls.draws;
+  app.window.events.resize();
+  assert.ok(calls.draws > previousDraws);
+  const stops = calls.stops;
+  running = true;
+  app.window.events.blur();
+  assert.equal(running, false);
+  assert.ok(calls.stops > stops);
+  running = true;
+  app.fire("stopAll", "click");
+  assert.equal(running, false);
+  app.fire("modeCompose", "click");
+  assert.equal(calls.active.at(-1), false);
+  assert.equal(app.elements.get("analysisWorkspace").hidden, true);
+  assert.equal(app.contexts.length, 0, "Mode changes and language never open live audio");
+  assert.equal(typeof calls.owner.readyContext, "function");
+});
 
 test("held flute plays only while pressed, and release follows the chosen decay", async () => {
   const app = fakePage();
