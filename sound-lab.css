@@ -86,6 +86,7 @@ h1, h2, p { margin-top: 0; }
 .wave-choice.selected { background: #eaf3ff; border: 2px solid #427bd8; color: #2b62b8; padding: 7px 1px 6px; }
 .wave-choice svg { width: 52px; max-width: 90%; height: 23px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .strike-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sustain-families { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .strike-choice { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 69px; padding: 11px 7px; border: 1px solid #dae5f1; border-radius: 11px; background: #f8fbff; color: #456787; font-size: 12px; font-weight: 800; }
 .strike-choice { flex-direction: column; gap: 3px; text-align: center; }
 .strike-choice:hover { border-color: #8eb3e4; }

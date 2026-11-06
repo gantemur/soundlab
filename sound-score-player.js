@@ -9,14 +9,19 @@
     require("./sound-fm.js") : root.SoundLabFM;
   const drumModel = typeof module === "object" && module.exports ?
     require("./sound-drum-abc.js") : root.SoundLabDrumABC;
-  const api = factory(scoreModel, fmModel, drumModel);
+  const heldVoice = typeof module === "object" && module.exports ?
+    require("./sound-held-voice.js") : root.SoundLabHeldVoice;
+  const marimbaModel = typeof module === "object" && module.exports ?
+    require("./sound-marimba.js") : root.SoundLabMarimba;
+  const api = factory(scoreModel, fmModel, drumModel, heldVoice, marimbaModel);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabScorePlayer = api;
-})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel) {
+})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel, heldVoice, marimbaModel) {
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
-  const INSTRUMENTS = Object.freeze(["flute", "violin", "morin", "guitar", "piano", "chimes",
+  const HELD_INSTRUMENTS = Object.freeze(["flute", "violin", "morin"]);
+  const INSTRUMENTS = Object.freeze(["flute", "violin", "morin", "guitar", "piano", "chimes", "marimba",
     ...WAVEFORMS, "fmep"]);
   const GUITAR_MODES = Object.freeze(["pluck", "down", "up", "alternate"]);
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
@@ -32,6 +37,13 @@
 
   function noteFrequency(event, tuning, temperamentModel) {
     return scoreModel.frequency(event.pitch, tuning, 440, temperamentModel);
+  }
+
+  function instrumentRange(instrument) {
+    if (HELD_INSTRUMENTS.includes(instrument)) return [heldVoice.MIN_HZ, heldVoice.MAX_HZ];
+    if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
+    return [instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ,
+      instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
   }
 
   function guitarSettings(guitar = DEFAULT_GUITAR) {
@@ -131,6 +143,7 @@
       this.originBeat = 0;
       this.nextIndex = 0;
       this.baseTime = 0;
+      this.playbackEndTime = 0;
       this.generation = 0;
       this.interval = null;
       this.outputBus = null;
@@ -147,10 +160,9 @@
       // transposing notes outside the working range of the instrument models.
       const technique = instrument === "guitar" ? guitarSettings(guitar) : DEFAULT_GUITAR;
       const soundingEvents = scheduledEvents(score, 0, technique);
+      const [lower, upper] = instrumentRange(instrument);
       for (const event of soundingEvents) {
         const hz = noteFrequency(event, tuning, this.temperamentModel);
-        const lower = instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ;
-        const upper = instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
         if (hz < lower || hz > upper) {
           throw new RangeError(scoreModel.pitchName(event.pitch) + " (" + hz.toFixed(1) +
             " Hz) is outside the " + instrument + " range (" + lower + "–" + upper + " Hz)");
@@ -164,11 +176,16 @@
       this.volume = volume;
     }
 
-    get currentBeat() {
+    get playbackBeat() {
       if (this.status !== "playing" || !this.context) return this.positionBeat;
       const seconds = Math.max(0, this.context.currentTime - this.baseTime);
-      return Math.min(this.score.totalBeats, this.originBeat +
-        seconds / scoreModel.secondsPerBeat(this.score));
+      return this.originBeat + seconds / scoreModel.secondsPerBeat(this.score);
+    }
+
+    get currentBeat() {
+      // The notation playhead stays at the last beat while an instrument's
+      // release rings. Keep the real tail position separately for Pause/Resume.
+      return this.score ? Math.min(this.score.totalBeats, this.playbackBeat) : this.positionBeat;
     }
 
     inform() { this.onUpdate({ status: this.status, beat: this.currentBeat }); }
@@ -185,6 +202,12 @@
         } catch (_) { /* Also disconnect below on Stop. */ }
       }
       for (const voice of this.voices) {
+        if (voice.held) {
+          // One sustained note owns several excitation/noise sources. Its
+          // shared handle cancels and disconnects the complete graph.
+          voice.held.stop();
+          continue;
+        }
         // Disconnect synchronously: a browser may reject stop() for an
         // already-ended or future-scheduled source. The gain must still go
         // silent immediately, including in Safari's delayed onended case.
@@ -214,7 +237,7 @@
 
     pause() {
       if (this.status !== "playing" && this.status !== "starting") return;
-      if (this.status === "playing") this.positionBeat = this.currentBeat;
+      if (this.status === "playing") this.positionBeat = this.playbackBeat;
       this.generation++;
       if (this.interval !== null) clearInterval(this.interval);
       this.interval = null;
@@ -227,7 +250,7 @@
       if (this.status === "playing") { this.pause(); return true; }
       if (this.status === "starting") return false;
       if (!this.score) throw new Error("No score loaded");
-      if (this.positionBeat >= this.score.totalBeats) this.positionBeat = 0;
+      if (this.status !== "paused" && this.positionBeat >= this.score.totalBeats) this.positionBeat = 0;
       const ticket = ++this.generation;
       this.status = "starting";
       this.inform();
@@ -238,12 +261,19 @@
         this.preparePlayback(context);
         this.originBeat = this.positionBeat;
         this.baseTime = context.currentTime + .08;
+        this.playbackEndTime = this.baseTime +
+          (this.score.totalBeats - this.originBeat) * scoreModel.secondsPerBeat(this.score);
         this.nextIndex = this.playEvents.findIndex(event =>
-          event.startBeat + event.durationBeats > this.originBeat);
+          this.eventPending(event, this.originBeat, context.sampleRate));
         if (this.nextIndex < 0) this.nextIndex = this.playEvents.length;
+        if (this.originBeat >= this.score.totalBeats && this.nextIndex === this.playEvents.length) {
+          // Pausing after all audible tails ended must not replay bar one.
+          this.stop();
+          return false;
+        }
         this.status = "playing";
         this.tick();
-        this.interval = setInterval(() => this.tick(), TICK_MS);
+        if (this.status === "playing") this.interval = setInterval(() => this.tick(), TICK_MS);
         this.inform();
         return true;
       } catch (error) {
@@ -263,13 +293,15 @@
         const clippedBeat = Math.max(this.originBeat, event.startBeat);
         const at = this.baseTime + (clippedBeat - this.originBeat) * spb;
         const endsAt = this.baseTime + (event.startBeat + event.durationBeats - this.originBeat) * spb;
-        if (endsAt <= now) continue;
-        const offsetSeconds = (clippedBeat - event.startBeat) * spb;
-        this.scheduleNote(event, Math.max(at, now + .003), endsAt, offsetSeconds);
+        const startsAt = Math.max(at, now + .003);
+        const originalAt = this.baseTime + (event.startBeat - this.originBeat) * spb;
+        const offsetSeconds = Math.max(0, startsAt - originalAt);
+        const voiceEnd = this.voiceEndTime(event, startsAt, endsAt, this.context.sampleRate, offsetSeconds);
+        if (voiceEnd <= startsAt || (WAVEFORMS.includes(this.eventInstrument(event)) && endsAt <= startsAt)) continue;
+        this.scheduleNote(event, startsAt, endsAt, offsetSeconds);
+        this.playbackEndTime = Math.max(this.playbackEndTime, voiceEnd);
       }
-      const endTime = this.baseTime + (this.score.totalBeats - this.originBeat) * spb;
-      const tail = ["guitar", "chimes", "ensemble"].includes(this.instrument) ? .8 : .15;
-      if (now > endTime + tail) {
+      if (now > this.playbackEndTime) {
         this.stop();
         return;
       }
@@ -295,10 +327,22 @@
       this.outputBus.gain.setValueAtTime(1, context.currentTime);
     }
 
-    toneComponents(hz, instrument = this.instrument) {
-      return instrument === "flute" ? this.sustainModel.fluteComponents(60, hz,
-        this.context.sampleRate) : this.sustainModel.bowedComponents(instrument, 60, hz,
-        this.context.sampleRate);
+    eventInstrument() { return this.instrument; }
+
+    eventPending(event, fromBeat, sampleRate) {
+      const spb = scoreModel.secondsPerBeat(this.score);
+      const at = event.startBeat * spb, endsAt = (event.startBeat + event.durationBeats) * spb;
+      // Plain oscillators are already silent at note-off. Held voices and
+      // sampled instruments can still be sounding after their notation ends.
+      const end = WAVEFORMS.includes(this.eventInstrument(event)) ? endsAt :
+        this.voiceEndTime(event, at, endsAt, sampleRate);
+      return end > fromBeat * spb;
+    }
+
+    // The held graph caches a single noise buffer per AudioContext, shared by
+    // all held notes and parts. Specs must reserve it once, not once per note.
+    sharedBufferBytes(event, sampleRate) {
+      return HELD_INSTRUMENTS.includes(this.eventInstrument(event)) ? heldVoice.bufferFrames(sampleRate) * 4 : 0;
     }
 
     // The same recipes describe live buffers, offline memory requirements and
@@ -310,15 +354,17 @@
 
     bufferSpec(event, sampleRate, settings = null) {
       const instrument = settings?.instrument || this.instrument;
-      if (["flute", "violin", "morin", ...WAVEFORMS].includes(instrument)) return null;
+      if ([...HELD_INSTRUMENTS, ...WAVEFORMS].includes(instrument)) return null;
       const hz = noteFrequency(event, this.tuning, this.temperamentModel);
       const percussive = instrument === "chimes";
       const kind = instrument === "guitar" ? "pluck" : percussive ? "kick" :
-        instrument === "fmep" ? "fmep" : "piano";
-      const decay = instrument === "piano" || instrument === "fmep" ? .8 : percussive ? .7 : .65;
+        instrument === "fmep" ? "fmep" : instrument === "marimba" ? "marimba" : "piano";
+      const decay = instrument === "piano" || instrument === "fmep" ? .8 : percussive ? .7 :
+        instrument === "marimba" ? marimbaModel.DEFAULT_DECAY : .65;
       const options = instrument === "guitar" ? { position: .22 } :
         instrument === "piano" ? { velocity: .62, touch: "press" } :
-          percussive ? { drumVoice: "chimes", chimeHz: hz } : {};
+          percussive ? { drumVoice: "chimes", chimeHz: hz } :
+            instrument === "marimba" ? { velocity: marimbaModel.DEFAULT_VELOCITY } : {};
       const seconds = instrument === "fmep" ? fmModel.DURATION_SECONDS :
         this.transientDuration(decay);
       return { key: [sampleRate, kind, hz.toFixed(5), decay, instrument].join("|"),
@@ -363,6 +409,10 @@
     }
 
     voiceEndTime(event, at, endsAt, sampleRate, offsetSeconds = 0) {
+      const instrument = this.eventInstrument(event);
+      if (HELD_INSTRUMENTS.includes(instrument)) {
+        return endsAt + heldVoice.defaults(instrument, this.sustainModel).release + heldVoice.STOP_PAD;
+      }
       const spec = this.bufferSpec(event, sampleRate);
       if (!spec) return endsAt + .005;
       const bufferEnd = at + spec.frames / sampleRate - offsetSeconds;
@@ -374,25 +424,27 @@
     scheduleNote(event, at, endsAt, offsetSeconds = 0, settings = null) {
       const hz = noteFrequency(event, this.tuning, this.temperamentModel);
       const context = this.context;
-      const gain = context.createGain();
       const instrument = settings?.instrument || this.instrument;
       const volume = settings?.volume ?? this.volume;
       const level = Math.min(.35, .19 * volume / 100 * (instrument === "piano" ? 2.35 : 1)) /
         Math.sqrt(event.chordSize || 1);
-      gain.connect(settings?.output || this.outputBus || this.contextOwner.output);
-      if (["flute", "violin", "morin", ...WAVEFORMS].includes(instrument)) {
+      const output = settings?.output || this.outputBus || this.contextOwner.output;
+      if (HELD_INSTRUMENTS.includes(instrument)) {
+        let voice;
+        const held = heldVoice.createVoice({ context, output, model: this.sustainModel,
+          kind: instrument, hz, level, at, offsetSeconds,
+          noteDurationSeconds: Math.max(0, offsetSeconds + endsAt - at),
+          onended: () => this.voices.delete(voice) });
+        voice = { source: held.oscillator, gain: held.volume, held };
+        this.voices.add(voice);
+        return;
+      }
+      const gain = context.createGain();
+      gain.connect(output);
+      if (WAVEFORMS.includes(instrument)) {
         const oscillator = context.createOscillator();
-        if (WAVEFORMS.includes(instrument)) {
-          // Native oscillator shapes are band-limited by the browser.
-          oscillator.type = instrument;
-        } else {
-          const components = this.toneComponents(hz, instrument);
-          const real = new Float32Array(components.length + 1);
-          const imag = new Float32Array(components.length + 1);
-          components.forEach((component, i) => { real[i + 1] = component.cos; imag[i + 1] = component.sin; });
-          const wave = context.createPeriodicWave(real, imag, { disableNormalization: true });
-          oscillator.setPeriodicWave(wave);
-        }
+        // Native oscillator shapes are band-limited by the browser.
+        oscillator.type = instrument;
         oscillator.frequency.setValueAtTime(hz, at);
         oscillator.connect(gain);
         const remaining = Math.max(.015, endsAt - at);
@@ -412,14 +464,17 @@
       let buffer;
       try { buffer = this.bufferFor(this.bufferSpec(event, context.sampleRate, settings)); }
       catch (error) { gain.disconnect(); throw error; }
-      if (offsetSeconds >= buffer.duration - .01) { gain.disconnect(); return; }
+      if (offsetSeconds >= buffer.duration) { gain.disconnect(); return; }
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.connect(gain);
-      gain.gain.setValueAtTime(level, at);
+      const damperAge = Math.max(0, at - endsAt);
+      const initialLevel = instrument === "piano" || instrument === "fmep" ?
+        level * Math.exp(-damperAge / .028) : level;
+      gain.gain.setValueAtTime(initialLevel, at);
       if (instrument === "piano" || instrument === "fmep") {
-        const noteEnd = Math.max(at + .005, endsAt);
-        gain.gain.setValueAtTime(level, noteEnd);
+        const noteEnd = Math.max(at, endsAt);
+        gain.gain.setValueAtTime(initialLevel, noteEnd);
         gain.gain.setTargetAtTime(0, noteEnd, .028); // damper returns on release
       }
       this.addVoice(source, gain);
@@ -455,10 +510,9 @@
       events += soundingEvents.length;
       totalBeats = Math.max(totalBeats, score.totalBeats);
       if (instrument === "drums") continue;
+      const [lower, upper] = instrumentRange(instrument);
       for (const event of soundingEvents) {
         const hz = noteFrequency(event, tuning, temperamentModel);
-        const lower = instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ;
-        const upper = instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ;
         if (hz < lower || hz > upper) {
           throw new RangeError(scoreModel.pitchName(event.pitch) + " is outside " + instrument +
             " range (" + lower + "–" + upper + " Hz)");
@@ -533,6 +587,7 @@
       const part = this.partSettings[event.partIndex];
       return !part.mute && part.volume > 0 && (!this.partSettings.some(item => item.solo) || part.solo);
     }
+    eventInstrument(event) { return this.partSettings[event.partIndex].instrument; }
     bufferSpec(event, sampleRate) {
       if (event.type !== "drum") return super.bufferSpec(event, sampleRate,
         { instrument: this.partSettings[event.partIndex].instrument });
@@ -556,7 +611,7 @@
     scheduleDrumHit(event, at, offsetSeconds = 0) {
       const context = this.context;
       const buffer = this.bufferFor(this.bufferSpec(event, context.sampleRate));
-      if (offsetSeconds >= buffer.duration - .01) return;
+      if (offsetSeconds >= buffer.duration) return;
       const source = context.createBufferSource(), gain = context.createGain();
       source.buffer = buffer;
       source.connect(gain);
@@ -576,5 +631,5 @@
 
   return Object.freeze({ INSTRUMENTS, GUITAR_MODES, DEFAULT_GUITAR, AHEAD_SECONDS,
     MAX_PARTS, MAX_ENSEMBLE_EVENTS,
-    noteFrequency, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
+    noteFrequency, instrumentRange, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

@@ -5,7 +5,7 @@ const sound = require("./sound-transient.js");
 const spectrum = require("./sound-spectrum.js");
 const fm = require("./sound-fm.js");
 
-test("pluck, kick and modeled piano are distinct bounded decaying mathematical signals", () => {
+test("all transient kinds are bounded decaying mathematical signals", () => {
   for (const kind of sound.KINDS) {
     const decay = kind === "pluck" ? 0.65 : 0.3;
     assert.equal(sound.sampleAt(kind, 0, 220, decay), 0);
@@ -18,6 +18,33 @@ test("pluck, kick and modeled piano are distinct bounded decaying mathematical s
   }
   assert.notEqual(sound.sampleAt("pluck", 0.012, 220, 0.65), sound.sampleAt("kick", 0.012, 220, 0.65));
   assert.notEqual(sound.sampleAt("piano", 0.012, 220, 0.65), sound.sampleAt("pluck", 0.012, 220, 0.65));
+});
+
+test("marimba transient playback and plots share one finite pitched-hit recipe", () => {
+  assert.ok(sound.KINDS.includes("marimba"));
+  for (const sampleRate of [8000, 16000, 44100, 48000]) {
+    const options = { velocity: .62, sampleRate };
+    const samples = sound.makeSamples("marimba", 440, .65, sampleRate, "medium", options);
+    assert.equal(samples.length, Math.ceil(sound.duration(.65) * sampleRate));
+    for (const index of [1, 100, 1700, Math.floor(sampleRate * 2.59)]) {
+      assert.ok(Math.abs(samples[index] -
+        sound.plottedSampleAt("marimba", index / sampleRate, 440, .65, "medium", options)) < 1e-7);
+    }
+  }
+  assert.equal(sound.plottedEnvelope("marimba", 2.6, .65), 0);
+  assert.equal(sound.plottedSampleAt("marimba", 2.6, 440, .65), 0);
+  assert.ok(sound.makeSamples("marimba", 440, .65, 8000, "medium", { velocity: 0 }).every(value => value === 0));
+});
+
+test("marimba recipe validation preserves the existing percussion mapping", () => {
+  assert.deepEqual(sound.DRUM_VOICES, ["membrane", "snare", "cymbal", "steelpan", "chimes", "woodblock"]);
+  for (const pitch of [NaN, 109.99, 1760.01]) {
+    assert.throws(() => sound.validate("marimba", pitch, .65), RangeError);
+  }
+  for (const velocity of [-.01, 1.01, NaN, Infinity]) {
+    assert.throws(() => sound.validate("marimba", 440, .65, "medium", { velocity }), RangeError);
+  }
+  for (const pitch of [110, 1760]) assert.doesNotThrow(() => sound.validate("marimba", pitch, .65));
 });
 
 test("acoustic piano can synthesize low and high score chords beyond the guitar's pitch range", () => {

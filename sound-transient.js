@@ -1,4 +1,4 @@
-/* Deterministic models of percussion, feedback-plucked strings and piano.
+/* Deterministic models of percussion, feedback-plucked strings and pitched hits.
  * Playback and explanatory plots use precisely the same model samples.
  * These are simplified physical teaching models, not instrument recordings.
  */
@@ -7,18 +7,20 @@
   const strings = typeof module === "object" && module.exports ? require("./sound-string.js") : root.SoundLabString;
   const piano = typeof module === "object" && module.exports ? require("./sound-piano.js") : root.SoundLabPiano;
   const fm = typeof module === "object" && module.exports ? require("./sound-fm.js") : root.SoundLabFM;
-  const model = makeModel(strings, piano, fm);
+  const marimba = typeof module === "object" && module.exports ? require("./sound-marimba.js") : root.SoundLabMarimba;
+  const model = makeModel(strings, piano, fm, marimba);
   if (typeof module === "object" && module.exports) module.exports = model;
   if (root) root.SoundLabTransientModel = model;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm, marimba) {
   "use strict";
 
   if (!strings) throw new Error("String synthesis must load before transient synthesis");
   if (!piano) throw new Error("Piano synthesis must load before transient synthesis");
   if (!fm) throw new Error("FM synthesis must load before transient synthesis");
+  if (!marimba) throw new Error("Marimba synthesis must load before transient synthesis");
 
   const TAU = 2 * Math.PI;
-  const KINDS = Object.freeze(["pluck", "kick", "piano"]);
+  const KINDS = Object.freeze(["pluck", "kick", "piano", "marimba"]);
   const MIN_PITCH_HZ = 110;
   const MAX_PITCH_HZ = 880;
   const MIN_DECAY = 0.12;
@@ -61,6 +63,8 @@
         (!Number.isFinite(pitchHz) || pitchHz < lowPitch || pitchHz > highPitch)) {
       throw new RangeError("Pitched-string frequency outside the supported range");
     }
+    if (kind === "marimba") marimba.validate(pitchHz, decaySec,
+      options.velocity ?? marimba.DEFAULT_VELOCITY, options.sampleRate ?? marimba.REFERENCE_RATE);
     if (kind === "kick" && (!Object.hasOwn(KICK_SIZES, kickSize) ||
         !DRUM_VOICES.includes(options.drumVoice ?? "membrane") ||
         !Number.isFinite(options.drumTension ?? 1) ||
@@ -85,6 +89,8 @@
 
   function envelope(kind, time, decaySec, options = {}) {
     if (time <= 0) return 0;
+    if (kind === "marimba") return marimba.envelope(time, decaySec,
+      options.velocity ?? marimba.DEFAULT_VELOCITY);
     if (kind === "piano") return options.pianoVoice === "electric" ?
       fm.envelopeAt(time, decaySec, options.velocity ?? .55, options.touch ?? "press") :
       piano.envelope(time, decaySec, options.touch ?? "press");
@@ -226,6 +232,8 @@
         strings.strumAt(time, options.strumChord, decaySec, position, options.strumPattern ?? "down") :
         strings.pluckAt(time, pitchHz, decaySec, position);
     }
+    if (kind === "marimba") return marimba.sampleAt(time, pitchHz, decaySec,
+      options.velocity ?? marimba.DEFAULT_VELOCITY, options.sampleRate ?? marimba.REFERENCE_RATE);
     if (options.pianoVoice === "electric") return fm.sampleAt(time, pitchHz,
       options.sampleRate ?? 48000, { decaySec, velocity: options.velocity ?? .55,
         touch: options.touch ?? "press" });
@@ -258,9 +266,9 @@
     const seconds = duration(decaySec);
     const count = Math.ceil(seconds * sampleRate);
     const samples = new Float32Array(count);
-    // Supply the playback sample rate to FM's anti-alias factor; ordinary
-    // plotted waves use the same analytic model at a reference 48 kHz.
-    const modelOptions = kind === "piano" && options.pianoVoice === "electric" ?
+    // Supply the playback sample rate to models with sample-rate-aware mode
+    // suppression. Marimba's fixed band cap also matches the 16 kHz plots.
+    const modelOptions = kind === "marimba" || (kind === "piano" && options.pianoVoice === "electric") ?
       { ...options, sampleRate } : options;
     for (let i = 0; i < count; i++) {
       const time = i / sampleRate;

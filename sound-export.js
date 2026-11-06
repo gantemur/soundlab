@@ -8,15 +8,19 @@
   const drums = typeof module === "object" && module.exports ? require("./sound-drum-abc.js") : root.SoundLabDrumABC;
   const score = typeof module === "object" && module.exports ? require("./sound-score.js") : root.SoundLabScore;
   const player = typeof module === "object" && module.exports ? require("./sound-score-player.js") : root.SoundLabScorePlayer;
+  const held = typeof module === "object" && module.exports ? require("./sound-held-voice.js") : root.SoundLabHeldVoice;
   const wav = typeof module === "object" && module.exports ? require("./sound-wav.js") : root.SoundLabWav;
-  const api = factory(project, abc, drums, score, player, wav);
+  const api = factory(project, abc, drums, score, player, held, wav);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabExport = api;
-})(typeof window !== "undefined" ? window : null, function (projects, abc, drums, scoreModel, playerModel, wav) {
+})(typeof window !== "undefined" ? window : null, function (projects, abc, drums, scoreModel, playerModel, held, wav) {
   "use strict";
 
   const SAMPLE_RATE = 44100;
   const MAX_SECONDS = 93;
+  // A cap on retained mono PCM sample buffers, including shared held noise.
+  // Native oscillators/filters, PeriodicWaves and rendering output are separate
+  // allocations; the event and duration limits bound their count and size.
   const MAX_BUFFER_BYTES = 128 * 1024 * 1024;
   const PEAK_LIMIT = .98;
   const END_PAD_SECONDS = .02;
@@ -66,19 +70,20 @@
     let end = synth.score.totalBeats * spb;
     if (!Number.isFinite(end) || end <= 0 || end > scoreModel.MAX_SECONDS) limit("The score must fit within 90 seconds");
     const schedule = [], specs = new Map();
-    let bufferBytes = 0;
+    let bufferBytes = 0, sharedBytes = 0;
     for (const event of synth.playEvents) {
       if (!synth.isEventAudible(event)) continue;
       const at = event.startBeat * spb;
       const endsAt = (event.startBeat + event.durationBeats) * spb;
+      sharedBytes = Math.max(sharedBytes, synth.sharedBufferBytes(event, SAMPLE_RATE));
       const spec = synth.bufferSpec(event, SAMPLE_RATE);
       if (spec && !specs.has(spec.key)) {
         if (!Number.isSafeInteger(spec.frames) || spec.frames <= 0) limit("An instrument requires an unsupported audio buffer length");
         bufferBytes += spec.frames * 4;
-        if (!Number.isSafeInteger(bufferBytes) || bufferBytes > MAX_BUFFER_BYTES) {
-          limit("This arrangement needs more than 128 MiB of instrument buffers; use fewer distinct instrument pitches");
-        }
         specs.set(spec.key, spec);
+      }
+      if (!Number.isSafeInteger(bufferBytes + sharedBytes) || bufferBytes + sharedBytes > MAX_BUFFER_BYTES) {
+        limit("This arrangement needs more than 128 MiB of instrument sample buffers; use fewer distinct instrument pitches");
       }
       end = Math.max(end, synth.voiceEndTime(event, at, endsAt, SAMPLE_RATE));
       schedule.push({ event, at, endsAt });
@@ -87,19 +92,24 @@
     if (!Number.isSafeInteger(frames) || frames <= 0 || frames > MAX_SECONDS * SAMPLE_RATE) {
       limit("The score and its instrument release tails must fit within 93 seconds");
     }
+    // Reserve the one shared excitation-noise buffer before transient models
+    // allocate their caches. Both allocation paths fit the same memory cap.
+    synth.maxBufferBytes = MAX_BUFFER_BYTES - sharedBytes;
     return { synth, owner, schedule, specs, frames };
   }
 
   function dispose(plan) {
     if (!plan) return;
-    const synth = plan.synth, voices = [...synth.voices];
-    for (const voice of voices) voice.source.onended = null;
+    const synth = plan.synth, sources = [...synth.voices].flatMap(voice =>
+      voice.held ? voice.held.sources : [voice.source]);
+    for (const source of sources) source.onended = null;
     try { synth.stop(); }
     finally {
       // Source nodes may hold buffers even after they leave the reusable cache.
-      for (const voice of voices) {
-        try { if ("buffer" in voice.source) voice.source.buffer = null; } catch (_) { /* Already released. */ }
+      for (const source of sources) {
+        try { if ("buffer" in source) source.buffer = null; } catch (_) { /* Already released. */ }
       }
+      held.clearNoiseBuffer(synth.context);
       synth.clearBuffers();
       synth.playEvents = [];
       synth.score = null;

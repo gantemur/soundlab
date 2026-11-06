@@ -61,8 +61,8 @@
     {
       id: "model-flute-a4", classId: "instruments", kind: "modeled", duration: 3.02,
       title: label("Лимбэ · A4 барих", "Flute · held A4"),
-      description: label("Ая зохиох хэсгийн одоогийн хялбарчилсан лимбэний загвар; үлээх самбарын амьсгалын шуугиан ороогүй. Бодит бичлэг биш.",
-        "The current simplified Compose/offline flute, without the Blow/Bow panel's breath-noise path. Not a recording.")
+      description: label("Үлээх, ая зохиох, WAV гаргах хэсгүүдийн ижил лимбэний загвар: үлээлт, амьсгалын шуугиан, эхлэл ба намдалт орсон. Бодит бичлэг биш.",
+        "The shared Blow/Bow and Compose/offline flute, including breath noise, jet colour, attack and release. Not a recording.")
     },
     {
       id: "model-chime-c5", classId: "instruments", kind: "modeled", duration: 3.02,

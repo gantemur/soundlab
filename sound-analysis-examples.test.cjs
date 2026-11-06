@@ -34,7 +34,7 @@ test("the catalogue contains exactly the agreed seven original examples with fro
   }
   const flute = examples.CATALOGUE.find(item => item.id === "model-flute-a4");
   assert.match(flute.description.en, /Compose\/offline flute/);
-  assert.match(flute.description.en, /without.*breath-noise/);
+  assert.match(flute.description.en, /including breath noise/);
   for (const item of examples.CATALOGUE.filter(item => item.kind === "modeled")) {
     assert.match(item.description.en.toLowerCase(), /not a recording/);
   }
@@ -111,10 +111,19 @@ function offlineFixture(options = {}) {
     constructor(channels, frames, sampleRate) {
       this.channels = channels; this.length = frames; this.sampleRate = sampleRate;
       this.currentTime = 0; this.destination = {}; this.sources = []; this.buffers = []; this.waves = [];
+      this.filters = []; this.shapers = [];
       contexts.push(this);
     }
     resume() { throw new Error("must not resume live playback"); }
     createGain() { return { gain: param(), connect() {}, disconnect() {} }; }
+    createBiquadFilter() {
+      const filter = { type: "lowpass", frequency: param(), Q: param(), gain: param(), connect() {}, disconnect() {} };
+      this.filters.push(filter); return filter;
+    }
+    createWaveShaper() {
+      const shaper = { curve: null, oversample: "none", connect() {}, disconnect() {} };
+      this.shapers.push(shaper); return shaper;
+    }
     createPeriodicWave(real, imag, settings) {
       const wave = { real: Float32Array.from(real), imag: Float32Array.from(imag), settings };
       this.waves.push(wave); return wave;
@@ -169,9 +178,9 @@ test("modeled examples use the existing score/export/reader path with the exact 
     close(result.channels[0][1], .25, 1 / 32768);
     assert.equal(result.channels[0][2], -.5);
     assert.ok(result.channels[0].every(Number.isFinite));
-    assert.equal(context.sources.length, 1);
+    assert.equal(context.sources.length, id === "model-flute-a4" ? 2 : 1);
     assert.equal(context.sources[0].at, 0);
-    assert.equal(context.sources[0].onended, null, "the exporter releases its sources");
+    assert.ok(context.sources.every(source => source.onended === null), "the exporter releases all its sources");
     assert.equal(progress[0], 0);
     assert.equal(progress.at(-1), 1);
     assert.ok(progress.every((value, i) => !i || value >= progress[i - 1]));
@@ -180,13 +189,17 @@ test("modeled examples use the existing score/export/reader path with the exact 
       assert.equal(f.modelCalls.length, 0);
       assert.equal(context.sources[0].kind, "oscillator");
       close(context.sources[0].frequency.events[0][1], 440);
-      const components = sustainModel.fluteComponents(60, 440, 44100);
-      assert.equal(context.waves.length, 1);
-      assert.equal(context.waves[0].settings.disableNormalization, true);
-      for (let i = 0; i < components.length; i++) {
-        close(context.waves[0].real[i + 1], components[i].cos);
-        close(context.waves[0].imag[i + 1], components[i].sin);
-      }
+      assert.equal(context.sources[0].type, "sine");
+      assert.equal(context.waves.length, 0, "flute now uses the same nonlinear jet graph as Blow/Bow");
+      assert.equal(context.shapers.length, 1);
+      assert.equal(context.shapers[0].curve.length, 2049);
+      assert.equal(context.shapers[0].oversample, "4x");
+      assert.deepEqual(context.filters.map(filter => filter.type), ["highpass", "lowpass", "lowpass"]);
+      assert.equal(context.sources[1].kind, "buffer");
+      assert.equal(context.sources[1].loop, true, "the exported example includes the shared breath-noise path");
+      assert.equal(context.buffers.length, 1);
+      assert.equal(context.buffers[0].length, 44100, "one bounded reusable second of noise");
+      assert.equal(context.sources[1].buffer, null, "export releases the noise source reference");
     } else {
       assert.equal(context.sources[0].kind, "buffer");
       assert.equal(f.modelCalls.length, 1);

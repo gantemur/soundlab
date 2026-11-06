@@ -92,6 +92,27 @@ test("all pitched instruments, tunings and guitar settings survive without being
   assert.deepEqual(codec.decode(codec.encode(project)).content.tracks[0].guitar, { mode: "up", spacingMs: 13.5 });
 });
 
+test("I0/I1 preserves old instrument IDs and adds marimba without a project schema migration", () => {
+  assert.equal(codec.VERSION, 1);
+  assert.equal(compose.UI.en.marimba, "Marimba");
+  assert.equal(compose.UI.mn.marimba, "Маримба");
+  for (const instrument of ["flute", "violin", "morin", "guitar", "piano", "chimes", "fmep", "marimba"]) {
+    assert.equal(codec.decode(codec.encode(solo({ instrument }))).content.instrument, instrument);
+  }
+  const project = arrangement();
+  project.content.tracks = ["piano", "chimes", "marimba", "morin"].map((instrument, index) => ({
+    id: index + 1, name: instrument, instrument, abc: compose.EXAMPLES.first,
+    volume: 40, mute: index === 1, solo: false
+  }));
+  project.content.selectedId = 3;
+  project.content.nextId = 5;
+  const decoded = codec.decode(codec.encode(project));
+  assert.deepEqual(decoded.content.tracks.map(track => track.instrument), ["piano", "chimes", "marimba", "morin"]);
+  assert.equal(decoded.content.selectedId, 3);
+  assert.equal(decoded.content.tracks[1].mute, true);
+  assert.equal(decoded.content.tracks[2].abc, compose.EXAMPLES.first);
+});
+
 test("track ordering, IDs, mix settings and editor choices round-trip", () => {
   const project = arrangement();
   project.title = "Өөрчлөлт";

@@ -10,6 +10,7 @@ const abc = require("./sound-abc.js");
 const drumABC = require("./sound-drum-abc.js");
 const patterns = require("./sound-drum-patterns.js");
 const sustain = require("./sound-sustain.js");
+const heldVoice = require("./sound-held-voice.js");
 const temperament = require("./sound-temperaments.js");
 const compose = require("./sound-compose.js");
 const ensemble = require("./sound-ensemble.js");
@@ -66,7 +67,7 @@ function fixture(options = {}) {
     constructor(channels, length, sampleRate) {
       this.channels = channels; this.length = length; this.sampleRate = sampleRate;
       this.currentTime = 0; this.destination = { kind: "destination" };
-      this.gains = []; this.sources = []; this.buffers = []; this.waves = [];
+      this.gains = []; this.sources = []; this.buffers = []; this.waves = []; this.filters = []; this.shapers = [];
       this.renderCalls = 0; this.graph = null;
       contexts.push(this);
       assert.equal(arguments.length, 3);
@@ -87,6 +88,16 @@ function fixture(options = {}) {
     createPeriodicWave(real, imag, settings) {
       const wave = { real: Float32Array.from(real), imag: Float32Array.from(imag), settings: { ...settings } };
       this.waves.push(wave); return wave;
+    }
+    createBiquadFilter() {
+      const node = { kind: "filter", frequency: param(), Q: param(), gain: param(),
+        connect(target) { this.target = target; }, disconnect() { this.disconnected = true; } };
+      this.filters.push(node); return node;
+    }
+    createWaveShaper() {
+      const node = { kind: "shaper", connect(target) { this.target = target; },
+        disconnect() { this.disconnected = true; } };
+      this.shapers.push(node); return node;
     }
     makeSource(kind) {
       const source = { kind, type: "sine", target: null, frequency: param(), onended: null,
@@ -113,7 +124,7 @@ function fixture(options = {}) {
       this.renderCalls++;
       const chain = source => {
         const result = []; let node = source.target;
-        while (node && result.length < 8) {
+        while (node && result.length < 20) {
           result.push(node === this.destination ? "destination" : this.gains.indexOf(node));
           node = node.target;
         }
@@ -123,10 +134,10 @@ function fixture(options = {}) {
       this.graph = {
         gains: this.gains.map(node => ({ records: copy(node.gain.records), target: node.target })),
         sources: this.sources.map(source => ({ kind: source.kind, type: source.type,
-          at: source.startedAt, offset: source.offset, stop: source.stoppedAt,
+          at: source.startedAt, offset: source.offset, stop: source.stoppedAt, loop: Boolean(source.loop),
           frequency: source.frequency.records.find(item => item[0] === "set")?.[1],
           buffer: source.buffer, bufferIndex: this.buffers.indexOf(source.buffer), wave: source.wave,
-          chain: chain(source), gain: copy(source.target.gain.records) }))
+          chain: chain(source), gain: source.target.gain ? copy(source.target.gain.records) : [] }))
       };
       if (options.renderError) throw new Error("offline rendering failed");
       const data = new Float32Array(options.channelLength === undefined ? this.length : options.channelLength);
@@ -146,6 +157,8 @@ function resultPCM(result, count = 3) {
 }
 function cleaned(context) {
   assert.ok(context.gains.every(gain => gain.disconnected));
+  assert.ok(context.filters.every(filter => filter.disconnected));
+  assert.ok(context.shapers.every(shaper => shaper.disconnected));
   for (const source of context.sources) {
     assert.equal(source.onended, null);
     assert.ok(source.stopTimes.length > 0);
@@ -192,7 +205,7 @@ test("exports beyond the 30-second recorder limit have the exact mono PCM16 head
 
 test("full free-buffer tails and piano/FM dampers determine the ending, not the old live tail constants", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nz15/4 C/4 |]";
-  for (const [instrument, end] of [["guitar", 1.875 + 2.6], ["chimes", 1.875 + 2.8],
+  for (const [instrument, end] of [["guitar", 1.875 + 2.6], ["chimes", 1.875 + 2.8], ["marimba", 1.875 + 2.6],
     ["piano", 2.19], ["fmep", 2.19], ["sine", 2.005]]) {
     const f = fixture(), result = await exporter.render(solo({ abc: text, instrument }), f.deps);
     close(result.duration, Math.ceil((end + .02) * 44100) / 44100, 1 / 44100);
@@ -206,6 +219,57 @@ test("full free-buffer tails and piano/FM dampers determine the ending, not the 
     const f = fixture(), result = await exporter.render(arrangement([track(1, "drums", percussion("z15 " + note + " |]"))]), f.deps);
     close(result.duration, Math.ceil((1.875 + tail + .02) * 44100) / 44100, 1 / 44100);
   }
+});
+
+test("offline held instruments use the shared full graph and allocate complete short-note releases", async () => {
+  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nz255/64 C/64 |]";
+  for (const instrument of heldVoice.KINDS) {
+    const f = fixture(), result = await exporter.render(solo({ abc: text, instrument }), f.deps);
+    const context = f.contexts[0], tail = sustain.defaults(instrument).release + heldVoice.STOP_PAD;
+    close(result.duration, Math.ceil((2 + tail + .02) * 44100) / 44100, 1 / 44100);
+    assert.ok(result.duration > 2 + tail, "The WAV includes the whole release and final guard padding");
+    assert.equal(context.graph.sources.length, instrument === "flute" ? 2 : 3);
+    context.graph.sources.forEach(source => { close(source.at, 1.9921875); close(source.stop, 2 + tail); });
+    assert.equal(context.buffers.length, 1);
+    assert.equal(context.buffers[0].length, heldVoice.bufferFrames(44100));
+    assert.equal(f.modelCalls.length, 0, "Held instruments never fall back to a transient sample model");
+    assert.equal(context.graph.sources.filter(source => source.loop).length, 1);
+    if (instrument === "flute") assert.equal(context.shapers[0].oversample, "4x");
+    else assert.ok(context.graph.sources.filter(source => source.kind === "oscillator")
+      .every(source => source.wave.settings.disableNormalization));
+    cleaned(context);
+  }
+});
+
+test("four-part I0/I1 exports preserve mix levels while sharing noise and ringing marimba freely", async () => {
+  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nz15/4 C/4 |]";
+  const instruments = ["flute", "violin", "morin", "marimba"];
+  const f = fixture(), result = await exporter.render(arrangement(instruments.map((instrument, index) =>
+    track(index + 1, instrument, text, { volume: 20 + 10 * index }))), f.deps);
+  const context = f.contexts[0], graph = context.graph;
+  assert.deepEqual(graph.gains.slice(1, 5).map(gain => gain.records.find(item => item[0] === "set")[1]),
+    [.2, .3, .4, .5]);
+  const noises = graph.sources.filter(source => source.loop);
+  assert.equal(noises.length, 3);
+  assert.ok(noises.every(source => source.buffer === noises[0].buffer), "Held parts share one noise allocation");
+  assert.equal(context.buffers.length, 2, "One shared noise buffer and one marimba buffer");
+  assert.equal(f.modelCalls.length, 1);
+  assert.equal(f.modelCalls[0].kind, "marimba");
+  assert.deepEqual(f.modelCalls[0].settings, { velocity: .62 });
+  const marimbaSource = graph.sources.find(source => source.kind === "buffer" && !source.loop);
+  assert.equal(marimbaSource.chain[1], 4);
+  assert.equal(marimbaSource.gain.find(item => item[0] === "set")[1], .19);
+  assert.equal(marimbaSource.gain.some(item => item[0] === "target"), false, "No piano damper is applied");
+  assert.equal(marimbaSource.stop, undefined, "The bar rings to the end of its modeled buffer");
+  for (const source of graph.sources.filter(source => source.kind === "oscillator")) {
+    const busIndex = source.chain.at(-3);
+    assert.ok(busIndex >= 1 && busIndex <= 3);
+    const volumeIndex = source.chain.at(-4);
+    assert.equal(graph.gains[volumeIndex].records.find(item => item[0] === "set")[1], .19,
+      "Track faders remain on the part buses rather than changing excitation strength");
+  }
+  close(result.duration, Math.ceil((1.875 + 2.6 + .02) * 44100) / 44100, 1 / 44100);
+  cleaned(context);
 });
 
 test("trailing rests and fully muted or zero-volume projects preserve the full notation duration", async () => {
@@ -261,12 +325,18 @@ test("ties are single attacks and non-equal tuning reaches the scheduled oscilla
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4- | C2 D2 |]";
   for (const tuning of ["equal", "pythagorean", "just"]) {
     const f = fixture(); await exporter.render(solo({ abc: text, instrument: "flute", tuning }), f.deps);
-    const sources = f.contexts[0].graph.sources, events = players.scheduledEvents(abc.parse(text));
+    const sources = f.contexts[0].graph.sources.filter(source => source.kind === "oscillator"),
+      events = players.scheduledEvents(abc.parse(text));
     assert.equal(sources.length, 2);
     assert.deepEqual(sources.map(source => source.at), [0, 3]);
-    assert.deepEqual(sources.map(source => source.stop), [3.005, 4.005]);
+    const tail = sustain.defaults("flute").release + heldVoice.STOP_PAD;
+    sources.forEach((source, i) => close(source.stop, [3 + tail, 4 + tail][i]));
     sources.forEach((source, i) => close(source.frequency, players.noteFrequency(events[i], tuning, temperament)));
-    assert.ok(sources.every(source => source.wave.settings.disableNormalization));
+    assert.ok(sources.every(source => source.type === "sine"));
+    assert.equal(f.contexts[0].shapers.length, 2, "Each flute uses the shared jet graph");
+    assert.equal(f.contexts[0].buffers.length, 1, "Held notes share one deterministic noise buffer");
+    assert.equal(f.contexts[0].graph.sources.filter(source => source.loop).length, 2);
+    cleaned(f.contexts[0]);
   }
 });
 
@@ -357,6 +427,38 @@ test("128 MiB transient preflight rejects oversized model buffers before a conte
   const f = fixture({ duration: () => 1000 });
   await assert.rejects(exporter.render(solo({ instrument: "guitar" }), f.deps), error => error.code === "limit" && /128 MiB/.test(error.message));
   assert.equal(f.contexts.length, 0); assert.equal(f.modelCalls.length, 0);
+});
+
+test("offline memory preflight reserves the single shared noise buffer inside the same 128 MiB cap", async () => {
+  const noiseBytes = heldVoice.bufferFrames(44100) * 4;
+  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 |]";
+  const f = fixture({ duration: () => (exporter.MAX_BUFFER_BYTES - noiseBytes / 2) / 4 / 44100,
+    constructorError: "memory probe escaped preflight" });
+  const snapshot = arrangement([track(1, "piano", text), track(2, "flute", text)]);
+  await assert.rejects(exporter.render(snapshot, f.deps), error => error.code === "limit" && /128 MiB/.test(error.message));
+  assert.equal(f.contexts.length, 0);
+  assert.equal(f.modelCalls.length, 0, "The oversized test recipe is rejected before allocating samples");
+});
+
+test("held and marimba releases retain the 90-second score and 93-second export bounds", async () => {
+  const text = "M:6/4\nL:1/4\nQ:1/4=120\nK:C\n" + Array(29).fill("C6 | ").join("") + "z23/4 C/4 |]";
+  for (const instrument of [...heldVoice.KINDS, "marimba"]) {
+    const f = fixture({ constructorError: "bounded tail probe" });
+    await assert.rejects(exporter.render(solo({ abc: text, instrument }), f.deps),
+      error => error.code === "render" && /bounded tail probe/.test(error.message));
+    assert.equal(f.contexts.length, 1);
+    assert.ok(f.contexts[0].length > 90 * 44100 && f.contexts[0].length <= 93 * 44100);
+    assert.equal(f.modelCalls.length, 0);
+  }
+});
+
+test("failed held rendering disconnects all excitation, body-filter and noise nodes", async () => {
+  for (const instrument of heldVoice.KINDS) {
+    const f = fixture({ renderError: true });
+    await assert.rejects(exporter.render(solo({ instrument }), f.deps), error => error.code === "render");
+    cleaned(f.contexts[0]);
+    assert.ok(f.contexts[0].sources.every(source => source.disconnected));
+  }
 });
 
 test("more than 24 distinct buffered pitches with repeats never evict and regenerate scheduled buffers", async () => {

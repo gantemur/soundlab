@@ -5,19 +5,26 @@ const abc = require("./sound-abc.js");
 const playerModel = require("./sound-score-player.js");
 const transient = require("./sound-transient.js");
 const sustain = require("./sound-sustain.js");
+const heldVoice = require("./sound-held-voice.js");
+const marimba = require("./sound-marimba.js");
 const temperaments = require("./sound-temperaments.js");
 const drumABC = require("./sound-drum-abc.js");
 
+function audioParam() {
+  return { value: 0, records: [],
+    cancelScheduledValues(at) { this.records.push(["cancel", at]); },
+    setValueAtTime(value, at) { this.value = value; this.records.push(["set", value, at]); },
+    linearRampToValueAtTime(value, at) { this.value = value; this.records.push(["ramp", value, at]); },
+    setTargetAtTime(value, at, constant) { this.value = value; this.records.push(["target", value, at, constant]); }
+  };
+}
+
 function audioFixture(Player = playerModel.Player) {
   const context = {
-    currentTime: 0, sampleRate: 16000, sources: [], gains: [], waves: [], buffers: [],
+    currentTime: 0, sampleRate: 16000, sources: [], gains: [], waves: [], buffers: [], filters: [], shapers: [],
     createGain() {
-      const gain = { gain: {
-        records: [], cancelScheduledValues(at) { this.records.push(["cancel", at]); },
-        setValueAtTime(value, at) { this.value = value; this.records.push(["set", value, at]); },
-        linearRampToValueAtTime(value, at) { this.records.push(["ramp", value, at]); },
-        setTargetAtTime(value, at, constant) { this.records.push(["target", value, at, constant]); }
-      }, connect(target) { this.target = target; }, disconnect() { this.disconnected = true; } };
+      const gain = { gain: audioParam(), connect(target) { this.target = target; },
+        disconnect() { this.disconnected = true; } };
       this.gains.push(gain);
       return gain;
     },
@@ -26,10 +33,8 @@ function audioFixture(Player = playerModel.Player) {
     },
     createOscillator() {
       const source = {
-        type: "oscillator", frequency: { setValueAtTime(value, at) {
-          this.value = value; this.time = at;
-        } },
-        connect(target) { this.target = target; }, disconnect() {},
+        type: "oscillator", frequency: audioParam(),
+        connect(target) { this.target = target; }, disconnect() { this.disconnected = true; },
         setPeriodicWave(wave) { this.wave = wave; },
         start(at) { this.startedAt = at; }, stop(at) { this.stoppedAt = at; }
       };
@@ -38,18 +43,27 @@ function audioFixture(Player = playerModel.Player) {
     },
     createBuffer(_channels, length, rate) {
       const data = new Float32Array(length);
-      const buffer = { duration: length / rate, getChannelData() { return data; } };
+      const buffer = { duration: length / rate, length, sampleRate: rate, getChannelData() { return data; } };
       this.buffers.push(buffer);
       return buffer;
     },
     createBufferSource() {
       const source = {
-        type: "buffer", connect(target) { this.target = target; }, disconnect() {},
+        type: "buffer", connect(target) { this.target = target; }, disconnect() { this.disconnected = true; },
         start(at, offset) { this.startedAt = at; this.offset = offset || 0; },
         stop(at) { this.stoppedAt = at; }
       };
       this.sources.push(source);
       return source;
+    },
+    createBiquadFilter() {
+      const node = { frequency: audioParam(), Q: audioParam(), gain: audioParam(),
+        connect(target) { this.target = target; }, disconnect() { this.disconnected = true; } };
+      this.filters.push(node); return node;
+    },
+    createWaveShaper() {
+      const node = { connect(target) { this.target = target; }, disconnect() { this.disconnected = true; } };
+      this.shapers.push(node); return node;
     }
   };
   const calls = [];
@@ -76,19 +90,20 @@ test("a score never starts audio on load; uses the audio clock and skips rests",
   await player.play();
   assert.equal(calls.length, 1);
   assert.equal(player.status, "playing");
-  assert.equal(context.sources.length, 1);
+  assert.equal(player.voices.size, 1);
   assert.ok(Math.abs(context.sources[0].startedAt - .08) < 1e-6);
-  assert.ok(context.sources[0].wave);
+  assert.equal(context.sources[0].type, "sine");
+  assert.equal(context.shapers.length, 1, "Flute uses the shared nonlinear jet graph");
   assert.equal(context.gains[0].target, player.contextOwner.output);
   context.currentTime = 1.29;
   player.tick();
-  assert.equal(context.sources.length, 2, "The rest does not create a voice");
+  assert.equal(player.voices.size, 2, "The rest does not create a voice");
   context.currentTime = 1.94;
   player.tick();
-  assert.equal(context.sources.length, 3);
+  assert.equal(player.voices.size, 3);
   context.currentTime = 2.56;
   player.tick();
-  assert.equal(context.sources.length, 4);
+  assert.equal(player.voices.size, 4);
   assert.ok(updates.some(update => update.status === "playing"));
   context.currentTime = 5.5;
   player.tick();
@@ -193,8 +208,8 @@ test("Pause during asynchronous audio startup cancels late notes; Resume can sta
   player.stop();
 });
 
-test("guitar, piano and chime scores delegate to existing sound models", async () => {
-  for (const instrument of ["guitar", "piano", "chimes"]) {
+test("guitar, piano, chime and marimba scores delegate to the shared sound models", async () => {
+  for (const instrument of ["guitar", "piano", "chimes", "marimba"]) {
     const { player, context, recipes } = audioFixture();
     player.configure({ score: melody, instrument, tuning: "just", volume: 52 });
     await player.play();
@@ -202,10 +217,14 @@ test("guitar, piano and chime scores delegate to existing sound models", async (
     assert.equal(recipes.length, 1, instrument);
     const recipe = recipes[0];
     assert.equal(recipe.kind, instrument === "guitar" ? "pluck" :
-      instrument === "piano" ? "piano" : "kick");
+      instrument === "piano" ? "piano" : instrument === "marimba" ? "marimba" : "kick");
     if (instrument === "chimes") {
       assert.equal(recipe.options.drumVoice, "chimes");
       assert.ok(Math.abs(recipe.options.chimeHz - 264) < 10);
+    }
+    if (instrument === "marimba") {
+      assert.equal(recipe.decay, marimba.DEFAULT_DECAY);
+      assert.equal(recipe.options.velocity, marimba.DEFAULT_VELOCITY);
     }
     assert.equal(context.sources[0].buffer.duration, 2);
     player.stop();
@@ -259,6 +278,267 @@ test("invalid pitches or controls are rejected before audio-context startup", ()
   assert.equal(calls.length, 0);
 });
 
+test("held and marimba score ranges are checked before audio starts in both hosts", () => {
+  const { player, calls } = audioFixture();
+  const score = body => abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + body + " |]");
+  for (const instrument of heldVoice.KINDS) {
+    assert.deepEqual(playerModel.instrumentRange(instrument), [sustain.MIN_HZ, sustain.MAX_HZ]);
+    for (const part of [score("G,,4"), score("b4")]) {
+      assert.throws(() => player.configure({ score: part, instrument }), /110–880/);
+      assert.throws(() => playerModel.validateEnsemble([{ score: part, instrument, volume: 50 }]), /110–880/);
+    }
+    assert.doesNotThrow(() => player.configure({ score: score("A,,2 a2"), instrument }));
+  }
+  assert.deepEqual(playerModel.instrumentRange("marimba"), [marimba.MIN_HZ, marimba.MAX_HZ]);
+  assert.doesNotThrow(() => player.configure({ score: score("A,,2 a'2"), instrument: "marimba" }));
+  assert.doesNotThrow(() => playerModel.validateEnsemble([
+    { score: score("A,,2 a'2"), instrument: "marimba", volume: 50 }
+  ]));
+  for (const part of [score("G,,4"), score("b'4")]) {
+    assert.throws(() => player.configure({ score: part, instrument: "marimba" }), /110–1760/);
+    assert.throws(() => playerModel.validateEnsemble([{ score: part, instrument: "marimba", volume: 50 }]), /110–1760/);
+  }
+  assert.equal(calls.length, 0);
+});
+
+test("Compose held voices retain the explorer graph, quiet noise and default attack/release even for short notes", () => {
+  for (const instrument of heldVoice.KINDS) {
+    const { player, context } = audioFixture();
+    player.configure({ score: melody, instrument, volume: 40 });
+    player.context = context;
+    const event = player.playEvents[0], recipe = heldVoice.defaults(instrument);
+    assert.equal(player.sharedBufferBytes(event, context.sampleRate), context.sampleRate * 4);
+    assert.equal(context.buffers.length, 0, "Planning does not allocate noise or open audio");
+    player.scheduleNote(event, 1, 1.01);
+    const voice = [...player.voices][0].held;
+    assert.equal(voice.attack, recipe.attack);
+    assert.equal(voice.releaseDuration, recipe.release);
+    assert.ok(voice.envelopeAt(1.005) > 0 && voice.envelopeAt(1.01) < 1,
+      "A very short note releases from its unfinished attack");
+    assert.ok(voice.envelopeAt(1.01 + recipe.release / 2) > 0);
+    assert.equal(voice.envelopeAt(1.01 + recipe.release), 0);
+    assert.ok(Math.abs(voice.endTime - player.voiceEndTime(event, 1, 1.01, context.sampleRate)) < 1e-12);
+    assert.ok(voice.sources.every(source => source.startedAt === 1 && source.stoppedAt === voice.endTime));
+    assert.equal(voice.noise.loop, true);
+    assert.equal(voice.noise.buffer.duration, heldVoice.NOISE_SECONDS);
+    const expectedNoise = instrument === "flute" ? sustain.fluteNoiseGain(recipe.strength) :
+      sustain.bowNoiseGain(instrument, recipe.strength);
+    assert.equal(voice.noiseGain.gain.value, expectedNoise);
+    assert.ok(Math.abs(voice.volume.gain.value - .19 * .4) < 1e-12, "Compose applies only its existing mix level");
+    if (instrument === "flute") {
+      assert.equal(voice.fluteNodes.shaper.oversample, "4x");
+      assert.equal(voice.fluteNodes.drive.gain.value, sustain.fluteDrive(recipe.strength));
+    } else {
+      assert.equal(voice.bowNodes.peaks.length, sustain.bowBody(instrument).peaks.length);
+      assert.equal(voice.sources.length, 3, "Soft/hard bow sources plus quiet noise are present");
+    }
+    player.scheduleNote(event, 2, 2.5);
+    const second = [...player.voices][1].held;
+    assert.equal(second.noise.buffer, voice.noise.buffer, "All notes reuse one bounded excitation buffer");
+    context.currentTime = .5;
+    player.stop();
+    assert.equal(player.voices.size, 0);
+    assert.ok(context.sources.every(source => source.disconnected && source.stoppedAt === .5),
+      "Stop cancels every future oscillator and noise source synchronously");
+    assert.ok(voice.nodes.every(node => node.disconnected));
+    assert.ok(second.nodes.every(node => node.disconnected));
+  }
+});
+
+test("live completion waits for final held releases and full freely ringing marimba tails", async t => {
+  const finalNote = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nz15/4 C/4 |]");
+  for (const instrument of [...heldVoice.KINDS, "marimba"]) {
+    const { player, context } = audioFixture();
+    t.after(() => player.stop());
+    player.transientModel = transient;
+    player.configure({ score: finalNote, instrument });
+    await player.play();
+    context.currentTime = 1.9;
+    player.tick();
+    const expectedEnd = player.voiceEndTime(player.playEvents[0], 1.955, 2.08, context.sampleRate);
+    assert.ok(Math.abs(player.playbackEndTime - expectedEnd) < 1e-10);
+    context.currentTime = expectedEnd - .01;
+    player.tick();
+    assert.equal(player.status, "playing", instrument + " release was not cut off at score end");
+    context.currentTime = expectedEnd + .01;
+    player.tick();
+    assert.equal(player.status, "stopped");
+  }
+});
+
+test("Pause/Resume preserves a held release tail after the notation ends, including a short note", async t => {
+  for (const instrument of heldVoice.KINDS) for (const body of ["C4", "z255/64 C/64"]) {
+    const { player, context } = audioFixture();
+    t.after(() => player.stop());
+    const score = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + body + " |]");
+    const original = structuredClone(score), release = sustain.defaults(instrument).release;
+    player.configure({ score, instrument });
+    await player.play();
+    if (body !== "C4") { context.currentTime = 1.9; player.tick(); }
+    const first = [...player.voices][0].held;
+    context.currentTime = 2.08 + release / 2;
+    const expectedLevel = first.envelopeAt(context.currentTime);
+    assert.ok(expectedLevel > 0 && expectedLevel < 1);
+    player.pause();
+    assert.equal(player.currentBeat, score.totalBeats, "The visible notation never extends beyond its final beat");
+    assert.ok(player.positionBeat > score.totalBeats, "The internal audio position retains release age");
+    const sourceCount = context.sources.length;
+    context.currentTime = 10;
+    assert.equal(await player.play(), true);
+    assert.equal(player.voices.size, 1, "Resume restores just the sounding tail, not bar one");
+    const resumed = [...player.voices][0].held;
+    assert.equal(context.sources.length, sourceCount + resumed.sources.length);
+    assert.ok(Math.abs(resumed.envelopeAt(10.08) - expectedLevel) < 1e-9);
+    assert.ok(Math.abs(resumed.endTime - (10.08 + release / 2 + heldVoice.STOP_PAD)) < 1e-9);
+    const event = player.playEvents[0];
+    const expectedOffset = (4 - event.startBeat) * .5 + release / 2;
+    assert.ok(Math.abs(resumed.offsetSeconds - expectedOffset) < 1e-9);
+    assert.ok(Math.abs(resumed.noise.offset - expectedOffset % 1) < 1e-9);
+    assert.ok(resumed.envelope.gain.records.filter(record => record[0] === "ramp" && record[2] > 10.08)
+      .every(record => record[1] <= expectedLevel + 1e-9), "No new attack is inserted into the release");
+    assert.equal(player.currentBeat, score.totalBeats);
+    assert.deepEqual(score, original);
+    context.currentTime = resumed.endTime + .01;
+    player.tick();
+    assert.equal(player.status, "stopped");
+    assert.equal(player.currentBeat, 0);
+    assert.equal(context.sources.length, sourceCount + resumed.sources.length, "Tail completion never loops the music");
+  }
+});
+
+test("repeated pauses within one held release retain the progressively shorter tail", async t => {
+  const { player, context } = audioFixture();
+  t.after(() => player.stop());
+  player.configure({ score: abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 |]"), instrument: "morin" });
+  await player.play();
+  context.currentTime = 2.14;
+  player.pause();
+  context.currentTime = 10;
+  await player.play();
+  context.currentTime = 10.12;
+  const expected = [...player.voices][0].held.envelopeAt(context.currentTime);
+  player.pause();
+  context.currentTime = 20;
+  await player.play();
+  const resumed = [...player.voices][0].held;
+  assert.ok(Math.abs(resumed.offsetSeconds - 2.1) < 1e-10);
+  assert.ok(Math.abs(resumed.envelopeAt(20.08) - expected) < 1e-9);
+  assert.ok(Math.abs(resumed.endTime - (20.08 + .22 + heldVoice.STOP_PAD)) < 1e-9);
+  assert.equal(player.currentBeat, 4);
+});
+
+test("freely ringing sample tails resume from their original samples inside rests and after score end", async t => {
+  const score = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]");
+  for (const instrument of ["guitar", "chimes", "marimba"]) for (const age of [.9, 2.2]) {
+    const { player, context } = audioFixture();
+    t.after(() => player.stop());
+    player.transientModel = transient;
+    player.configure({ score, instrument });
+    await player.play();
+    const first = [...player.voices][0].source, buffer = first.buffer;
+    context.currentTime = .08 + age;
+    player.pause();
+    assert.equal(player.currentBeat, Math.min(4, age * 2));
+    context.currentTime = 10;
+    await player.play();
+    assert.equal(player.voices.size, 1, instrument + " still rings after its written quarter note");
+    const resumed = [...player.voices][0].source;
+    assert.equal(resumed.buffer, buffer);
+    assert.ok(Math.abs(resumed.offset - age) < 1e-9, "Resume seeks the ring instead of replaying its strike");
+    assert.equal(resumed.startedAt, 10.08);
+    const expectedEnd = Math.max(10.08 + 2 - age, 10.08 + buffer.duration - age);
+    assert.ok(Math.abs(player.playbackEndTime - expectedEnd) < 1e-9);
+    const sourceCount = context.sources.length;
+    context.currentTime = expectedEnd + .01;
+    player.tick();
+    assert.equal(player.status, "stopped");
+    assert.equal(context.sources.length, sourceCount);
+  }
+});
+
+test("piano and FM damper-tail resume preserves sample age, exponential level and remaining stop time", async t => {
+  const score = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nz3 C |]");
+  for (const instrument of ["piano", "fmep"]) {
+    const { player, context } = audioFixture();
+    t.after(() => player.stop());
+    player.transientModel = transient;
+    player.configure({ score, instrument });
+    await player.play();
+    context.currentTime = 1.5;
+    player.tick();
+    const first = [...player.voices][0], initial = first.gain.gain.records.find(record => record[0] === "set")[1];
+    context.currentTime = 2.14;
+    player.pause();
+    context.currentTime = 10;
+    await player.play();
+    assert.equal(player.voices.size, 1);
+    const resumed = [...player.voices][0];
+    assert.ok(Math.abs(resumed.source.offset - .56) < 1e-9);
+    assert.ok(Math.abs(resumed.source.stoppedAt - 10.21) < 1e-9);
+    const level = resumed.gain.gain.records.find(record => record[0] === "set")[1];
+    assert.ok(Math.abs(level - initial * Math.exp(-.06 / .028)) < 1e-9);
+    assert.ok(resumed.gain.gain.records.some(record => record[0] === "target" && record[2] === 10.08));
+    assert.equal(player.currentBeat, score.totalBeats);
+  }
+});
+
+test("a four-part ensemble resumes only its still-sounding held, marimba and drum tails", async t => {
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.transientModel = transient;
+  const score = body => abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + body + " |]");
+  const drums = drumABC.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C clef=perc\nz3 F |]");
+  player.configure({ tracks: [
+    { id: 1, instrument: "flute", score: score("C4"), volume: 20 },
+    { id: 2, instrument: "morin", score: score("C4"), volume: 30 },
+    { id: 3, instrument: "marimba", score: score("C z3"), volume: 40 },
+    { id: 4, instrument: "drums", score: drums, volume: 50 }
+  ] });
+  await player.play();
+  context.currentTime = 1.5;
+  player.tick();
+  context.currentTime = 2.18;
+  player.pause();
+  context.currentTime = 10;
+  await player.play();
+  assert.equal(player.voices.size, 4);
+  assert.deepEqual(player.buses.map(bus => bus.gain.value), [.2, .3, .4, .5]);
+  const held = [...player.voices].filter(voice => voice.held).map(voice => voice.held);
+  assert.equal(held.length, 2);
+  assert.ok(held.every(voice => Math.abs(voice.offsetSeconds - 2.1) < 1e-9));
+  const sampled = [...player.voices].filter(voice => !voice.held).map(voice => voice.source);
+  assert.ok(Math.abs(sampled[0].offset - 2.1) < 1e-9);
+  assert.ok(Math.abs(sampled[1].offset - .6) < 1e-9);
+  assert.equal(player.currentBeat, 4);
+  const count = context.sources.length;
+  context.currentTime = 10.18;
+  player.tick();
+  assert.equal(context.sources.length, count, "Already resumed tails are not scheduled twice");
+  context.currentTime = player.playbackEndTime + .01;
+  player.tick();
+  assert.equal(player.status, "stopped");
+  assert.equal(context.sources.length, count);
+});
+
+test("resuming after all tails expired stops cleanly instead of looping from bar one", async t => {
+  for (const instrument of ["flute", "morin", "marimba", "sine"]) {
+    const { player, context } = audioFixture();
+    t.after(() => player.stop());
+    player.transientModel = transient;
+    player.configure({ score: abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 |]"), instrument });
+    await player.play();
+    context.currentTime = player.playbackEndTime + .1;
+    player.pause(); // Simulate a delayed UI action before the next scheduler tick.
+    const count = context.sources.length;
+    context.currentTime = 10;
+    assert.equal(await player.play(), false);
+    assert.equal(player.status, "stopped");
+    assert.equal(player.currentBeat, 0);
+    assert.equal(player.voices.size, 0);
+    assert.equal(context.sources.length, count);
+  }
+});
+
 test("a pending audio-context request cannot launch after Stop", async () => {
   const { player, owner, context } = audioFixture();
   let resolveStart;
@@ -290,28 +570,30 @@ test("playback coalesces a tie chain and preserves the original notation", () =>
 
 test("a tied chain has one attack and ends at its combined duration", async t => {
   const tied = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC2-C2- | C2 D2 |]");
-  for (const instrument of ["flute", "violin", "morin", "guitar", "piano", "chimes"]) {
+  for (const instrument of ["flute", "violin", "morin", "guitar", "piano", "chimes", "marimba"]) {
     const { player, context } = audioFixture();
     t.after(() => player.stop());
     player.configure({ score: tied, instrument });
     await player.play();
-    assert.equal(context.sources.length, 1, instrument);
+    assert.equal(player.voices.size, 1, instrument);
     if (["flute", "violin", "morin"].includes(instrument)) {
-      assert.ok(Math.abs(context.sources[0].stoppedAt - 3.085) < 1e-9,
-        "The sustained note spans all three written C notes");
+      const voice = [...player.voices][0].held;
+      assert.ok(Math.abs(voice.endTime - (3.08 + sustain.defaults(instrument).release + heldVoice.STOP_PAD)) < 1e-9,
+        "The sustained note spans all three written C notes, then releases fully");
+      assert.ok(voice.sources.every(source => source.stoppedAt === voice.endTime));
     }
     for (const now of [1, 2, 2.5]) { context.currentTime = now; player.tick(); }
-    assert.equal(context.sources.length, 1, instrument + " does not retrigger at a tie");
+    assert.equal(player.voices.size, 1, instrument + " does not retrigger at a tie");
     context.currentTime = 2.95;
     player.tick();
-    assert.equal(context.sources.length, 2, instrument + " attacks the next untied note");
+    assert.equal(player.voices.size, 2, instrument + " attacks the next untied note");
     player.stop();
   }
 });
 
 test("pause and resume within a tied chain preserve its ending and sample position", async t => {
   const tied = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC2-C2- | C4 |]");
-  for (const instrument of ["violin", "guitar", "piano", "chimes"]) {
+  for (const instrument of ["violin", "guitar", "piano", "chimes", "marimba"]) {
     const { player, context } = audioFixture();
     t.after(() => player.stop());
     player.configure({ score: tied, instrument });
@@ -321,17 +603,21 @@ test("pause and resume within a tied chain preserve its ending and sample positi
     assert.equal(player.currentBeat, 3, "Pause is inside the second notated C");
     context.currentTime = 10;
     await player.play();
-    const resumed = context.sources.at(-1);
-    assert.equal(context.sources.length, 2, instrument);
+    const resumedVoice = [...player.voices][0], resumed = resumedVoice.source;
+    const sourceCount = context.sources.length;
+    assert.equal(player.voices.size, 1, instrument);
     assert.equal(resumed.startedAt, 10.08);
     if (instrument === "violin") {
-      assert.ok(Math.abs(resumed.stoppedAt - 12.585) < 1e-9, "Sustain ends at the chain's final beat");
+      assert.ok(Math.abs(resumed.stoppedAt - (12.58 + sustain.defaults(instrument).release + heldVoice.STOP_PAD)) < 1e-9,
+        "Sustain releases after the chain's final beat");
+      assert.equal(resumedVoice.held.envelopeAt(resumed.startedAt), 1,
+        "Resume retains the tied note's age rather than replaying its attack");
     } else {
       assert.equal(resumed.offset, 1.5, "Resume seeks from the original attack, not the continuation");
     }
     context.currentTime = 10.45;
     player.tick();
-    assert.equal(context.sources.length, 2, "No new attack at the next notated continuation");
+    assert.equal(context.sources.length, sourceCount, "No new attack at the next notated continuation");
     player.stop();
   }
 });
@@ -491,8 +777,8 @@ test("ensemble guitar articulations retain shared timing while other tracks stay
   assert.equal(player.score.eventCount, 6);
   assert.ok(player.playEvents.every((event, i) => i === 0 || event.startBeat >= player.playEvents[i - 1].startBeat));
   await player.play();
-  const strings = context.sources.filter(source => source.type === "buffer");
-  const violin = context.sources.filter(source => source.type === "oscillator");
+  const strings = [...player.voices].filter(voice => !voice.held).map(voice => voice.source);
+  const violin = [...player.voices].filter(voice => voice.held).map(voice => voice.source);
   assert.equal(strings.length, 3);
   assert.equal(violin.length, 3);
   assert.ok(violin.every(source => source.startedAt === .08));
@@ -518,7 +804,7 @@ test("solo and ensemble guitars admit low open strings while other instrument bo
 
 test("buffer specifications and ending times match the actual shared instrument models", () => {
   const part = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]");
-  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "piano", "fmep", "chimes"]) {
+  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "piano", "fmep", "chimes", "marimba"]) {
     const { player, context, calls } = audioFixture();
     context.sampleRate = rate;
     player.transientModel = transient;

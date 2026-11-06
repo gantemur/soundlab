@@ -6,13 +6,15 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s058">
+  <link rel="stylesheet" href="sound-lab.css?v=s059">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
   <script src="sound-fm.js?v=s044" defer></script>
-  <script src="sound-transient.js?v=s052" defer></script>
+  <script src="sound-marimba.js?v=s059" defer></script>
+  <script src="sound-transient.js?v=s059" defer></script>
   <script src="sound-sustain.js?v=s020b" defer></script>
+  <script src="sound-held-voice.js?v=s059" defer></script>
   <script src="sound-fft.js?v=s058" defer></script>
   <script src="sound-spectrum.js?v=s058" defer></script>
   <script src="sound-motion.js?v=s020c" defer></script>
@@ -30,19 +32,19 @@
   <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s053" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s056" defer></script>
-  <script src="sound-compose.js?v=s055" defer></script>
+  <script src="sound-score-player.js?v=s059" defer></script>
+  <script src="sound-compose.js?v=s059" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
-  <script src="sound-ensemble.js?v=s055" defer></script>
+  <script src="sound-ensemble.js?v=s059" defer></script>
   <script src="sound-project.js?v=s055" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
-  <script src="sound-export.js?v=s056" defer></script>
+  <script src="sound-export.js?v=s059" defer></script>
   <script src="sound-export-ui.js?v=s056" defer></script>
   <script src="sound-wave-reader.js?v=s058" defer></script>
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
-  <script src="sound-analysis-examples.js?v=s058" defer></script>
+  <script src="sound-analysis-examples.js?v=s059" defer></script>
   <script src="sound-analysis.js?v=s058" defer></script>
-  <script src="sound-lab.js?v=s058" defer></script>
+  <script src="sound-lab.js?v=s059" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -233,7 +235,7 @@
             <span aria-hidden="true" class="strike-glyph">🥁</span><span data-i18n="kick">Басс бөмбөр</span>
           </button>
           <button type="button" class="strike-choice" data-strike="piano" aria-pressed="false">
-            <span aria-hidden="true" class="strike-glyph">🎹</span><span data-i18n="piano">Төгөлдөр хуур</span>
+            <span aria-hidden="true" class="strike-glyph">♬</span><span data-i18n="strikePitched">Ноттой</span>
           </button>
         </div>
         <div id="strikeGuitarPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikeGuitarPlay">
@@ -241,10 +243,12 @@
           <button type="button" data-strike-play="strum">▶ Цохих</button>
         </div>
         <div class="field-group" id="strikePianoTypeGroup" hidden>
-          <label class="field-title" for="strikePianoType" data-i18n="strikePianoTypeTitle">Хуурын төрөл</label>
+          <label class="field-title" for="strikePianoType" data-i18n="strikePianoTypeTitle">Хөгжмийн зэмсэг</label>
           <select id="strikePianoType">
             <option value="acoustic" data-i18n="strikePianoAcoustic">Төгөлдөр хуур</option>
             <option value="electric" data-i18n="strikePianoElectric">Цахилгаан хуур</option>
+            <option value="chimes" data-i18n="strikeDrumChimes">Хоолойт хонх</option>
+            <option value="marimba" data-i18n="strikeMarimba">Маримба</option>
           </select>
         </div>
         <div id="strikePianoPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikePianoTouchTitle" hidden>
@@ -305,7 +309,7 @@
           <div class="scale-row">
             <span data-unit-hz="110">110 Гц</span>
             <label class="check-label"><input id="strikeSnap" type="checkbox"> <span data-i18n="snap">Нотод тааруулах</span></label>
-            <span data-unit-hz="880">880 Гц</span>
+            <span id="strikePitchMax">880 Гц</span>
           </div>
         </div>
 
@@ -322,7 +326,6 @@
             <option value="snare" data-i18n="strikeDrumSnare">Бага бөмбөр</option>
             <option value="cymbal" data-i18n="strikeDrumCymbal">Цан</option>
             <option value="steelpan" data-i18n="strikeDrumSteelpan">Ган бөмбөр</option>
-            <option value="chimes" data-i18n="strikeDrumChimes">Хоолойт хонх</option>
             <option value="woodblock" data-i18n="strikeDrumWoodblock">Модон товшуур</option>
           </select>
           <div class="field-title"><span data-i18n="strikeDrumSize">Бөмбөр цохих</span><output id="strikeDrumFrequencies">112 Гц</output></div>
@@ -421,10 +424,13 @@
           <h2 id="sustain-controls-title" data-i18n="sustainChoose">Үргэлжлэх дуу сонгох</h2>
           <p id="sustainDescription" class="description">Үлээх эсвэл нумдах үед дуу үргэлжилж, зогсооход намдана.</p>
         </div>
-        <div class="strike-choices" id="sustainChoices" role="group" aria-label="Үргэлжлэх авианы загвар">
-          <button class="strike-choice selected" type="button" data-sustain="flute" aria-pressed="true"><span class="strike-glyph" aria-hidden="true">🪈</span><span data-i18n="sustainFlute">Лимбэ</span></button>
-          <button class="strike-choice" type="button" data-sustain="violin" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">🎻</span><span data-i18n="sustainViolin">Хийл</span></button>
-          <button class="strike-choice" type="button" data-sustain="morin" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">♬</span><span data-i18n="sustainMorin">Морин хуур</span></button>
+        <div class="strike-choices sustain-families" id="sustainChoices" role="group" aria-label="Үргэлжлэх авианы бүлэг">
+          <button class="strike-choice selected" type="button" data-sustain-family="air" aria-pressed="true"><span class="strike-glyph" aria-hidden="true">🪈</span><span data-i18n="sustainAir">Үлээвэр</span></button>
+          <button class="strike-choice" type="button" data-sustain-family="bow" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">🎻</span><span data-i18n="sustainBowed">Нумт чавхдас</span></button>
+        </div>
+        <div class="field-group">
+          <label class="field-title" for="sustainInstrument" data-i18n="strikePianoTypeTitle">Хөгжмийн зэмсэг</label>
+          <select id="sustainInstrument"><option value="flute">Лимбэ</option></select>
         </div>
         <div id="sustainPlayModes" class="ear-play-controls" role="group" data-i18n-aria="sustainGestureAria">
           <button id="sustainHoldButton" class="sustain-button" type="button" aria-pressed="false">▶ Дарж барих</button>
@@ -1373,6 +1379,7 @@
                 <option value="guitar" data-compose-i18n="guitar">Гитар</option>
                 <option value="piano" data-compose-i18n="piano">Төгөлдөр хуур</option>
                 <option value="chimes" data-compose-i18n="chimes">Хоолойт хонх</option>
+                <option value="marimba" data-compose-i18n="marimba">Маримба</option>
               </optgroup>
               <optgroup label="Электрон авиа" data-compose-group-i18n="instrumentElectronic">
                 <option value="sine" data-compose-i18n="sine">Синус долгион</option>

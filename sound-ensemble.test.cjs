@@ -10,24 +10,35 @@ const transient = require("./sound-transient.js");
 const temperament = require("./sound-temperaments.js");
 const ensemblePresets = require("./sound-ensemble-presets.js");
 
+function param() {
+  return { value: 0, records: [],
+    cancelScheduledValues(at) { this.records.push(["cancel", at]); },
+    setValueAtTime(value, at) { this.value = value; this.records.push(["set", value, at]); },
+    setTargetAtTime(value, at, tau) { this.value = value; this.records.push(["target", value, at, tau]); },
+    linearRampToValueAtTime(value, at) { this.value = value; this.records.push(["ramp", value, at]); }
+  };
+}
+
 function fixture() {
   const context = {
     currentTime: 0, sampleRate: 16000, gains: [], sources: [], buffers: [],
     createGain() {
-      const node = { connected: null, disconnected: false, gain: {
-        value: 0, records: [],
-        cancelScheduledValues(at) { this.records.push(["cancel", at]); },
-        setValueAtTime(value, at) { this.value = value; this.records.push(["set", value, at]); },
-        setTargetAtTime(value, at, tau) { this.value = value; this.records.push(["target", value, at, tau]); },
-        linearRampToValueAtTime(value, at) { this.value = value; this.records.push(["ramp", value, at]); }
-      }, connect(target) { this.connected = target; }, disconnect() { this.disconnected = true; } };
+      const node = { connected: null, disconnected: false, gain: param(),
+        connect(target) { this.connected = target; }, disconnect() { this.disconnected = true; } };
       this.gains.push(node); return node;
     },
     createOscillator() {
-      const src = { frequency: { setValueAtTime(value) { this.value = value; } },
+      const src = { frequency: param(),
         connect(node) { this.connected = node; }, disconnect() {}, setPeriodicWave() {},
         start(t) { this.startedAt = t; }, stop(t) { this.stoppedAt = t; } };
       this.sources.push(src); return src;
+    },
+    createBiquadFilter() {
+      return { frequency: param(), Q: param(), gain: param(),
+        connect(node) { this.connected = node; }, disconnect() { this.disconnected = true; } };
+    },
+    createWaveShaper() {
+      return { connect(node) { this.connected = node; }, disconnect() { this.disconnected = true; } };
     },
     createPeriodicWave() { return {}; },
     createBuffer(channels, len, rate) {
@@ -59,7 +70,7 @@ test("C2A default ABC scores are separate, in sync and remain silent until Play"
   assert.equal(context.sources.length, 0);
   assert.deepEqual(synth.playEvents.slice(0, 2).map(note => note.partIndex), [0, 1]);
   await synth.play();
-  assert.equal(context.sources.length, 2, "Both first notes share a start clock");
+  assert.equal(synth.voices.size, 2, "Both first notes share a start clock");
   assert.equal(context.sources[0].startedAt, context.sources[1].startedAt);
   assert.equal(context.gains[0].connected, owner.output, "Master score bus joins REC output");
   assert.equal(synth.buses[0].connected, synth.outputBus);
@@ -109,7 +120,7 @@ test("mute, solo, and faders update each track bus without restarting playback",
   assert.equal(synth.buses[1].gain.value, .73);
   assert.throws(() => synth.updateMix(2, { volume: 200 }), /Invalid track volume/);
   assert.equal(synth.status, "playing");
-  assert.equal(context.sources.length, 2, "Mixing does not retrigger notes");
+  assert.equal(synth.voices.size, 2, "Mixing does not retrigger notes");
   synth.stop();
 });
 
@@ -133,6 +144,15 @@ test("ensemble validates event limits, instrument names and 1–4 tracks", () =>
   assert.throws(() => playerModel.validateEnsemble([prepared[0]], "unknown", temperament), /1–4/);
   const high = mk({ ...prepared[0], abc: prepared[0].abc.replace(/C D E G/, "c' d' e' g'") });
   assert.throws(() => playerModel.validateEnsemble([high], "equal", temperament), /outside flute range/);
+});
+
+test("the stable pitched instrument list has bilingual labels including Marimba", () => {
+  assert.equal(playerModel.INSTRUMENTS.includes("marimba"), true);
+  assert.equal(ensemble.VOICES.en.marimba, "Marimba");
+  assert.equal(ensemble.VOICES.mn.marimba, "Маримба");
+  for (const language of ["en", "mn"]) for (const instrument of playerModel.INSTRUMENTS) {
+    assert.equal(typeof ensemble.VOICES[language][instrument], "string", language + " " + instrument);
+  }
 });
 
 test("acoustic score piano gets an RMS level correction; FM piano retains its gain", async () => {
@@ -165,7 +185,7 @@ test("C2C percussion attacks use the same audio clock and recorder bus as melody
   assert.equal(context.sources.length, 0);
   assert.equal(synth.playEvents.filter(e => e.type === "drum").length, 48);
   await synth.play();
-  assert.equal(context.sources.length, 4, "two pitched notes and two simultaneous drum voices start");
+  assert.equal(synth.voices.size, 4, "two pitched notes and two simultaneous drum voices start");
   assert.ok(context.sources.every(source => source.startedAt === context.sources[0].startedAt));
   assert.equal(synth.outputBus.connected, owner.output);
   assert.equal(synth.buses[2].connected, synth.outputBus);

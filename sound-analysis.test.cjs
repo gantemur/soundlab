@@ -239,7 +239,7 @@ test("class/example dropdowns use the catalogue and language changes preserve al
   c.setCursor(.1); c.setSelection(.05, .15); await f.settle(); c.zoom(.5);
   const saved = { pcm: c.pcm, cursor: c.cursor, start: c.start, end: c.end, span: c.viewSpan, source: c.source };
   c.renderLanguage("en");
-  assert.match(f.get("analysisSourceDescription").textContent, /without.*breath-noise/);
+  assert.match(f.get("analysisSourceDescription").textContent, /including breath noise/);
   assert.equal(f.get("analysisClass").value, "instruments");
   assert.equal(f.get("analysisExample").value, "model-flute-a4");
   c.renderLanguage("mn");

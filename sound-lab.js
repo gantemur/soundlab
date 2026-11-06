@@ -4,6 +4,7 @@
   const model = window.SoundLabModel;
   const transientModel = window.SoundLabTransientModel;
   const sustainModel = window.SoundLabSustain;
+  const heldVoiceModel = window.SoundLabHeldVoice;
   const spectrumModel = window.SoundLabSpectrum;
   const motionModel = window.SoundLabMotionModel;
   const beatsModel = window.SoundLabBeats;
@@ -407,11 +408,17 @@
       strikePluckButton: "Pluck", strikeStrumButton: "Strum", strikeKickButton: "Strike",
       strikePianoButton: "Press a key", strikePianoTapButton: "Tap",
       strikePianoTouchTitle: "How to play", strikePianoPress: "Press", strikePianoTap: "Tap",
-      strikePianoTypeTitle: "Piano type", strikePianoAcoustic: "Acoustic piano",
+      strikePianoTypeTitle: "Instrument", strikePitched: "Pitched", strikeMarimba: "Marimba",
+      strikePianoAcoustic: "Acoustic piano",
       strikePianoElectric: "Electric piano",
       strikePianoTouchHint: "Press models a held key with free decay. Tap is gentler and brings the damper back after a short press.",
       strikePianoElectricHint: "A bright FM attack settles into a warmer tone. Tap returns a modeled damper early; Strength also changes brightness.",
       strikeDescElectric: "Electronic frequency modulation gives a metallic attack and a mellow, beating tail. Compare it with the acoustic piano model.",
+      strikeDescChimes: "Strike a pitched chime and follow its bright, inharmonic ringing modes as they decay.",
+      strikeDescMarimba: "A soft mallet excites a tuned wooden-bar model. Its upper modes fade faster than the rounded low note.",
+      strikeMarimbaHint: "An original teaching model, not a recording: tuned bar modes, a soft mallet and a low-mode resonator. Strength changes both level and attack colour.",
+      strikeMarimbaSpectrumHint: "The low bar modes are tuned near 1 : 4 : 10, rather than a complete harmonic series. The upper modes fade faster; these are illustrative parameters, not measurements.",
+      strikePitchedChimesHint: "Choose a note, then strike once. The metal-like modes ring after the hit; there is no piano key or damper to hold.",
       strikeGuitarPlay: "Play guitar", strikeSingle: "One string", strikeStrum: "Several strings",
       strikeChord: "Strum a chord", strikeMoreChords: "More chords",
       strikePatternTitle: "Strumming pattern", strikePatternDown: "Downstroke", strikePatternUp: "Upstroke",
@@ -475,14 +482,15 @@
       strikeHidden: "Sound stopped when you left the page.",
       strikeUnsupported: "This browser does not support synthesized sound playback.",
       strikeBlocked: "Sound could not start. Check browser audio permission and try again.",
-      strikeInvalid: "Enter a string frequency between 110 and 880 Hz.",
+      strikeInvalid: "Enter a note frequency within this instrument’s displayed range.",
       strikeDesc: {
         pluck: "A plucked string repeatedly reflects its vibration, losing some energy each cycle. Several strings can form a chord.",
-        kick: "Compare drums, cymbals, a steel pan, chimes and woodblocks. Tap the pads to build a rhythm.",
+        kick: "Compare drums, cymbals, a steel pan and woodblocks. Tap the pads to build a rhythm.",
         piano: "Hammer force changes the brightness of slightly detuned, stiff strings. Their overtones fade at different rates."
       },
       sustainChoose: "Choose a held sound",
       sustainFlute: "Flute", sustainViolin: "Violin", sustainMorin: "Morin khuur",
+      sustainAir: "Aerophones", sustainBowed: "Bowed strings",
       sustainGroupAria: "Held instrument models", sustainGestureTitle: "How to play",
       sustainGestureAria: "Hold or toggle the sound", sustainHold: "Press and hold", sustainToggle: "Tap to toggle",
       sustainPress: "Hold to play", sustainPressing: "Sounding…", sustainPressCaption: "Hold the button; release to fade.",
@@ -966,11 +974,17 @@
       strikePluckButton: "Татах", strikeStrumButton: "Цохих", strikeKickButton: "Цохих",
       strikePianoButton: "Товчлуур дарах", strikePianoTapButton: "Товших",
       strikePianoTouchTitle: "Тоглох арга", strikePianoPress: "Дарах", strikePianoTap: "Товших",
-      strikePianoTypeTitle: "Хуурын төрөл", strikePianoAcoustic: "Төгөлдөр хуур",
+      strikePianoTypeTitle: "Хөгжмийн зэмсэг", strikePitched: "Ноттой", strikeMarimba: "Маримба",
+      strikePianoAcoustic: "Төгөлдөр хуур",
       strikePianoElectric: "Цахилгаан хуур",
       strikePianoTouchHint: "Дарахад товчлуурыг барьсан үеийн авиа чөлөөтэй намдана. Товшиход алх зөөлөн цохиж, намжаагч удахгүй буцна.",
       strikePianoElectricHint: "FM загварын эхний авиа тод, төмөрлөг, дараа нь зөөлөн болно. Товшиход намжаагч эрт буцна; цохилтын хүч нь дууны өнгийг ч өөрчилнө.",
       strikeDescElectric: "Давтамжийн модуляцтай цахим авиа эхэндээ тод, сүүлдээ зөөлөрч намдана. Ердийн төгөлдөр хууртай харьцуулаарай.",
+      strikeDescChimes: "Ноттой хоолойт хонхыг цохиж, бүхэл тоон харьцаагүй тод хэлбэлзлүүд нь хэрхэн намдахыг ажиглаарай.",
+      strikeDescMarimba: "Зөөлөн цохиураар хөглөсөн модон хавтанг цохих загвар. Дээд хэлбэлзлүүд нь нам, зөөлөн авианаасаа хурдан намдана.",
+      strikeMarimbaHint: "Бичлэг биш, сургалтын загвар: хөглөсөн модон хавтан, зөөлөн цохиур ба нам авианы резонатор. Цохилтын хүч нь дууны хэмжээ болон өнгийг өөрчилнө.",
+      strikeMarimbaSpectrumHint: "Нам хэлбэлзлүүдийн давтамж ойролцоогоор 1 : 4 : 10 харьцаатай, бүх гармоник оролцохгүй. Дээд хэлбэлзлүүд хурдан намдана. Эдгээр нь хэмжилт биш, жишээ параметрүүд юм.",
+      strikePitchedChimesHint: "Нотоо сонгоод нэг удаа цохино. Металл мэт хэлбэлзлүүд үргэлжлэн эгшиглэнэ; төгөлдөр хуурын товчлуур, намжаагч байхгүй.",
       strikeGuitarPlay: "Гитар тоглуулах", strikeSingle: "Нэг чавхдас", strikeStrum: "Олон чавхдас",
       strikeChord: "Аккорд цохих", strikeMoreChords: "Бусад аккорд",
       strikePatternTitle: "Цохих арга", strikePatternDown: "Доош цохих", strikePatternUp: "Дээш цохих",
@@ -1034,14 +1048,15 @@
       strikeHidden: "Хуудсаас гарахад дуу зогслоо.",
       strikeUnsupported: "Энэ хөтөч дуу үүсгэж тоглуулах боломжгүй байна.",
       strikeBlocked: "Авиа эхэлсэнгүй. Хөтчийн дууны зөвшөөрлийг шалгаад дахин оролдоно уу.",
-      strikeInvalid: "Нотын давтамжийг 110–880 Гц-ийн хооронд оруулна уу.",
+      strikeInvalid: "Нотын давтамжийг энэ зэмсгийн заасан хязгаарт оруулна уу.",
       strikeDesc: {
         pluck: "Чавхдасны хэлбэлзэл эргэж ойж, энергиэ бага багаар алддаг. Хэд хэдэн чавхдас аккорд үүсгэнэ.",
-        kick: "Бөмбөр, цан, ган бөмбөр, хоолойт хонх, модон товшуурыг харьцуул. Товшиж хэмнэл үүсгээрэй.",
+        kick: "Бөмбөр, цан, ган бөмбөр, модон товшуурыг харьцуул. Товшиж хэмнэл үүсгээрэй.",
         piano: "Алх цохиход өчүүхэн зөрүүтэй чавхдас зэрэг хэлбэлзэнэ. Цохилтын хүчийг өсгөхөд дээд гармоникууд тодорч, авиа хурц болно."
       },
       sustainChoose: "Үргэлжлэх дуу сонгох",
       sustainFlute: "Лимбэ", sustainViolin: "Хийл", sustainMorin: "Морин хуур",
+      sustainAir: "Үлээвэр", sustainBowed: "Нумт чавхдас",
       sustainGroupAria: "Үргэлжлэх авианы загвар", sustainGestureTitle: "Дуугаргах арга",
       sustainGestureAria: "Дууг барих эсвэл товшиж асаах", sustainHold: "Дарж барих", sustainToggle: "Товшиж асаах",
       sustainPress: "Дарж дуугаргах", sustainPressing: "Дуугарч байна…", sustainPressCaption: "Дараад барина, тавихад аажмаар намдана.",
@@ -1169,6 +1184,7 @@
     strikeGuitarPattern: "down",
     strikePluckPosition: .22,
     strikePianoVoice: "acoustic",
+    strikePitchByVoice: { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114, marimba: 220 },
     strikePianoTouch: "press",
     strikeStrength: 55,
     strikeStrengthByKind: { pluck: 55, kick: 78, piano: 55 },
@@ -1181,6 +1197,7 @@
     strikeSpectrumView: "local",
     strikeFollowing: false,
     sustainKind: "flute",
+    sustainBowKind: "violin",
     sustainGesture: "hold",
     sustainPitch: 440,
     sustainSnap: false,
@@ -1484,223 +1501,65 @@
     }
   }
 
+  // Explore and Compose/offline rendering share one held-instrument graph.
+  // This wrapper owns UI cancellation and the bounded overlap of release tails.
   class SustainEngine {
     constructor(contextOwner) {
       this.contextOwner = contextOwner;
       this.voices = new Set();
       this.currentVoice = null;
       this.generation = 0;
-      this.noiseBuffer = null;
-    }
-
-    makeNoiseBuffer(context) {
-      if (this.noiseBuffer && this.noiseBuffer.sampleRate === context.sampleRate) return this.noiseBuffer;
-      const count = Math.round(context.sampleRate);
-      const buffer = context.createBuffer(1, count, context.sampleRate);
-      const samples = buffer.getChannelData(0);
-      let seed = 0x518c3f27;
-      for (let i = 0; i < count; i++) {
-        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-        samples[i] = (seed / 0x80000000 - 1) * 0.7;
-      }
-      this.noiseBuffer = buffer;
-      return buffer;
     }
 
     volumeGain() {
       return maxGain.sustain * state.sustainVolume / 100;
     }
 
-    // Piecewise Web Audio ramps approximate the same smoothstep curve as the plot.
-    ramp(param, startLevel, endLevel, startTime, duration) {
-      param.cancelScheduledValues(startTime);
-      param.setValueAtTime(startLevel, startTime);
-      for (let i = 1; i <= 12; i++) {
-        const fraction = i / 12;
-        const value = startLevel + (endLevel - startLevel) * sustainModel.smoothstep(fraction);
-        param.linearRampToValueAtTime(value, startTime + duration * fraction);
-      }
-    }
-
     fadeAndStop(voice, immediate, duration = .05) {
-      const now = this.contextOwner.context.currentTime;
-      if (voice.stopping && !immediate) return;
-      if (voice.stopping && immediate) {
-        voice.envelope.gain.cancelScheduledValues(now);
-        voice.envelope.gain.setValueAtTime(0, now);
-        return;
-      }
-      voice.stopping = true;
-      const held = Math.max(0, now - voice.startedAt);
-      const level = sustainModel.attackLevelAt(held, voice.attack);
       if (immediate) {
-        voice.envelope.gain.cancelScheduledValues(now);
-        voice.envelope.gain.setValueAtTime(0, now);
-      } else this.ramp(voice.envelope.gain, level, 0, now, duration);
-      const stopAt = now + (immediate ? .002 : duration + .025);
-      try { voice.oscillator.stop(stopAt); } catch (_) { /* May already be scheduled. */ }
-      if (voice.bowNodes) {
-        try { voice.bowNodes.sharpOscillator.stop(stopAt); } catch (_) { /* May already be scheduled. */ }
-      }
-      try { voice.noise.stop(stopAt); } catch (_) { /* May already be scheduled. */ }
+        voice.stop();
+        this.voices.delete(voice);
+      } else voice.release(this.contextOwner.context.currentTime, duration);
     }
 
     async start() {
       const ticket = ++this.generation;
       const context = await this.contextOwner.readyContext();
-      if (ticket !== this.generation || state.mode !== "sustain") return false;
-      sustainModel.validate(state.sustainKind, state.sustainPitch,
-        state.sustainAttack, state.sustainRelease);
+      if (ticket !== this.generation || state.mode !== "sustain") return null;
       for (const voice of this.voices) this.fadeAndStop(voice, false);
-      while (this.voices.size >= 2) {
-        const oldest = this.voices.values().next().value;
-        this.fadeAndStop(oldest, true);
-        this.voices.delete(oldest);
-      }
-      const now = context.currentTime;
-      const oscillator = context.createOscillator();
-      let fluteNodes = null, bowNodes = null;
-      if (state.sustainKind === "flute") {
-        // Illustrative source-filter flute: sine bore pressure excites an
-        // asymmetric, saturating jet; AC-coupling removes the jet's DC flow.
-        // The two filters use the same coefficients as the plotted model.
-        const drive = context.createGain();
-        drive.gain.setValueAtTime(sustainModel.fluteDrive(state.sustainBreath), now);
-        const shaper = context.createWaveShaper();
-        const curve = new Float32Array(2049);
-        for (let i = 0; i < curve.length; i++) {
-          curve[i] = sustainModel.fluteJetAt(2 * i / (curve.length - 1) - 1);
+      while (this.voices.size >= 2) this.fadeAndStop(this.voices.values().next().value, true);
+      let voice;
+      voice = heldVoiceModel.createVoice({
+        context, output: this.contextOwner.output, model: sustainModel,
+        kind: state.sustainKind, hz: state.sustainPitch,
+        strength: state.sustainKind === "flute" ? state.sustainBreath : state.sustainBowPressure,
+        attack: state.sustainAttack, release: state.sustainRelease,
+        level: this.volumeGain(), at: context.currentTime,
+        onended: () => {
+          if (!voice) return;
+          this.voices.delete(voice);
+          if (this.currentVoice === voice) this.currentVoice = null;
         }
-        shaper.curve = curve;
-        shaper.oversample = "4x";
-        const highpass = context.createBiquadFilter();
-        highpass.type = "highpass";
-        highpass.frequency.setValueAtTime(sustainModel.FLUTE_HIGHPASS, now);
-        highpass.Q.setValueAtTime(sustainModel.FLUTE_Q, now);
-        const lowpass = context.createBiquadFilter();
-        lowpass.type = "lowpass";
-        lowpass.frequency.setValueAtTime(sustainModel.FLUTE_LOWPASS, now);
-        lowpass.Q.setValueAtTime(sustainModel.FLUTE_Q, now);
-        const toneGain = context.createGain();
-        toneGain.gain.setValueAtTime(sustainModel.FLUTE_TONE_GAIN, now);
-        oscillator.type = "sine";
-        oscillator.connect(drive);
-        drive.connect(shaper);
-        shaper.connect(highpass);
-        highpass.connect(lowpass);
-        lowpass.connect(toneGain);
-        fluteNodes = { drive, shaper, highpass, lowpass, toneGain };
-      } else {
-        // The bow's soft and sharp periodic stick/slip velocity proxies run
-        // phase-locked. Smooth gain interpolation changes bow pressure live,
-        // avoiding clicks from replacing an audible oscillator's wavetable.
-        const makeWave = edge => {
-          const components = sustainModel.bowSourceComponents(state.sustainKind, edge);
-          const real = new Float32Array([0, ...components.map(c => c.cos)]);
-          const imag = new Float32Array([0, ...components.map(c => c.sin)]);
-          return context.createPeriodicWave(real, imag, { disableNormalization: true });
-        };
-        oscillator.setPeriodicWave(makeWave("soft"));
-        const sharpOscillator = context.createOscillator();
-        sharpOscillator.setPeriodicWave(makeWave("hard"));
-        sharpOscillator.frequency.setValueAtTime(state.sustainPitch, now);
-        const weights = sustainModel.bowPressureWeights(state.sustainBowPressure);
-        const softGain = context.createGain(), hardGain = context.createGain();
-        softGain.gain.setValueAtTime(weights.soft, now);
-        hardGain.gain.setValueAtTime(weights.hard, now);
-        const body = sustainModel.bowBody(state.sustainKind);
-        const peaks = body.peaks.map(peak => {
-          const node = context.createBiquadFilter();
-          node.type = "peaking";
-          node.frequency.setValueAtTime(peak.frequency, now);
-          node.Q.setValueAtTime(peak.q, now);
-          node.gain.setValueAtTime(peak.gain, now);
-          return node;
-        });
-        const lowpass = context.createBiquadFilter();
-        lowpass.type = "lowpass";
-        lowpass.frequency.setValueAtTime(body.cutoff, now);
-        lowpass.Q.setValueAtTime(sustainModel.FLUTE_Q, now);
-        oscillator.connect(softGain);
-        sharpOscillator.connect(hardGain);
-        softGain.connect(peaks[0]);
-        hardGain.connect(peaks[0]);
-        peaks[0].connect(peaks[1]);
-        peaks[1].connect(lowpass);
-        bowNodes = { sharpOscillator, softGain, hardGain, peaks, lowpass };
-      }
-      oscillator.frequency.setValueAtTime(state.sustainPitch, now);
-      const envelope = context.createGain();
-      const volume = context.createGain();
-      const defaults = sustainModel.defaults(state.sustainKind);
-      volume.gain.setValueAtTime(this.volumeGain(), now);
-      envelope.gain.setValueAtTime(0, now);
-      this.ramp(envelope.gain, 0, 1, now, state.sustainAttack);
-      if (fluteNodes) fluteNodes.toneGain.connect(envelope);
-      else if (bowNodes) bowNodes.lowpass.connect(envelope);
-
-      // Gentle unpitched breath/bow texture, deliberately quieter than the tone.
-      const noise = context.createBufferSource();
-      noise.buffer = this.makeNoiseBuffer(context);
-      noise.loop = true;
-      const filter = context.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(defaults.cutoff, now);
-      const noiseGain = context.createGain();
-      noiseGain.gain.setValueAtTime(fluteNodes ?
-        sustainModel.fluteNoiseGain(state.sustainBreath) :
-        sustainModel.bowNoiseGain(state.sustainKind, state.sustainBowPressure), now);
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(envelope);
-      envelope.connect(volume);
-      volume.connect(this.contextOwner.output);
-      const voice = { oscillator, noise, noiseGain, filter, envelope, volume, fluteNodes, bowNodes,
-        startedAt: now, attack: state.sustainAttack, stopping: false };
+      });
       this.voices.add(voice);
-      oscillator.onended = () => {
-        for (const node of [oscillator, noise, noiseGain, filter, envelope, volume,
-          ...Object.values(fluteNodes || {}), ...(bowNodes ? [bowNodes.sharpOscillator,
-            bowNodes.softGain, bowNodes.hardGain, ...bowNodes.peaks, bowNodes.lowpass] : [])]) {
-          node.disconnect();
-        }
-        this.voices.delete(voice);
-        if (this.currentVoice === voice) this.currentVoice = null;
-      };
-      oscillator.start(now);
-      if (bowNodes) bowNodes.sharpOscillator.start(now);
-      noise.start(now);
       this.currentVoice = voice;
-      return { context, startedAt: now };
+      return { context, startedAt: context.currentTime };
     }
 
     release() {
-      ++this.generation; // A quick press-and-release also cancels an async start.
+      ++this.generation;
       if (!this.currentVoice) return;
-      this.fadeAndStop(this.currentVoice, false, state.sustainRelease);
+      this.currentVoice.release(this.contextOwner.context.currentTime, state.sustainRelease);
       this.currentVoice = null;
     }
 
     update() {
       if (!this.currentVoice) return;
-      const now = this.contextOwner.context.currentTime;
-      this.currentVoice.oscillator.frequency.setTargetAtTime(state.sustainPitch, now, .018);
-      this.currentVoice.volume.gain.setTargetAtTime(this.volumeGain(), now, .015);
-      if (this.currentVoice.bowNodes) {
-        const nodes = this.currentVoice.bowNodes;
-        const weights = sustainModel.bowPressureWeights(state.sustainBowPressure);
-        nodes.sharpOscillator.frequency.setTargetAtTime(state.sustainPitch, now, .018);
-        nodes.softGain.gain.setTargetAtTime(weights.soft, now, .025);
-        nodes.hardGain.gain.setTargetAtTime(weights.hard, now, .025);
-        this.currentVoice.noiseGain.gain.setTargetAtTime(
-          sustainModel.bowNoiseGain(state.sustainKind, state.sustainBowPressure), now, .025);
-      }
-      if (this.currentVoice.fluteNodes) {
-        this.currentVoice.fluteNodes.drive.gain.setTargetAtTime(
-          sustainModel.fluteDrive(state.sustainBreath), now, .025);
-        this.currentVoice.noiseGain.gain.setTargetAtTime(
-          sustainModel.fluteNoiseGain(state.sustainBreath), now, .025);
-      }
+      this.currentVoice.update({
+        hz: state.sustainPitch,
+        strength: state.sustainKind === "flute" ? state.sustainBreath : state.sustainBowPressure,
+        level: this.volumeGain()
+      });
     }
 
     stop(immediate = false) {
@@ -2726,14 +2585,41 @@
   let lastAnimatedSpectrumTime = -1;
   let lastAnimatedWaveTime = -1;
 
+  function isPianoStrike() {
+    return state.strikeKind === "piano" && ["acoustic", "electric"].includes(state.strikePianoVoice);
+  }
+
+  function strikePitchKey() {
+    return state.strikeKind === "piano" ? state.strikePianoVoice : "pluck";
+  }
+
+  function strikeMaxPitch() {
+    return state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? 1760 : 880;
+  }
+
+  function restoreStrikePitch() {
+    const key = strikePitchKey();
+    const stored = state.strikePitchByVoice[key];
+    state.strikePitch = state.strikeSnap ? model.snapFrequency(stored) : stored;
+    state.strikePitchByVoice[key] = state.strikePitch;
+  }
+
+  function pitchedStrikeDecay() {
+    return { acoustic: .8, electric: .8, chimes: .7, marimba: .65 }[state.strikePianoVoice];
+  }
+
   function strikeRecipe() {
-    return { kind: state.strikeKind, pitchHz: state.strikePitch,
+    const pitchedChimes = state.strikeKind === "piano" && state.strikePianoVoice === "chimes";
+    const marimba = state.strikeKind === "piano" && state.strikePianoVoice === "marimba";
+    return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : state.strikeKind, pitchHz: state.strikePitch,
       decaySec: state.strikeDecay, kickSize: state.strikeDrumSize,
       options: {
         position: state.strikePluckPosition,
-        drumVoice: state.strikeDrumVoice,
+        drumVoice: pitchedChimes ? "chimes" : state.strikeDrumVoice,
         drumTension: state.strikeDrumTension,
-        ...(state.strikeKind === "piano" ?
+        ...(pitchedChimes ? { chimeHz: state.strikePitch } : {}),
+        ...(marimba ? { velocity: state.strikeStrength / 100 } : {}),
+        ...(isPianoStrike() ?
           { velocity: state.strikeStrength / 100, touch: state.strikePianoTouch,
             pianoVoice: state.strikePianoVoice } : {}),
         ...(state.strikeKind === "pluck" && state.strikeGuitarPlay === "strum" ?
@@ -2749,6 +2635,17 @@
     if (state.strikeDrumVoice === "woodblock") return 5000;
     return Math.max(600, transientModel.kickFrequency(0,
       state.strikeDrumSize, state.strikeDrumTension) * 4);
+  }
+
+  function strikeSpectrumMaxHz() {
+    if (state.strikeKind === "piano") {
+      if (state.strikePianoVoice === "chimes") return 8000;
+      if (state.strikePianoVoice === "marimba") return Math.min(8000, Math.max(3000, state.strikePitch * 10.5));
+      return Math.min(8000, Math.max(3000, state.strikePitch * 8.5));
+    }
+    if (state.strikeKind === "pluck") return state.strikeGuitarPlay === "strum" ? 4000 :
+      Math.min(8000, Math.max(1200, state.strikePitch * 8.3));
+    return strikeDrumSpectrumMaxHz();
   }
 
   function stopStrikeFollow() {
@@ -2787,9 +2684,11 @@
     const voiceHints = { snare: "strikeSnareSpectrumHint", cymbal: "strikeCymbalSpectrumHint",
       steelpan: "strikePanSpectrumHint", chimes: "strikeChimesSpectrumHint",
       woodblock: "strikeWoodSpectrumHint" };
+    const hint = state.strikeKind === "kick" ? voiceHints[state.strikeDrumVoice] :
+      state.strikeKind === "piano" && state.strikePianoVoice === "chimes" ? "strikeChimesSpectrumHint" :
+      state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? "strikeMarimbaSpectrumHint" : null;
     $("strikeSpectrumHint").textContent = text(state.strikeSpectrumView === "local" ?
-      (state.strikeKind === "kick" ? voiceHints[state.strikeDrumVoice] : null) ||
-        "strikeSpectrumHint" : "strikeSpectrumWholeHint");
+      hint || "strikeSpectrumHint" : "strikeSpectrumWholeHint");
   }
 
   function setStrikeView(span, center = state.strikeCursor) {
@@ -4661,8 +4560,11 @@
   }
 
   function renderStrikeControls() {
-    $("strikeFrequencySlider").value = String(Math.round(transientModel.hzToSlider(state.strikePitch)));
+    const maxPitch = strikeMaxPitch();
+    $("strikeFrequencySlider").value = String(Math.round(1000 * Math.log(state.strikePitch / 110) / Math.log(maxPitch / 110)));
     $("strikeFrequencyInput").value = String(Number(state.strikePitch.toFixed(2)));
+    $("strikeFrequencyInput").max = String(maxPitch);
+    $("strikePitchMax").textContent = hzText(maxPitch);
     const note = model.nearestNote(state.strikePitch);
     const differenceCents = 1200 * Math.log2(state.strikePitch / note.frequency);
     const approx = !state.strikeSnap && Math.abs(differenceCents) >= 0.5 ? "≈ " : "";
@@ -4673,11 +4575,11 @@
     $("strikeGuitarPlayModes").hidden = state.strikeKind !== "pluck";
     $("strikePianoTypeGroup").hidden = state.strikeKind !== "piano";
     $("strikePianoType").value = state.strikePianoVoice;
-    $("strikePianoPlayModes").hidden = state.strikeKind !== "piano";
+    $("strikePianoPlayModes").hidden = !isPianoStrike();
     $("strikePianoHint").hidden = state.strikeKind !== "piano";
-    $("strikePianoHint").textContent = text(state.strikePianoVoice === "electric" ?
-      "strikePianoElectricHint" : "strikePianoTouchHint");
-    $("strikeButton").hidden = state.strikeKind !== "kick";
+    $("strikePianoHint").textContent = text({ acoustic: "strikePianoTouchHint", electric: "strikePianoElectricHint",
+      chimes: "strikePitchedChimesHint", marimba: "strikeMarimbaHint" }[state.strikePianoVoice]);
+    $("strikeButton").hidden = state.strikeKind !== "kick" && (state.strikeKind !== "piano" || isPianoStrike());
     $("strikeChordGroup").hidden = state.strikeKind !== "pluck";
     $("strikeGuitarPattern").value = state.strikeGuitarPattern;
     $("strikePluckPositionGroup").hidden = state.strikeKind !== "pluck";
@@ -4700,9 +4602,9 @@
     $("strikeStrengthValue").textContent = state.strikeStrength + "%";
     $("strikeDecay").value = String(state.strikeDecay);
     $("strikeDecayValue").textContent = secondsText(state.strikeDecay);
-    $("strikeDescription").textContent = state.strikeKind === "piano" &&
-      state.strikePianoVoice === "electric" ? text("strikeDescElectric") :
-      text("strikeDesc")[state.strikeKind];
+    const pitchedDescription = { electric: "strikeDescElectric", chimes: "strikeDescChimes", marimba: "strikeDescMarimba" }[state.strikePianoVoice];
+    $("strikeDescription").textContent = state.strikeKind === "piano" && pitchedDescription ?
+      text(pitchedDescription) : text("strikeDesc")[state.strikeKind];
     $("strikeButtonLabel").textContent = text("strikeKickButton");
     const strikePlayLabels = { single: "strikePluckButton", strum: "strikeStrumButton",
       press: "strikePianoButton", tap: "strikePianoTapButton" };
@@ -4735,6 +4637,21 @@
   }
 
   function renderSustainControls() {
+    const family = state.sustainKind === "flute" ? "air" : "bow";
+    const instrumentSelect = $("sustainInstrument");
+    if (instrumentSelect.dataset.family !== family || instrumentSelect.dataset.language !== state.language) {
+      const kinds = family === "air" ? ["flute"] : ["violin", "morin"];
+      const names = { flute: "sustainFlute", violin: "sustainViolin", morin: "sustainMorin" };
+      instrumentSelect.replaceChildren(...kinds.map(kind => {
+        const option = document.createElement("option");
+        option.value = kind;
+        option.textContent = text(names[kind]);
+        return option;
+      }));
+      instrumentSelect.dataset.family = family;
+      instrumentSelect.dataset.language = state.language;
+    }
+    instrumentSelect.value = state.sustainKind;
     $("sustainFrequencySlider").value = String(Math.round(sustainModel.hzToSlider(state.sustainPitch)));
     $("sustainFrequencyInput").value = String(Number(state.sustainPitch.toFixed(2)));
     const note = model.nearestNote(state.sustainPitch);
@@ -4762,8 +4679,8 @@
     $("sustainEnvelopeBadge").textContent = secondsFixedText(state.sustainAttack) + " / " +
       secondsFixedText(state.sustainRelease);
     $("sustainDetailBadge").textContent = hzText(state.sustainPitch);
-    document.querySelectorAll("[data-sustain]").forEach(button => {
-      const selected = button.dataset.sustain === state.sustainKind;
+    document.querySelectorAll("[data-sustain-family]").forEach(button => {
+      const selected = button.dataset.sustainFamily === family;
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
@@ -4812,6 +4729,7 @@
     if (!sustainModel.KINDS.includes(kind) || state.sustainKind === kind) return;
     stopSustainSound();
     state.sustainKind = kind;
+    if (kind !== "flute") state.sustainBowKind = kind;
     state.sustainAttack = sustainModel.defaults(kind).attack;
     state.sustainRelease = sustainModel.defaults(kind).release;
     setSustainStatus("sustainReady");
@@ -4836,6 +4754,7 @@
   function resetSustain() {
     stopSustainSound();
     state.sustainKind = "flute";
+    state.sustainBowKind = "violin";
     state.sustainGesture = "hold";
     state.sustainPitch = 440;
     state.sustainSnap = false;
@@ -4998,12 +4917,14 @@
   }
 
   function selectStrikeKind(kind) {
-    if (!transientModel.KINDS.includes(kind) || kind === state.strikeKind) return;
+    if (!["pluck", "kick", "piano"].includes(kind) || kind === state.strikeKind) return;
     stopStrikeForEdit();
+    if (state.strikeKind !== "kick") state.strikePitchByVoice[strikePitchKey()] = state.strikePitch;
     state.strikeStrengthByKind[state.strikeKind] = state.strikeStrength;
     state.strikeKind = kind;
+    if (kind !== "kick") restoreStrikePitch();
     state.strikeStrength = state.strikeStrengthByKind[kind];
-    state.strikeDecay = kind === "pluck" ? 0.65 : kind === "piano" ? 0.8 :
+    state.strikeDecay = kind === "pluck" ? 0.65 : kind === "piano" ? pitchedStrikeDecay() :
       { membrane: .3, snare: .33, cymbal: .55, steelpan: .8, chimes: .7,
         woodblock: .24 }[state.strikeDrumVoice];
     state.strikeCursor = 0;
@@ -5017,13 +4938,14 @@
 
   function setStrikePitch(value) {
     const hz = Number(value);
-    if (!Number.isFinite(hz) || hz < transientModel.MIN_PITCH_HZ || hz > transientModel.MAX_PITCH_HZ) {
+    if (!Number.isFinite(hz) || hz < 110 || hz > strikeMaxPitch()) {
       setStrikeStatus("strikeInvalid", true);
       renderStrikeControls();
       return;
     }
     stopStrikeForEdit();
     state.strikePitch = state.strikeSnap ? model.snapFrequency(hz) : hz;
+    state.strikePitchByVoice[strikePitchKey()] = state.strikePitch;
     if (state.strikeStatus === "strikeInvalid") setStrikeStatus("strikeReady");
     renderStrikeControls();
     drawPlots();
@@ -5032,7 +4954,7 @@
   async function triggerStrike(mode = "kick", modelChanged = false) {
     if (state.mode !== "strike") return;
     const isGuitar = state.strikeKind === "pluck";
-    const isPiano = state.strikeKind === "piano";
+    const isPiano = isPianoStrike();
     if (isGuitar && !["single", "strum"].includes(mode) ||
         isPiano && !["press", "tap"].includes(mode) ||
         !isGuitar && !isPiano && mode !== "kick") return;
@@ -5082,6 +5004,7 @@
     state.strikeGuitarPattern = "down";
     state.strikePluckPosition = .22;
     state.strikePianoVoice = "acoustic";
+    state.strikePitchByVoice = { pluck: 220, acoustic: 220, electric: 220, chimes: 659.255114, marimba: 220 };
     state.strikePianoTouch = "press";
     state.strikeStrength = 55;
     state.strikeStrengthByKind = { pluck: 55, kick: 78, piano: 55 };
@@ -5266,17 +5189,14 @@
         (to - from) / span * plotWidth, bottom - top);
     }
 
-    const options = strikeRecipe().options;
-    const sampleAt = time => transientModel.plottedSampleAt(state.strikeKind,
-      time, state.strikePitch, state.strikeDecay, state.strikeDrumSize, options);
+    const recipe = strikeRecipe();
+    const sampleAt = time => transientModel.plottedSampleAt(recipe.kind,
+      time, recipe.pitchHz, recipe.decaySec, recipe.kickSize, recipe.options);
     ctx.strokeStyle = "#1a9b91";
     ctx.lineJoin = "round";
     if (span <= 0.12) {
       // At fine scales, every oscillation is drawn directly, with oversampling.
-      const topFrequency = state.strikeKind === "pluck" ?
-        (state.strikeGuitarPlay === "strum" ? 4000 : state.strikePitch * 8) :
-        state.strikeKind === "piano" ? state.strikePitch * 8.5 :
-        strikeDrumSpectrumMaxHz();
+      const topFrequency = strikeSpectrumMaxHz();
       const points = Math.min(16000, Math.max(700, Math.round(plotWidth * 2),
         Math.ceil(span * topFrequency * 10)));
       ctx.lineWidth = 2;
@@ -5342,12 +5262,7 @@
       button.classList.toggle("selected", selected);
       button.setAttribute("aria-pressed", String(selected));
     });
-    const maxHz = state.strikeKind === "piano" ?
-      Math.min(8000, Math.max(3000, state.strikePitch * 8.5)) :
-      state.strikeKind === "pluck" ?
-        (state.strikeGuitarPlay === "strum" ? 4000 :
-          Math.min(8000, Math.max(1200, state.strikePitch * 8.3))) :
-        strikeDrumSpectrumMaxHz();
+    const maxHz = strikeSpectrumMaxHz();
     ctx.strokeStyle = "#e8eff7";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
@@ -7112,8 +7027,14 @@
       return triggerStrike("strum", changed);
     });
   });
-  document.querySelectorAll("[data-sustain]").forEach(button => {
-    button.addEventListener("click", () => selectSustainKind(button.dataset.sustain));
+  document.querySelectorAll("[data-sustain-family]").forEach(button => {
+    button.addEventListener("click", () => selectSustainKind(button.dataset.sustainFamily === "air" ?
+      "flute" : state.sustainBowKind));
+  });
+  $("sustainInstrument").addEventListener("change", event => {
+    const kind = event.target.value;
+    const family = state.sustainKind === "flute" ? ["flute"] : ["violin", "morin"];
+    if (family.includes(kind)) selectSustainKind(kind);
   });
   document.querySelectorAll("[data-drum-size]").forEach(button => {
     button.addEventListener("click", () => {
@@ -7578,7 +7499,7 @@
   $("sustainReset").addEventListener("click", resetSustain);
   $("strikeButton").addEventListener("click", () => triggerStrike("kick"));
   $("strikeFrequencySlider").addEventListener("input", event => {
-    setStrikePitch(transientModel.sliderToHz(Number(event.target.value)));
+    setStrikePitch(110 * Math.pow(strikeMaxPitch() / 110, Number(event.target.value) / 1000));
   });
   $("strikeFrequencyInput").addEventListener("change", event => setStrikePitch(event.target.value));
   $("strikeSnap").addEventListener("change", event => {
@@ -7601,16 +7522,21 @@
   });
   $("strikePianoType").addEventListener("change", event => {
     const voice = event.target.value;
-    if (!["acoustic", "electric"].includes(voice) || voice === state.strikePianoVoice) return;
+    if (!["acoustic", "electric", "chimes", "marimba"].includes(voice) || voice === state.strikePianoVoice) return;
     stopStrikeForEdit();
+    state.strikePitchByVoice[strikePitchKey()] = state.strikePitch;
     state.strikePianoVoice = voice;
+    restoreStrikePitch();
+    state.strikeDecay = pitchedStrikeDecay();
+    state.strikeStrength = voice === "marimba" ? 62 : 55;
+    state.strikeStrengthByKind.piano = state.strikeStrength;
     setStrikeStatus("strikeReady");
     renderStrikeControls();
     drawPlots();
   });
   $("strikeDrumVoice").addEventListener("change", event => {
     const voice = event.target.value;
-    if (!transientModel.DRUM_VOICES.includes(voice) || voice === state.strikeDrumVoice) return;
+    if (!transientModel.DRUM_VOICES.includes(voice) || voice === "chimes" || voice === state.strikeDrumVoice) return;
     stopStrikeForEdit();
     state.strikeDrumVoice = voice;
     state.strikeDrumSize = "medium";

@@ -19,10 +19,10 @@
   "use strict";
   const VOICES = Object.freeze({
     en: { flute: "Flute", violin: "Violin", morin: "Morin khuur", guitar: "Guitar",
-      piano: "Acoustic piano", chimes: "Chimes", sine: "Sine wave", triangle: "Triangle wave",
+      piano: "Acoustic piano", chimes: "Chimes", marimba: "Marimba", sine: "Sine wave", triangle: "Triangle wave",
       square: "Square wave", sawtooth: "Sawtooth wave", fmep: "Electric piano" },
     mn: { flute: "Лимбэ", violin: "Хийл", morin: "Морин хуур", guitar: "Гитар",
-      piano: "Төгөлдөр хуур", chimes: "Хонх", sine: "Синус", triangle: "Гурвалжин",
+      piano: "Төгөлдөр хуур", chimes: "Хонх", marimba: "Маримба", sine: "Синус", triangle: "Гурвалжин",
       square: "Дөрвөлжин", sawtooth: "Хөрөө", fmep: "Цахилгаан хуур" }
   });
   const TEXT = Object.freeze({
