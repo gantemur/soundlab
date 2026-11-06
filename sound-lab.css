@@ -426,6 +426,8 @@ h1, h2, p { margin-top: 0; }
 .project-toolbar button:disabled { opacity: .5; cursor: not-allowed; }
 #projectSave { border-color: #68a6a1; background: #e2f4f0; color: #176b64; }
 #projectSave:hover { background: #d4eee7; }
+#exportWav { border-color: #3d79b9; background: #2869b9; color: #fff; }
+#exportWav:hover:not(:disabled) { background: #205b9f; }
 .project-hint, .project-status, .project-confirm p { margin: 9px 0 0; font-size: 12px; line-height: 1.55;
   color: #57738a; overflow-wrap: anywhere; }
 .project-status:empty { display: none; }
@@ -441,6 +443,7 @@ h1, h2, p { margin-top: 0; }
   .project-toolbar { padding: 13px; }
   .project-actions > button { flex: 1 1 auto; }
   .project-name-field { flex-basis: 100%; }
+  #exportWav { flex-basis: 100%; }
 }
 .ensemble-preset-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .ensemble-preset-row button { min-width: 70px; min-height: 44px; padding: 9px 12px;

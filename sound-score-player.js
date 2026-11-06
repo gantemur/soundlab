@@ -22,6 +22,13 @@
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
   const AHEAD_SECONDS = .23;
   const TICK_MS = 35;
+  const DRUM_RECIPES = Object.freeze({
+    kick: Object.freeze({ voice: "membrane", size: "large", decay: .36 }),
+    snare: Object.freeze({ voice: "snare", size: "medium", decay: .24 }),
+    hat: Object.freeze({ voice: "cymbal", size: "small", decay: .13 }),
+    openHat: Object.freeze({ voice: "cymbal", size: "medium", decay: .48 }),
+    woodblock: Object.freeze({ voice: "woodblock", size: "small", decay: .24 })
+  });
 
   function noteFrequency(event, tuning, temperamentModel) {
     return scoreModel.frequency(event.pitch, tuning, 440, temperamentModel);
@@ -91,7 +98,8 @@
   }
 
   class Player {
-    constructor({ contextOwner, transientModel, sustainModel, temperamentModel, onUpdate } = {}) {
+    constructor({ contextOwner, transientModel, sustainModel, temperamentModel, onUpdate,
+      bufferCacheLimit = 24, maxBufferBytes = Infinity, strictBufferFrames = false } = {}) {
       if (!contextOwner || !transientModel || !sustainModel) {
         throw new Error("Sound Lab audio models unavailable");
       }
@@ -103,6 +111,16 @@
       this.context = null;
       this.voices = new Set();
       this.buffers = new Map();
+      if (!Number.isInteger(bufferCacheLimit) || bufferCacheLimit < 1 || bufferCacheLimit > 1024 ||
+          !(maxBufferBytes > 0) || (maxBufferBytes !== Infinity && !Number.isSafeInteger(maxBufferBytes)) ||
+          typeof strictBufferFrames !== "boolean") {
+        throw new RangeError("Invalid audio buffer cache limits");
+      }
+      this.bufferCacheLimit = bufferCacheLimit;
+      this.maxBufferBytes = maxBufferBytes;
+      this.bufferBytes = 0;
+      this.bufferSizes = new Map();
+      this.strictBufferFrames = strictBufferFrames;
       this.score = null;
       this.playEvents = [];
       this.instrument = "flute";
@@ -283,6 +301,76 @@
         this.context.sampleRate);
     }
 
+    // The same recipes describe live buffers, offline memory requirements and
+    // the full audible ending. Preparing a spec never allocates audio samples.
+    transientDuration(decay) {
+      return typeof this.transientModel.duration === "function" ? this.transientModel.duration(decay) :
+        Math.max(.35, Math.min(3, decay * 4));
+    }
+
+    bufferSpec(event, sampleRate, settings = null) {
+      const instrument = settings?.instrument || this.instrument;
+      if (["flute", "violin", "morin", ...WAVEFORMS].includes(instrument)) return null;
+      const hz = noteFrequency(event, this.tuning, this.temperamentModel);
+      const percussive = instrument === "chimes";
+      const kind = instrument === "guitar" ? "pluck" : percussive ? "kick" :
+        instrument === "fmep" ? "fmep" : "piano";
+      const decay = instrument === "piano" || instrument === "fmep" ? .8 : percussive ? .7 : .65;
+      const options = instrument === "guitar" ? { position: .22 } :
+        instrument === "piano" ? { velocity: .62, touch: "press" } :
+          percussive ? { drumVoice: "chimes", chimeHz: hz } : {};
+      const seconds = instrument === "fmep" ? fmModel.DURATION_SECONDS :
+        this.transientDuration(decay);
+      return { key: [sampleRate, kind, hz.toFixed(5), decay, instrument].join("|"),
+        sampleRate, frames: Math.ceil(seconds * sampleRate), kind, hz, decay,
+        size: "medium", options, fm: instrument === "fmep",
+        damper: instrument === "piano" || instrument === "fmep" };
+    }
+
+    bufferFor(spec) {
+      const cached = this.buffers.get(spec.key);
+      if (cached) return cached;
+      const oldest = this.buffers.size >= this.bufferCacheLimit ? this.buffers.keys().next().value : null;
+      const retainedBytes = this.bufferBytes - (oldest === null ? 0 : this.bufferSizes.get(oldest));
+      const checkBudget = bytes => {
+        if (retainedBytes + bytes > this.maxBufferBytes) {
+          const error = new RangeError("The arrangement needs more transient audio memory than this export allows");
+          error.code = "limit";
+          throw error;
+        }
+      };
+      checkBudget(spec.frames * 4);
+      const samples = spec.fm ? fmModel.makeElectricPianoSamples(spec.hz, spec.sampleRate) :
+        this.transientModel.makeSamples(spec.kind, spec.hz, spec.decay, spec.sampleRate, spec.size, spec.options);
+      if (!ArrayBuffer.isView(samples) || Object.prototype.toString.call(samples) !== "[object Float32Array]" ||
+          (this.strictBufferFrames && samples.length !== spec.frames)) {
+        throw new RangeError("An instrument returned an unexpected audio sample type or length");
+      }
+      checkBudget(samples.byteLength);
+      const buffer = this.context.createBuffer(1, samples.length, spec.sampleRate);
+      buffer.getChannelData(0).set(samples);
+      if (oldest !== null) { this.buffers.delete(oldest); this.bufferSizes.delete(oldest); }
+      this.buffers.set(spec.key, buffer);
+      this.bufferSizes.set(spec.key, samples.byteLength);
+      this.bufferBytes = retainedBytes + samples.byteLength;
+      return buffer;
+    }
+
+    clearBuffers() {
+      this.buffers.clear();
+      this.bufferSizes.clear();
+      this.bufferBytes = 0;
+    }
+
+    voiceEndTime(event, at, endsAt, sampleRate, offsetSeconds = 0) {
+      const spec = this.bufferSpec(event, sampleRate);
+      if (!spec) return endsAt + .005;
+      const bufferEnd = at + spec.frames / sampleRate - offsetSeconds;
+      return spec.damper ? Math.min(bufferEnd, endsAt + .19) : bufferEnd;
+    }
+
+    isEventAudible() { return this.volume > 0; }
+
     scheduleNote(event, at, endsAt, offsetSeconds = 0, settings = null) {
       const hz = noteFrequency(event, this.tuning, this.temperamentModel);
       const context = this.context;
@@ -321,25 +409,9 @@
         oscillator.stop(endsAt + .005);
         return;
       }
-      const percussive = instrument === "chimes";
-      const kind = instrument === "guitar" ? "pluck" : percussive ? "kick" :
-        instrument === "fmep" ? "fmep" : "piano";
-      const decay = instrument === "piano" || instrument === "fmep" ? .8 :
-        percussive ? .7 : .65;
-      const options = instrument === "guitar" ? { position: .22 } :
-        instrument === "piano" ? { velocity: .62, touch: "press" } :
-          percussive ? { drumVoice: "chimes", chimeHz: hz } : {};
-      const key = [context.sampleRate, kind, hz.toFixed(5), decay, instrument].join("|");
-      let buffer = this.buffers.get(key);
-      if (!buffer) {
-        const samples = instrument === "fmep" ?
-          fmModel.makeElectricPianoSamples(hz, context.sampleRate) :
-          this.transientModel.makeSamples(kind, hz, decay, context.sampleRate, "medium", options);
-        buffer = context.createBuffer(1, samples.length, context.sampleRate);
-        buffer.getChannelData(0).set(samples);
-        if (this.buffers.size >= 24) this.buffers.delete(this.buffers.keys().next().value);
-        this.buffers.set(key, buffer);
-      }
+      let buffer;
+      try { buffer = this.bufferFor(this.bufferSpec(event, context.sampleRate, settings)); }
+      catch (error) { gain.disconnect(); throw error; }
       if (offsetSeconds >= buffer.duration - .01) { gain.disconnect(); return; }
       const source = context.createBufferSource();
       source.buffer = buffer;
@@ -457,6 +529,20 @@
       }
       this.updateBusLevels();
     }
+    isEventAudible(event) {
+      const part = this.partSettings[event.partIndex];
+      return !part.mute && part.volume > 0 && (!this.partSettings.some(item => item.solo) || part.solo);
+    }
+    bufferSpec(event, sampleRate) {
+      if (event.type !== "drum") return super.bufferSpec(event, sampleRate,
+        { instrument: this.partSettings[event.partIndex].instrument });
+      const recipe = DRUM_RECIPES[event.drum];
+      if (!recipe) throw new RangeError("Unknown percussion voice");
+      return { key: ["drum", sampleRate, event.drum].join("|"), sampleRate,
+        frames: Math.ceil(this.transientDuration(recipe.decay) * sampleRate),
+        kind: "kick", hz: 220, decay: recipe.decay, size: recipe.size,
+        options: { drumVoice: recipe.voice }, fm: false, damper: false };
+    }
     scheduleNote(event, at, endsAt, offsetSeconds = 0) {
       const part = this.partSettings[event.partIndex];
       if (event.type === "drum") {
@@ -468,26 +554,8 @@
       });
     }
     scheduleDrumHit(event, at, offsetSeconds = 0) {
-      const recipes = {
-        kick: { voice: "membrane", size: "large", decay: .36 },
-        snare: { voice: "snare", size: "medium", decay: .24 },
-        hat: { voice: "cymbal", size: "small", decay: .13 },
-        openHat: { voice: "cymbal", size: "medium", decay: .48 },
-        woodblock: { voice: "woodblock", size: "small", decay: .24 }
-      };
-      const recipe = recipes[event.drum];
-      if (!recipe) throw new RangeError("Unknown percussion voice");
       const context = this.context;
-      const key = ["drum", context.sampleRate, event.drum].join("|");
-      let buffer = this.buffers.get(key);
-      if (!buffer) {
-        const samples = this.transientModel.makeSamples("kick", 220, recipe.decay,
-          context.sampleRate, recipe.size, { drumVoice: recipe.voice });
-        buffer = context.createBuffer(1, samples.length, context.sampleRate);
-        buffer.getChannelData(0).set(samples);
-        if (this.buffers.size >= 24) this.buffers.delete(this.buffers.keys().next().value);
-        this.buffers.set(key, buffer);
-      }
+      const buffer = this.bufferFor(this.bufferSpec(event, context.sampleRate));
       if (offsetSeconds >= buffer.duration - .01) return;
       const source = context.createBufferSource(), gain = context.createGain();
       source.buffer = buffer;

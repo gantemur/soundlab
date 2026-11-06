@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 const wav = require("./sound-recorder.js");
+const sharedWav = require("./sound-wav.js");
 
 test("mono PCM WAV has the correct RIFF header, sample rate, duration and signed samples", () => {
   const bytes = wav.encodeWav([
@@ -34,6 +35,29 @@ test("WAV encoder rejects invalid or oversized recordings", () => {
   assert.throws(() => wav.encodeWav([new Int16Array(2)], 44100), TypeError);
   assert.throws(() => wav.encodeWav([new Float32Array(15 * 8000 + 1)], 8000), RangeError);
   assert.equal(wav.encodeWav([], 8000).length, 44);
+});
+
+test("shared WAV extraction preserves recorder bytes, non-finite policy and the 15-second ceiling", () => {
+  assert.equal(wav.MAX_SECONDS, 15);
+  const blocks = [Float32Array.of(-2, -1, -.5, 0, .5, 1, 2, NaN, Infinity, -Infinity)];
+  assert.deepEqual(wav.encodeWav(blocks, 44100),
+    sharedWav.encodeWav(blocks, 44100, { maxSeconds: 15, nonFinite: "silence" }));
+  const sixteenSeconds = new Float32Array(16 * 8000);
+  assert.doesNotThrow(() => sharedWav.encodeWav([sixteenSeconds], 8000));
+  assert.throws(() => wav.encodeWav([sixteenSeconds], 8000), RangeError);
+  assert.equal(wav.encodeWav([new Float32Array(15 * 8000)], 8000).length, 44 + 15 * 8000 * 2);
+});
+
+test("recorder browser entrypoint uses the shared encoder without starting audio", () => {
+  const calls = [], expected = Uint8Array.of(1, 2, 3);
+  const context = { SoundLabWav: { encodeWav(...args) { calls.push(args); return expected; } } };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "sound-recorder.js"), "utf8"), context);
+  const blocks = [Float32Array.of(.5)];
+  assert.equal(context.SoundLabRecorder.encodeWav(blocks, 44100), expected);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], blocks);
+  assert.equal(calls[0][1], 44100);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0][2])), { maxSeconds: 15, nonFinite: "silence" });
 });
 
 test("audio worklet captures real samples, includes silence, limits length and never outputs audio", () => {

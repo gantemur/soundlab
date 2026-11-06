@@ -22,6 +22,7 @@ const composeModel = require("./sound-compose.js");
 const ensembleModel = require("./sound-ensemble.js");
 const drumABC = require("./sound-drum-abc.js");
 const drumPatterns = require("./sound-drum-patterns.js");
+const projectCodec = require("./sound-project.js");
 
 const html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(__dirname, "sound-lab.css"), "utf8");
@@ -58,18 +59,25 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s052"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s056"/);
   assert.match(html, /src="sound-compose\.js\?v=s055"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
   assert.match(html, /src="sound-ensemble\.js\?v=s055"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s055"/);
-  assert.match(html, /src="sound-lab\.js\?v=s055"/);
+  assert.match(html, /src="sound-wav\.js\?v=s056"/);
+  assert.match(html, /src="sound-export\.js\?v=s056"/);
+  assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
+  assert.match(html, /src="sound-lab\.js\?v=s056"/);
+  assert.ok(html.indexOf('src="sound-wav.js') < html.indexOf('src="sound-recorder.js'));
+  assert.ok(html.indexOf('src="sound-project.js') < html.indexOf('src="sound-export.js'));
+  assert.ok(html.indexOf('src="sound-export.js') < html.indexOf('src="sound-export-ui.js'));
+  assert.ok(html.indexOf('src="sound-export-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-project.js') < html.indexOf('src="sound-project-ui.js'));
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s055"/);
+  assert.match(html, /href="sound-lab\.css\?v=s056"/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
   assert.match(html, /id="projectName"[^>]*maxlength="120"/);
   assert.match(html, /id="projectFile"[^>]*type="file"[^>]*accept="[^"]*\.soundlab\.json/);
@@ -82,7 +90,10 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(browserCode, /designCredit: "Designed by Gantumur", licenseLink: "App code: MIT License"/);
   assert.match(html, /id="scaleGapToggle" type="checkbox"/);
   assert.match(html, /id="scaleGapPanel" hidden/);
-  assert.match(html, /src="sound-recorder\.js"/);
+  assert.match(html, /src="sound-recorder\.js\?v=s056"/);
+  assert.match(html, /id="exportWav"[^>]*aria-describedby="exportHint"/);
+  assert.match(html, /id="exportStatus"[^>]*role="status"/);
+  assert.match(html, /id="exportDownload"[^>]*hidden/);
   assert.match(html, /id="recordPreview"[^>]*controls/);
   assert.match(html, /id="recordDownload"[^>]*download="sound-lab\.wav"/);
   assert.match(html, /class="top-actions"[\s\S]*id="recordButton"[\s\S]*id="stopAll"/);
@@ -275,6 +286,8 @@ test("firetruck Play/Stop icon forwards taps to its enclosing button", () => {
 
 function fakePage(search = "", supportWorklets = true) {
   const contexts = [];
+  const offlineContexts = [];
+  const exportRequests = [];
   const analyzedAt = [];
   const objectUrls = [];
   const revokedUrls = [];
@@ -488,7 +501,7 @@ function fakePage(search = "", supportWorklets = true) {
   };
 
   class FakeAudioContext {
-    constructor() {
+    constructor({ offline = false } = {}) {
       this.state = "suspended";
       this.currentTime = 0;
       this.destination = {};
@@ -506,7 +519,7 @@ function fakePage(search = "", supportWorklets = true) {
       this.audioWorklet = {
         addModule: async url => { this.addedModules.push(url); }
       };
-      contexts.push(this);
+      (offline ? offlineContexts : contexts).push(this);
     }
     async resume() { this.state = "running"; }
     async suspend() { this.state = "suspended"; }
@@ -605,6 +618,26 @@ function fakePage(search = "", supportWorklets = true) {
       return source;
     }
   }
+  // A graph/scheduling test double, not a physical audio renderer. Native
+  // offline rendering is also exercised through the deployed browser UI.
+  class FakeOfflineAudioContext extends FakeAudioContext {
+    constructor(channels, length, sampleRate) {
+      super({ offline: true });
+      this.numberOfChannels = channels;
+      this.length = length;
+      this.sampleRate = sampleRate;
+      this.state = "running";
+    }
+    async startRendering() {
+      this.rendered = true;
+      const buffer = this.createBuffer(this.numberOfChannels, this.length, this.sampleRate);
+      buffer.numberOfChannels = this.numberOfChannels;
+      if (this.oscillators.length || this.sources.length) buffer.getChannelData(0).fill(.125);
+      this.state = "closed";
+      return buffer;
+    }
+    async resume() { throw new Error("Offline export must not resume a live context"); }
+  }
   class FakeAudioWorkletNode {
     constructor(context, processorName, options) {
       this.processorName = processorName;
@@ -628,21 +661,31 @@ function fakePage(search = "", supportWorklets = true) {
     static revokeObjectURL(url) { revokedUrls.push(url); }
   }
   window.AudioContext = FakeAudioContext;
+  window.OfflineAudioContext = FakeOfflineAudioContext;
   window.AudioWorkletNode = supportWorklets ? FakeAudioWorkletNode : undefined;
-  const sandbox = { document, window, URL: FakeURL, Blob, TextEncoder, URLSearchParams, ResizeObserver: undefined,
+  const sandbox = { document, window, URL: FakeURL, Blob, TextEncoder, URLSearchParams,
+    Float32Array, Uint8Array, ArrayBuffer, DataView, ResizeObserver: undefined,
     setInterval: (...args) => window.setInterval(...args), clearInterval: id => window.clearInterval(id),
     setTimeout, clearTimeout };
   const vmContext = vm.createContext(sandbox);
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
   for (const name of ["sound-score.js", "sound-abc.js", "sound-drum-abc.js", "sound-drum-patterns.js", "sound-fm.js", "sound-score-player.js",
-    "sound-compose.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js"]) {
+    "sound-compose.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js",
+    "sound-wav.js", "sound-export.js", "sound-export-ui.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });
+    // globalThis and window are the same object in an actual browser.
+    if (name === "sound-wav.js") window.SoundLabWav = vmContext.SoundLabWav;
   }
+  const offlineExport = window.SoundLabExport;
+  window.SoundLabExport = { ...offlineExport, render(snapshot, dependencies) {
+    exportRequests.push(JSON.parse(JSON.stringify(snapshot)));
+    return offlineExport.render(snapshot, dependencies);
+  } };
   vm.runInContext(browserCode, vmContext, { filename: "sound-lab.js" });
   return {
-    contexts, elements, document, window, waveButtons, strikeButtons,
+    contexts, offlineContexts, exportRequests, elements, document, window, waveButtons, strikeButtons,
     guitarPlayButtons, guitarChordButtons, pianoTouchButtons, strikePlayButtons, sustainButtons,
     drumButtons, spectrumButtons,
     motionButtons, sirenPatternButtons, timbreButtons, vowelButtons, mixGapButtons, pureKindButtons, pureKindGroups, mixKindButtons,
@@ -4027,5 +4070,163 @@ test("a late project-file read cannot replace a newer candidate or reopen after 
   assert.equal(await cancelled, false);
   assert.equal(app.elements.get("projectConfirm").hidden, true);
   assert.equal(app.elements.get("projectName").value, "Newest request");
+  assert.equal(app.contexts.length, 0);
+});
+
+async function exportedWav(app) {
+  const output = app.objectUrls.at(-1);
+  assert.equal(output.blob.type, "audio/wav");
+  const bytes = new Uint8Array(await output.blob.arrayBuffer());
+  const view = new DataView(bytes.buffer);
+  assert.equal(Buffer.from(bytes.subarray(0, 4)).toString(), "RIFF");
+  assert.equal(Buffer.from(bytes.subarray(8, 12)).toString(), "WAVE");
+  assert.equal(view.getUint16(22, true), 1);
+  assert.equal(view.getUint32(24, true), 44100);
+  assert.equal(view.getUint16(34, true), 16);
+  assert.equal(view.getUint32(40, true), bytes.length - 44);
+  return { bytes, seconds: (bytes.length - 44) / 2 / 44100, url: output.url };
+}
+
+test("Compose exports the latest solo text beyond 15 seconds without a live audio context or recorder", async () => {
+  const app = fakePage("", false); // Export does not require AudioWorklet support.
+  assert.equal(app.elements.get("exportWav").textContent, "WAV гаргах");
+  assert.equal(app.elements.get("exportDownload").hidden, true);
+  app.fire("modeCompose", "click");
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("exportWav").textContent, "Export WAV");
+  app.elements.get("projectName").value = "Миний аялгуу";
+  app.elements.get("composeInstrument").value = "guitar";
+  app.fire("composeInstrument", "change");
+  const text = "X:1\nT:Latest unparsed text\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\n" +
+    "C4 | D4 | E4 | F4 | G4 | A4 | B4 | c4 |]";
+  app.elements.get("composeText").value = text;
+  app.fire("composeText", "input");
+  const pending = app.fire("exportWav", "click");
+  assert.equal(app.elements.get("exportWav").disabled, true);
+  assert.equal(await app.fire("exportWav", "click"), false, "Repeated clicks cannot overlap renders");
+  assert.equal(await pending, true, app.elements.get("exportStatus").textContent);
+  assert.equal(app.exportRequests.length, 1);
+  assert.equal(app.exportRequests[0].content.abc, text, "Uses the raw editor before parse debounce");
+  assert.equal(app.elements.get("composeText").value, text);
+  assert.equal(app.elements.get("exportDownload").download, "Миний аялгуу.wav");
+  assert.equal(app.elements.get("exportDownload").hidden, false);
+  const wav = await exportedWav(app);
+  assert.ok(wav.seconds > 16 && wav.seconds < 19, "Written duration and final guitar tail included");
+  assert.equal(app.offlineContexts.length, 1);
+  assert.equal(app.offlineContexts[0].rendered, true);
+  assert.equal(app.contexts.length, 0, "Export never constructs the live AudioContext");
+  assert.equal(app.timers.size, 0, "No live look-ahead scheduler is started");
+  assert.equal(app.elements.get("exportWav").disabled, false);
+});
+
+test("ensemble WAV snapshots tuning, strumming, mix and expanded linked drums without touching the solo workspace", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  const soloText = app.elements.get("composeText").value;
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "guitarStrum";
+  app.fire("ensembleApplyPreset", "click");
+  app.elements.get("ensembleTuning").value = "pythagorean";
+  app.fire("ensembleTuning", "change");
+  const technique = projectTrackControl(app, 0, "ensemble-guitar-mode");
+  technique.value = "up";
+  technique.events.change();
+  const spacing = projectTrackControl(app, 0, "ensemble-guitar-spacing");
+  spacing.value = "43";
+  spacing.events.input();
+  projectDescendants(app.elements.get("ensembleTrackList").children[1])
+    .find(node => node.textContent === "Mute").click();
+  app.elements.get("ensembleTrackList").children[2].children[0].children[0].click();
+  const patternText = app.elements.get("ensembleText").value.replace("T:A", "T:Export rhythm");
+  app.elements.get("ensembleText").value = patternText;
+  app.fire("ensembleText", "input");
+  const saved = (await saveNativeProject(app)).data;
+  assert.equal(await app.fire("exportWav", "click"), true, app.elements.get("exportStatus").textContent);
+  const snapshot = app.exportRequests[0];
+  assert.equal(snapshot.mode, "ensemble");
+  assert.deepEqual(projectCodec.validate({ ...saved, content: snapshot.content }).content, saved.content);
+  assert.equal(snapshot.content.tuning, "pythagorean");
+  assert.deepEqual(snapshot.content.tracks[0].guitar, { mode: "up", spacingMs: 43 });
+  assert.equal(snapshot.content.tracks[1].mute, true);
+  assert.equal(snapshot.content.tracks[2].patterns.patterns[0].name, "Export rhythm");
+  assert.ok(app.offlineContexts[0].sources.length > 0, "Guitar/drum buffer sources were scheduled");
+  assert.equal(app.elements.get("composeText").value, soloText);
+  assert.deepEqual((await saveNativeProject(app)).data, saved, "Export leaves all editable state intact");
+  assert.equal(app.contexts.length, 0);
+});
+
+test("invalid latest notation and empty pattern drafts cannot export an older playable score", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.elements.get("composeText").value = "";
+  app.fire("composeText", "input");
+  assert.equal(await app.fire("exportWav", "click"), false);
+  assert.equal(app.elements.get("exportStatus").classList.contains("error"), true);
+  assert.equal(app.elements.get("composeText").value, "");
+  assert.equal(app.objectUrls.length, 0);
+  app.composeSubtabButtons[1].click();
+  app.fire("ensembleAddDrums", "click");
+  app.elements.get("ensembleText").value = "";
+  app.fire("ensembleText", "input");
+  const previousRevertVisibility = app.elements.get("ensemblePatternRevert").hidden;
+  assert.equal(await app.fire("exportWav", "click"), false);
+  assert.equal(app.elements.get("ensembleText").value, "");
+  assert.equal(app.exportRequests.at(-1).content.tracks[2].patternDraft.text, "");
+  assert.equal(app.elements.get("ensemblePatternRevert").hidden, previousRevertVisibility,
+    "Export does not force editor parsing/redrawing before the pending debounce");
+  assert.equal(app.offlineContexts.length, 0, "Invalid drafts fail before offline allocation");
+  assert.equal(app.contexts.length, 0);
+});
+
+test("WAV export and an unsupported retry preserve live playback and the previous prepared file", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.elements.get("composeInstrument").value = "guitar";
+  app.fire("composeInstrument", "change");
+  await app.fire("composePlayPause", "click");
+  const live = app.contexts[0], ringing = live.sources[0];
+  const liveSources = live.sources.length;
+  assert.equal(await app.fire("exportWav", "click"), true, app.elements.get("exportStatus").textContent);
+  const oldUrl = app.elements.get("exportDownload").href;
+  assert.equal(live.sources.length, liveSources);
+  assert.equal(ringing.stopped, false);
+  assert.match(app.elements.get("composePlayPause").textContent, /Pause/);
+  assert.equal(live.worklets.length, 0);
+  app.window.OfflineAudioContext = undefined;
+  assert.equal(await app.fire("exportWav", "click"), false);
+  assert.equal(app.elements.get("exportDownload").href, oldUrl);
+  assert.equal(app.elements.get("exportDownload").hidden, false);
+  assert.equal(app.elements.get("exportStatus").classList.contains("error"), true);
+  assert.equal(ringing.stopped, false);
+  assert.equal(app.contexts.length, 1);
+  assert.equal(app.offlineContexts.length, 1);
+  app.fire("composeStop", "click");
+});
+
+test("pagehide suppresses a pending WAV download and permits retry only after the native render settles", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  const nativeRender = app.window.OfflineAudioContext.prototype.startRendering;
+  let finish;
+  let began;
+  const ready = new Promise(resolve => { began = resolve; });
+  app.window.OfflineAudioContext.prototype.startRendering = function () {
+    return new Promise(resolve => {
+      finish = async () => resolve(await nativeRender.call(this));
+      began();
+    });
+  };
+  const pending = app.fire("exportWav", "click");
+  await ready;
+  app.window.events.pagehide();
+  assert.equal(app.elements.get("exportWav").disabled, true);
+  assert.equal(await app.fire("exportWav", "click"), false);
+  await finish();
+  assert.equal(await pending, false);
+  assert.equal(app.objectUrls.length, 0, "No stale automatic file download after leaving the page");
+  assert.equal(app.elements.get("exportWav").disabled, false);
+  app.window.OfflineAudioContext.prototype.startRendering = nativeRender;
+  assert.equal(await app.fire("exportWav", "click"), true, app.elements.get("exportStatus").textContent);
+  assert.equal(app.objectUrls.length, 1);
   assert.equal(app.contexts.length, 0);
 });

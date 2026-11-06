@@ -1,6 +1,6 @@
 # Sound Lab (ideal signals, modeled instruments, moving pitch, tuning and composition)
 
-Standalone browser-based music and acoustics laboratory. Open [index.html](index.html) or serve this repository as a static website. No build, external dependencies, microphone permission, network uploads or server are required. Compose can read a local `.abc`/`.txt` score and save/open editable `.soundlab.json` projects entirely in the browser. Local WAV recording uses the browser's AudioWorklet API and requires a supported browser on a secure origin (as provided by the deployed site).
+Standalone browser-based music and acoustics laboratory. Open [index.html](index.html) or serve this repository as a static website. No build, external dependencies, microphone permission, network uploads or server are required. Compose can read a local `.abc`/`.txt` score, save/open editable `.soundlab.json` projects and export WAV audio without playing, entirely in the browser. Direct export uses `OfflineAudioContext`. The separate live WAV recorder uses AudioWorklet and requires a supported browser on a secure origin (as provided by the deployed site).
 
 **Project:** [Sound Lab](https://github.com/gantemur/soundlab) · [Live application](https://gantemur.github.io/soundlab/) · Private plans and unpublished scores: `gantemur/soundlab-private`. This application was developed under [Sol](https://github.com/gantemur/sol) until the standalone extraction on 2026-11-04, based on Sol main `6d0493cd72736d2382604c4a99450ffa932215ee`. Its earlier source history remains in that repository. After extraction, Sol contains neither the application files nor an automatic homepage link.
 
@@ -18,7 +18,19 @@ The shared Compose toolbar has **Project name**, **Save project** and **Open pro
 
 The native format is explicitly versioned (`format: "soundlab-project"`, `version: 1`) and rejects unsupported versions and unknown structural fields. Files are limited to 16 MiB, each ABC/draft string to 8,192 characters, and model collections to their existing bounds. Imported settings are type-checked and reconstructed field by field. Current playback limits remain **four ensemble tracks, 1,024 combined note/drum events and 90 seconds**; Save/Open does not add longer movements, more instruments or a full symphony editor. Language, audio playback position, recorder contents and other experiment tabs are not stored in a Compose project.
 
-The pure [project codec](sound-project.js) is separate from [file controls](sound-project-ui.js), with round-trip, draft and hostile-input tests. Existing `.abc`/`.txt` inputs still load only notation into their respective editors. **Direct offline WAV export is not part of this feature**; the existing local REC/WAV recorder is unchanged.
+The pure [project codec](sound-project.js) is separate from [file controls](sound-project-ui.js), with round-trip, draft and hostile-input tests. Existing `.abc`/`.txt` inputs still load only notation into their respective editors. Use **Export WAV** for finished audio, rather than the editable project file.
+
+## Export Compose directly to WAV
+
+**Export WAV / WAV гаргах**, beside Save/Open in the Compose toolbar, renders the whole current Single instrument or Many instruments workspace without playing through the speakers. It uses a separate offline audio context and does not start, pause or seek live playback, activate REC, or alter the editable project. The export captures the current text and settings at the click; subsequent edits do not change the file being prepared.
+
+- Output is **mono, 44.1 kHz, 16-bit PCM WAV**, matching the application's current mono mixing. The project name supplies the filename, with a fallback if blank. The visible download link remains available if the browser declines the automatic download.
+- The exporter shares the live player's note/strum timing and instrument synthesis, including ties, chords, tuning, track volumes, mute/solo decisions and drum hits. It includes the written duration and the full modeled final decay tails, not merely the last note's written end.
+- Existing musical limits still apply: up to 90 seconds of notation, four ensemble tracks and 1,024 combined events, plus a bounded release tail. This path is independent of the **15-second live-recorder limit**. Invalid scores or unfinished pattern drafts must be corrected before exporting; Save project can still preserve those drafts.
+- Quiet mixes are not boosted. If the rendered peak exceeds 0.98, one attenuation factor is applied to the **whole mix** to avoid digital clipping, and the result reports that reduction. Relative track levels are preserved; this is not per-track normalization or mastering.
+- A busy state prevents overlapping exports. Rendering speed depends on the score and device; no fixed speed-up, percentage progress or immediate cancellation is promised. Browser support and bounded-memory failures are reported without replacing the last prepared download or modifying the score.
+
+The [offline renderer](sound-export.js), [export controls](sound-export-ui.js) and shared [PCM WAV encoder](sound-wav.js) have dedicated tests. The live recorder retains its original capture behavior and 15-second bound. No microphone access, server rendering, uploaded scores/audio, external samples or new runtime packages are involved.
 
 ## Navigation
 

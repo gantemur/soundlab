@@ -18,6 +18,8 @@
   const composeModel = window.SoundLabCompose;
   const ensembleModel = window.SoundLabEnsemble;
   const projectUI = window.SoundLabProjectUI;
+  const exportModel = window.SoundLabExport;
+  const exportUI = window.SoundLabExportUI;
   const $ = id => document.getElementById(id);
 
   const messages = {
@@ -2591,6 +2593,16 @@
       renderTexts();
     }
   }) : null;
+  const wavExport = exportUI && exportModel && compose && ensemble ? new exportUI.Controller({ document,
+    capture: () => {
+      const mode = state.composeSubtab;
+      return { mode, content: (mode === "solo" ? compose : ensemble).captureProject() };
+    },
+    getTitle: () => $("projectName").value,
+    render: snapshot => exportModel.render(snapshot, { transientModel, sustainModel,
+      temperamentModel: tempModel,
+      OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext })
+  }) : null;
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
@@ -4471,6 +4483,7 @@
     if (compose) compose.renderLanguage(state.language);
     if (ensemble) ensemble.renderLanguage(state.language);
     if (projectFiles) projectFiles.renderLanguage(state.language);
+    if (wavExport) wavExport.renderLanguage(state.language);
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-i18n]").forEach(element => {
       const key = element.getAttribute("data-i18n");
@@ -7659,7 +7672,10 @@
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { stopRecording(); stopAllAudio(true, "hidden"); }
   });
-  window.addEventListener("pagehide", () => { stopRecording(); stopAllAudio(true, "hidden"); });
+  window.addEventListener("pagehide", () => {
+    if (wavExport) wavExport.invalidate();
+    stopRecording(); stopAllAudio(true, "hidden");
+  });
   window.addEventListener("blur", () => {
     if (recorder.state === "recording") stopRecording();
     if (state.sustainPlaying || sustainPointerId !== null || sustainKeyboardHeld ||

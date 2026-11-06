@@ -6,6 +6,7 @@ const playerModel = require("./sound-score-player.js");
 const transient = require("./sound-transient.js");
 const sustain = require("./sound-sustain.js");
 const temperaments = require("./sound-temperaments.js");
+const drumABC = require("./sound-drum-abc.js");
 
 function audioFixture(Player = playerModel.Player) {
   const context = {
@@ -16,7 +17,7 @@ function audioFixture(Player = playerModel.Player) {
         setValueAtTime(value, at) { this.value = value; this.records.push(["set", value, at]); },
         linearRampToValueAtTime(value, at) { this.records.push(["ramp", value, at]); },
         setTargetAtTime(value, at, constant) { this.records.push(["target", value, at, constant]); }
-      }, connect(target) { this.target = target; }, disconnect() {} };
+      }, connect(target) { this.target = target; }, disconnect() { this.disconnected = true; } };
       this.gains.push(gain);
       return gain;
     },
@@ -513,4 +514,109 @@ test("solo and ensemble guitars admit low open strings while other instrument bo
     assert.throws(() => playerModel.validateEnsemble([{ score: openE, instrument, volume: 40 }]), /outside/);
   }
   assert.equal(calls.length, 0);
+});
+
+test("buffer specifications and ending times match the actual shared instrument models", () => {
+  const part = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]");
+  for (const rate of [16000, 44100, 48000]) for (const instrument of ["guitar", "piano", "fmep", "chimes"]) {
+    const { player, context, calls } = audioFixture();
+    context.sampleRate = rate;
+    player.transientModel = transient;
+    player.strictBufferFrames = true;
+    player.configure({ score: part, instrument });
+    const event = player.playEvents[0], spec = player.bufferSpec(event, rate);
+    assert.equal(context.buffers.length, 0, "planning has no sample-buffer side effects");
+    assert.equal(calls.length, 0, "planning does not open audio");
+    player.context = context;
+    const buffer = player.bufferFor(spec);
+    assert.equal(buffer.getChannelData(0).length, spec.frames, instrument + " " + rate);
+    assert.ok(buffer.getChannelData(0).every(Number.isFinite));
+    const shortEnd = instrument === "piano" || instrument === "fmep" ? 1.5 + .19 : 1 + buffer.duration;
+    assert.equal(player.voiceEndTime(event, 1, 1.5, rate), shortEnd);
+    assert.equal(player.voiceEndTime(event, 1, 7, rate), 1 + buffer.duration,
+      "A held buffer cannot ring longer than its own modeled samples");
+    assert.equal(player.bufferBytes, spec.frames * 4);
+    player.clearBuffers();
+    assert.equal(player.bufferBytes, 0);
+    assert.equal(player.buffers.size, 0);
+    assert.equal(player.bufferSizes.size, 0);
+  }
+});
+
+test("each drum has a shared full-tail specification independent of its written note length", () => {
+  const score = drumABC.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C clef=perc\n[CDEFG] z3 |]");
+  const { player, context, calls } = audioFixture(playerModel.EnsemblePlayer);
+  player.transientModel = transient;
+  player.strictBufferFrames = true;
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score, volume: 50 }] });
+  player.context = context;
+  const seconds = { kick: 1.44, snare: .96, hat: .52, openHat: 1.92, woodblock: .96 };
+  for (const event of player.playEvents) {
+    const spec = player.bufferSpec(event, context.sampleRate), buffer = player.bufferFor(spec);
+    assert.equal(spec.frames, Math.ceil(seconds[event.drum] * context.sampleRate));
+    assert.equal(buffer.getChannelData(0).length, spec.frames);
+    assert.equal(player.voiceEndTime(event, 2, 2.01, context.sampleRate), 2 + buffer.duration);
+  }
+  assert.equal(calls.length, 0);
+});
+
+test("the default live cache remains FIFO 24 while an offline cache reuses more than 24 pitches", () => {
+  for (const limit of [24, 1024]) {
+    const { player, context, recipes } = audioFixture();
+    player.bufferCacheLimit = limit;
+    player.maxBufferBytes = 128 * 1024 * 1024;
+    player.configure({ score: melody, instrument: "piano" });
+    player.context = context;
+    const events = Array.from({ length: 30 }, (_, index) => ({ ...player.playEvents[0],
+      pitch: { letter: "CDEFGAB"[index % 7], accidental: 0, octave: 2 + Math.floor(index / 7) } }));
+    const specs = events.map(event => player.bufferSpec(event, context.sampleRate));
+    for (const spec of specs) player.bufferFor(spec);
+    const original = player.buffers.get(specs[0].key);
+    const reused = player.bufferFor(specs[0]);
+    assert.equal(player.buffers.size, Math.min(limit, events.length));
+    assert.equal(recipes.length, limit === 24 ? 31 : 30);
+    if (limit === 1024) assert.equal(reused, original, "Future sources share one retained buffer per pitch");
+    assert.equal(player.bufferBytes, player.buffers.size * context.sampleRate * 2 * 4);
+  }
+});
+
+test("buffer budgets fail before model allocation and a failed note leaves no connected gain", () => {
+  const { player, context, recipes } = audioFixture();
+  player.configure({ score: melody, instrument: "guitar" });
+  player.context = context;
+  player.maxBufferBytes = 1;
+  assert.throws(() => player.scheduleNote(player.playEvents[0], 0, 1),
+    error => error.code === "limit" && /memory/.test(error.message));
+  assert.equal(recipes.length, 0);
+  assert.equal(context.buffers.length, 0);
+  assert.equal(context.gains.length, 1);
+  assert.equal(context.gains[0].disconnected, true);
+  assert.equal(player.voices.size, 0);
+  assert.equal(player.bufferBytes, 0);
+});
+
+test("strict offline buffers reject a changed model length instead of truncating release tails", () => {
+  const { player, context } = audioFixture();
+  player.configure({ score: melody, instrument: "guitar" });
+  player.context = context;
+  player.strictBufferFrames = true;
+  assert.throws(() => player.bufferFor(player.bufferSpec(player.playEvents[0], context.sampleRate)), /unexpected audio sample/);
+  assert.equal(context.buffers.length, 0, "The two-second test model does not match the 2.6-second recipe");
+  assert.equal(player.bufferBytes, 0);
+  assert.equal(player.buffers.size, 0);
+});
+
+test("audibility follows the same static mute, solo and volume rules as track buses", () => {
+  const { player } = audioFixture(playerModel.EnsemblePlayer);
+  const tracks = [
+    { id: 1, score: melody, instrument: "flute", volume: 50, mute: true, solo: false },
+    { id: 2, score: melody, instrument: "piano", volume: 0, mute: false, solo: true },
+    { id: 3, score: melody, instrument: "guitar", volume: 50, mute: false, solo: false }
+  ];
+  player.configure({ tracks });
+  assert.ok(player.playEvents.every(event => !player.isEventAudible(event)));
+  player.updateMix(2, { volume: 40 });
+  assert.ok(player.playEvents.filter(event => player.isEventAudible(event)).every(event => event.partIndex === 1));
+  player.updateMix(2, { solo: false });
+  assert.deepEqual([...new Set(player.playEvents.filter(event => player.isEventAudible(event)).map(event => event.partIndex))], [1, 2]);
 });

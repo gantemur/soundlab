@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s055">
+  <link rel="stylesheet" href="sound-lab.css?v=s056">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s037" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
@@ -23,18 +23,21 @@
   <script src="sound-temperaments.js?v=s036" defer></script>
   <script src="sound-harmonics.js" defer></script>
   <script src="sound-noise.js" defer></script>
-  <script src="sound-recorder.js" defer></script>
+  <script src="sound-wav.js?v=s056" defer></script>
+  <script src="sound-recorder.js?v=s056" defer></script>
   <script src="sound-score.js?v=s051" defer></script>
   <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s053" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s052" defer></script>
+  <script src="sound-score-player.js?v=s056" defer></script>
   <script src="sound-compose.js?v=s055" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
   <script src="sound-ensemble.js?v=s055" defer></script>
   <script src="sound-project.js?v=s055" defer></script>
   <script src="sound-project-ui.js?v=s055" defer></script>
-  <script src="sound-lab.js?v=s055" defer></script>
+  <script src="sound-export.js?v=s056" defer></script>
+  <script src="sound-export-ui.js?v=s056" defer></script>
+  <script src="sound-lab.js?v=s056" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -1321,11 +1324,15 @@
         </div>
         <button id="projectSave" type="button" data-project-i18n="save">Төсөл хадгалах</button>
         <button id="projectOpen" type="button" data-project-i18n="open">Төсөл нээх…</button>
+        <button id="exportWav" type="button" aria-describedby="exportHint">WAV гаргах</button>
         <input id="projectFile" type="file" accept=".soundlab.json,.json,application/json" hidden>
       </div>
       <p id="projectHint" class="project-hint" data-project-i18n="hint">Одоогийн Нэг хөгжим эсвэл Олон хөгжим хэсгийг засаж болох .soundlab.json файлд хадгална. Файл зөвхөн таны төхөөрөмжид байна.</p>
       <p id="projectStatus" class="project-status" role="status" aria-live="polite"></p>
       <a id="projectDownload" class="project-download" data-project-i18n="download" hidden>Хадгалсан төслийг татах</a>
+      <p id="exportHint" class="project-hint">Одоогийн бүтээлийг тоглуулахгүйгээр WAV аудио файл болгоно.</p>
+      <p id="exportStatus" class="project-status" role="status" aria-live="polite"></p>
+      <a id="exportDownload" class="project-download" hidden>Бэлэн WAV файлыг татах</a>
       <div id="projectConfirm" class="project-confirm" hidden>
         <p id="projectConfirmText"></p>
         <div class="project-confirm-actions">
