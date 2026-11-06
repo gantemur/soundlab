@@ -492,7 +492,7 @@
         piano: "Hammer force changes the brightness of slightly detuned, stiff strings. Their overtones fade at different rates."
       },
       sustainChoose: "Choose a held sound",
-      sustainFlute: "Flute", sustainViolin: "Violin", sustainMorin: "Morin khuur",
+      sustainFlute: "Flute", sustainClarinet: "Clarinet", sustainViolin: "Violin", sustainMorin: "Morin khuur",
       sustainAir: "Aerophones", sustainBowed: "Bowed strings",
       sustainGroupAria: "Held instrument models", sustainGestureTitle: "How to play",
       sustainGestureAria: "Hold or toggle the sound", sustainHold: "Press and hold", sustainToggle: "Tap to toggle",
@@ -501,30 +501,34 @@
       sustainPitch: "Note frequency", sustainPitchSliderAria: "Held note pitch slider",
       sustainPitchInputAria: "Held note frequency in hertz", sustainAttack: "Attack time", sustainRelease: "Release time",
       sustainBreath: "Blowing strength", sustainBreathHint: "A stronger air jet changes the flute's loudness, harmonics and breath noise.",
+      sustainClarinetBreathHint: "Stronger blowing emphasizes upper odd harmonics. Each note begins with a brief tongued onset.",
       sustainBow: "Bow pressure", sustainBowHint: "More bow pressure makes the tone stronger and sharpens the stick–slip harmonics in this simplified model.",
       sustainEnvelopeHelp: "Attack applies to the next note; release applies when you let go.",
       sustainEnvelopeTitle: "Loudness over time", sustainEnvelopeHint: "Normalized attack and release of a 1.2 s note; blowing or bow pressure also changes loudness.",
       sustainEnvelopeFoot: "The vertical mark is the release at 1.2 s.",
       sustainDetailTitle: "Waveform and harmonics", sustainDetailHint: "20 ms stick–slip approximation after illustrative body filters. Random bow noise is omitted.",
       sustainFluteDetailHint: "20 ms modeled flute tone after jet shaping and air-column filtering; random breath noise is omitted.",
+      sustainClarinetDetailHint: "20 ms settled reed-inspired tone after bore filters. The brief tongue noise is omitted from this periodic plot.",
       sustainWaveTitle: "Waveform", sustainSpectrumTitle: "Harmonics",
       sustainEnvelopeAria: "Example held-note attack, sustain and release curve",
       sustainWaveAria: "Modeled twenty millisecond sustained periodic waveform",
       sustainSpectrumAria: "Strengths of modeled periodic harmonics",
       sustainChallenge: "Keep the flute's pitch fixed. Try gentle and strong blowing: what happens to loudness and the upper harmonics?",
+      sustainClarinetChallenge: "Compare the flute and clarinet at the same pitch. Then blow gently and strongly: which odd harmonics change?",
       sustainBowChallenge: "Keep the note fixed. Change bow pressure, then compare violin and morin khuur. Which harmonics stand out?",
       sustainLearnMore: "Why can these sounds continue?",
-      sustainLessonOne: "Blowing a flute or bowing a string keeps feeding energy into its vibration. A plucked string is set moving once and then fades.",
-      sustainLessonTwo: "The flute uses a nonlinear jet-like exciter and simple filters. For bowed strings, an idealized velocity alternates between sticking and a short reverse slip; body filters color its harmonics. Neither model solves the full self-oscillating physical feedback.",
+      sustainLessonOne: "Blowing a flute or clarinet, or bowing a string, keeps feeding energy into its vibration. A plucked string is set moving once and then fades.",
+      sustainLessonTwo: "The flute has a simplified nonlinear jet. The clarinet uses a prescribed odd-rich reed spectrum, a short tongued attack and bore filters. Bowed strings use idealized stick–slip motion and body filters. None solves full physical feedback or clarinet register changes.",
       sustainReady: "Ready. Hold the button or use tap-to-toggle mode.", sustainStarting: "Starting the note…",
       sustainPlayingHold: "Sounding. Release the button to fade.", sustainPlayingToggle: "Sounding. Tap again to release.",
       sustainReleased: "Released. The sound fades away.", sustainStopped: "Stopped. Try another instrument.",
       sustainHidden: "Sound stopped when you left the page.",
       sustainUnsupported: "This browser cannot play generated instruments.",
       sustainBlocked: "The sound could not start. Check browser sound permission.",
-      sustainInvalid: "Enter a frequency between 110 and 880 Hz.",
+      sustainInvalid: "Enter a frequency within this instrument’s displayed range.",
       sustainDesc: {
         flute: "A flute-like air-jet model: stronger blowing makes the sound louder and brings out more upper harmonics.",
+        clarinet: "A lower/middle-register reed-inspired model: hollow, odd-rich tone, changing colour with blowing and a short tongued onset. Concert pitch; no register switching.",
         violin: "A bright bowed-string source with pressure-controlled stick–slip sharpness and illustrative body resonances.",
         morin: "The same bowed-string mechanism with a different slip duration and warmer body response, inspired by the morin khuur."
       },
@@ -1061,7 +1065,7 @@
         piano: "Алх цохиход өчүүхэн зөрүүтэй чавхдас зэрэг хэлбэлзэнэ. Цохилтын хүчийг өсгөхөд дээд гармоникууд тодорч, авиа хурц болно."
       },
       sustainChoose: "Үргэлжлэх дуу сонгох",
-      sustainFlute: "Лимбэ", sustainViolin: "Хийл", sustainMorin: "Морин хуур",
+      sustainFlute: "Лимбэ", sustainClarinet: "Кларнет", sustainViolin: "Хийл", sustainMorin: "Морин хуур",
       sustainAir: "Үлээвэр", sustainBowed: "Нумт чавхдас",
       sustainGroupAria: "Үргэлжлэх авианы загвар", sustainGestureTitle: "Дуугаргах арга",
       sustainGestureAria: "Дууг барих эсвэл товшиж асаах", sustainHold: "Дарж барих", sustainToggle: "Товшиж асаах",
@@ -1070,30 +1074,34 @@
       sustainPitch: "Нотын давтамж", sustainPitchSliderAria: "Нотын давтамжийн гулсуур",
       sustainPitchInputAria: "Нотын давтамжийг герцээр оруулах", sustainAttack: "Эхлэх хугацаа", sustainRelease: "Намдах хугацаа",
       sustainBreath: "Үлээлтийн хүч", sustainBreathHint: "Илүү хүчтэй үлээхэд дуу чангарч, гармоникууд болон амьсгалын шуугиан өөрчлөгдөнө.",
+      sustainClarinetBreathHint: "Илүү хүчтэй үлээхэд сондгой дээд гармоникууд тодорно. Нот богино хэлээр тасалсан эхлэлтэй.",
       sustainBow: "Нумын даралт", sustainBowHint: "Нумын даралтыг нэмэхэд авиа чангарч, наалдах–гулсах хэлбэлзлийн дээд гармоникууд тодорно. Энэ бол хялбаршуулсан загвар.",
       sustainEnvelopeHelp: "Эхлэх хугацаа дараагийн нотод, намдах хугацаа тавихад үйлчилнэ.",
       sustainEnvelopeTitle: "Дууны хүч хугацаанд", sustainEnvelopeHint: "1.2 сек үргэлжилсэн авианы хэвийн болгосон эхлэл, намдалт. Үлээлт, нумын даралт бас чанга сулд нөлөөлнө.",
       sustainEnvelopeFoot: "Босоо шугам нь тавих мөч (1.2 сек).",
       sustainDetailTitle: "Долгион ба гармоникууд", sustainDetailHint: "Чавхдасны наалдах–гулсах хөдөлгөөний хялбар загвар, их биеийн шүүлтүүрээр гаргасан 20 мсек долгион. Санамсаргүй шуугианыг зураагүй.",
       sustainFluteDetailHint: "Үлээлт ба агаарын баганын шүүлтүүрээр загварчилсан 20 мсек-ийн долгион. Санамсаргүй шуугианыг оруулаагүй.",
+      sustainClarinetDetailHint: "Кларнетийн үлээсэн тогтвортой авианы 20 мсек долгион. Хэлээр тасалсан эхлэлийн шуугианыг зурагт оруулаагүй.",
       sustainWaveTitle: "Долгион", sustainSpectrumTitle: "Гармоникууд",
       sustainEnvelopeAria: "Дууг эхлүүлж, барьж, тавих үеийн далайцын загвар",
       sustainWaveAria: "20 мсек-ийн үргэлжлэх долгионы загвар",
       sustainSpectrumAria: "Загварчилсан үелэх долгионы гармоникуудын хүч",
       sustainChallenge: "Лимбэний давтамжийг тогтмол байлгаад зөөлөн, хүчтэй үлээхийг харьцуул. Дээд гармоникууд хэрхэн өөрчлөгдөв?",
+      sustainClarinetChallenge: "Лимбэ, кларнет хоёрыг ижил нот дээр харьцуул. Кларнетийг зөөлөн, хүчтэй үлээхэд сондгой гармоникууд яаж өөрчлөгдөв?",
       sustainBowChallenge: "Нотын давтамжийг өөрчлөлгүй нумын даралтыг өсгөж, хийл ба морин хуурыг харьцуул. Аль гармоникууд тодров?",
       sustainLearnMore: "Эдгээр дуу яагаад үргэлжилдэг вэ?",
-      sustainLessonOne: "Лимбэ үлээх, хийл болон морин хуур нумдах үед хэлбэлзэлд энерги тасралтгүй өгөгдөнө. Татаж тавьсан чавхдас харин аажмаар намдана.",
-      sustainLessonTwo: "Лимбэний загварт үлээлтийн шугаман бус үйлчлэл, агаарын баганын шүүлтүүр бий. Нумдсан чавхдас нумтай ээлжлэн зууралдаж, гулсах үеийн хурдыг үелэх загвараар, их биеийг шүүлтүүрээр дүрсэлсэн. Аль аль нь жинхэнэ харилцан үйлчлэлийг бүрэн бодоогүй.",
+      sustainLessonOne: "Лимбэ, кларнетийг үлээх, хийл болон морин хуур нумдах үед хэлбэлзэлд энерги тасралтгүй өгөгдөнө. Татаж тавьсан чавхдас харин аажмаар намдана.",
+      sustainLessonTwo: "Лимбэний загвар шугаман бус үлээлттэй, кларнетийн загвар сондгой гармоник давамгайлсан үелэх эх үүсвэр, богино хэлээр эхлэлт, хоолойн шүүлтүүртэй. Нумт чавхдас наалдах–гулсах хөдөлгөөний хялбар загвартай. Бодит харилцан үйлчлэл, кларнетийн регистр солигдохыг энд тооцоогүй.",
       sustainReady: "Бэлэн. Дарж барих эсвэл товшиж асаах аргыг сонгоорой.", sustainStarting: "Дууг эхлүүлж байна…",
       sustainPlayingHold: "Дуугарч байна. Гараа авахад намдана.", sustainPlayingToggle: "Дуугарч байна. Дахин товшиж намдаана.",
       sustainReleased: "Тавилаа. Дуу аажмаар намдаж байна.", sustainStopped: "Зогслоо. Өөр зэмсэг туршаарай.",
       sustainHidden: "Хуудаснаас гарахад авиа зогслоо.",
       sustainUnsupported: "Энэ хөтөч загварчилсан зэмсэг тоглуулах боломжгүй байна.",
       sustainBlocked: "Дуу эхэлсэнгүй. Хөтчийн дууны зөвшөөрлийг шалгана уу.",
-      sustainInvalid: "Нотын давтамжийг 110–880 Гц-ийн хооронд оруулна уу.",
+      sustainInvalid: "Нотын давтамжийг энэ зэмсгийн заасан хязгаарт оруулна уу.",
       sustainDesc: {
         flute: "Үлээлтийн хүчнээс дууны хэмжээ, дээд гармоникууд нь өөрчлөгдөх лимбэний хялбаршуулсан загвар.",
+        clarinet: "Доод, дунд регистрийн кларнетийн хялбар загвар: сондгой гармоник давамгайлсан өнгө, үлээлтээс хамаарах хурц байдал, богино хэлээр эхлэлт. Бодит регистр солигдохгүй.",
         violin: "Нумын даралтаар наалдах–гулсах хөдөлгөөний хурц байдлыг өөрчилж, их биеийн шүүлтүүрээр өнгө оруулсан хийлийн загвар.",
         morin: "Нумдсан чавхдасны ижил зарчимтай боловч гулсах үе, их биеийн өнгө нь өөр морин хуураас санаа авсан загвар."
       },
@@ -1204,6 +1212,7 @@
     strikeSpectrumView: "local",
     strikeFollowing: false,
     sustainKind: "flute",
+    sustainAirKind: "flute",
     sustainBowKind: "violin",
     sustainGesture: "hold",
     sustainPitch: 440,
@@ -1539,7 +1548,8 @@
       voice = heldVoiceModel.createVoice({
         context, output: this.contextOwner.output, model: sustainModel,
         kind: state.sustainKind, hz: state.sustainPitch,
-        strength: state.sustainKind === "flute" ? state.sustainBreath : state.sustainBowPressure,
+        strength: ["flute", "clarinet"].includes(state.sustainKind) ?
+          state.sustainBreath : state.sustainBowPressure,
         attack: state.sustainAttack, release: state.sustainRelease,
         level: this.volumeGain(), at: context.currentTime,
         onended: () => {
@@ -1564,7 +1574,8 @@
       if (!this.currentVoice) return;
       this.currentVoice.update({
         hz: state.sustainPitch,
-        strength: state.sustainKind === "flute" ? state.sustainBreath : state.sustainBowPressure,
+        strength: ["flute", "clarinet"].includes(state.sustainKind) ?
+          state.sustainBreath : state.sustainBowPressure,
         level: this.volumeGain()
       });
     }
@@ -4661,11 +4672,12 @@
   }
 
   function renderSustainControls() {
-    const family = state.sustainKind === "flute" ? "air" : "bow";
+    const family = ["flute", "clarinet"].includes(state.sustainKind) ? "air" : "bow";
     const instrumentSelect = $("sustainInstrument");
     if (instrumentSelect.dataset.family !== family || instrumentSelect.dataset.language !== state.language) {
-      const kinds = family === "air" ? ["flute"] : ["violin", "morin"];
-      const names = { flute: "sustainFlute", violin: "sustainViolin", morin: "sustainMorin" };
+      const kinds = family === "air" ? ["flute", "clarinet"] : ["violin", "morin"];
+      const names = { flute: "sustainFlute", clarinet: "sustainClarinet",
+        violin: "sustainViolin", morin: "sustainMorin" };
       instrumentSelect.replaceChildren(...kinds.map(kind => {
         const option = document.createElement("option");
         option.value = kind;
@@ -4676,7 +4688,12 @@
       instrumentSelect.dataset.language = state.language;
     }
     instrumentSelect.value = state.sustainKind;
-    $("sustainFrequencySlider").value = String(Math.round(sustainModel.hzToSlider(state.sustainPitch)));
+    const [minHz, maxHz] = sustainModel.rangeFor(state.sustainKind);
+    $("sustainFrequencyInput").min = String(minHz);
+    $("sustainFrequencyInput").max = String(maxHz);
+    $("sustainMinHz").textContent = hzText(minHz);
+    $("sustainMaxHz").textContent = hzText(maxHz);
+    $("sustainFrequencySlider").value = String(Math.round(sustainModel.hzToSlider(state.sustainPitch, state.sustainKind)));
     $("sustainFrequencyInput").value = String(Number(state.sustainPitch.toFixed(2)));
     const note = model.nearestNote(state.sustainPitch);
     const cents = 1200 * Math.log2(state.sustainPitch / note.frequency);
@@ -4684,16 +4701,20 @@
       note.english + " · " + note.mongolian;
     $("sustainSnap").checked = state.sustainSnap;
     $("sustainDescription").textContent = text("sustainDesc")[state.sustainKind];
-    $("sustainBreathGroup").hidden = state.sustainKind !== "flute";
-    $("sustainBowGroup").hidden = state.sustainKind === "flute";
+    $("sustainBreathGroup").hidden = family !== "air";
+    $("sustainBowGroup").hidden = family === "air";
+    $("sustainBreathHint").textContent = text(state.sustainKind === "clarinet" ?
+      "sustainClarinetBreathHint" : "sustainBreathHint");
     $("sustainBreath").value = String(state.sustainBreath);
     $("sustainBreathValue").textContent = state.sustainBreath + "%";
     $("sustainBowPressure").value = String(state.sustainBowPressure);
     $("sustainBowValue").textContent = state.sustainBowPressure + "%";
     $("sustainDetailHint").textContent = text(state.sustainKind === "flute" ?
-      "sustainFluteDetailHint" : "sustainDetailHint");
+      "sustainFluteDetailHint" : state.sustainKind === "clarinet" ?
+        "sustainClarinetDetailHint" : "sustainDetailHint");
     $("sustainChallengeText").textContent = text(state.sustainKind === "flute" ?
-      "sustainChallenge" : "sustainBowChallenge");
+      "sustainChallenge" : state.sustainKind === "clarinet" ?
+        "sustainClarinetChallenge" : "sustainBowChallenge");
     $("sustainAttack").value = String(state.sustainAttack);
     $("sustainAttackValue").textContent = secondsFixedText(state.sustainAttack);
     $("sustainRelease").value = String(state.sustainRelease);
@@ -4753,7 +4774,10 @@
     if (!sustainModel.KINDS.includes(kind) || state.sustainKind === kind) return;
     stopSustainSound();
     state.sustainKind = kind;
-    if (kind !== "flute") state.sustainBowKind = kind;
+    if (["flute", "clarinet"].includes(kind)) state.sustainAirKind = kind;
+    else state.sustainBowKind = kind;
+    const [minHz, maxHz] = sustainModel.rangeFor(kind);
+    state.sustainPitch = Math.min(maxHz, Math.max(minHz, state.sustainPitch));
     state.sustainAttack = sustainModel.defaults(kind).attack;
     state.sustainRelease = sustainModel.defaults(kind).release;
     setSustainStatus("sustainReady");
@@ -4763,12 +4787,14 @@
 
   function setSustainPitch(value) {
     const hz = Number(value);
-    if (!Number.isFinite(hz) || hz < sustainModel.MIN_HZ || hz > sustainModel.MAX_HZ) {
+    const [minHz, maxHz] = sustainModel.rangeFor(state.sustainKind);
+    if (!Number.isFinite(hz) || hz < minHz || hz > maxHz) {
       setSustainStatus("sustainInvalid", true);
       renderSustainControls();
       return;
     }
-    state.sustainPitch = state.sustainSnap ? model.snapFrequency(hz) : hz;
+    state.sustainPitch = state.sustainSnap ?
+      Math.max(minHz, Math.min(maxHz, model.snapFrequency(hz))) : hz;
     sustainAudio.update();
     if (state.sustainStatus === "sustainInvalid") setSustainStatus("sustainReady");
     renderSustainControls();
@@ -4778,6 +4804,7 @@
   function resetSustain() {
     stopSustainSound();
     state.sustainKind = "flute";
+    state.sustainAirKind = "flute";
     state.sustainBowKind = "violin";
     state.sustainGesture = "hold";
     state.sustainPitch = 440;
@@ -5378,9 +5405,10 @@
     const w = right - left, span = .02;
     drawFrame(ctx, width, height, left, right, top, bottom);
     const count = Math.max(700, Math.ceil(state.sustainPitch * 8 * span * 10));
-    const flute = state.sustainKind === "flute";
+    const flute = state.sustainKind === "flute", clarinet = state.sustainKind === "clarinet";
     const components = flute ? sustainModel.fluteComponents(state.sustainBreath, state.sustainPitch) :
-      sustainModel.bowedComponents(state.sustainKind, state.sustainBowPressure, state.sustainPitch);
+      clarinet ? sustainModel.clarinetComponents(state.sustainBreath, state.sustainPitch) :
+        sustainModel.bowedComponents(state.sustainKind, state.sustainBowPressure, state.sustainPitch);
     ctx.strokeStyle = "#367bd1";
     ctx.lineWidth = 2.1;
     ctx.beginPath();
@@ -5388,7 +5416,8 @@
       const t = span * i / count;
       const phase = 2 * Math.PI * state.sustainPitch * t;
       const value = flute ? sustainModel.fluteWaveFromComponents(phase, components) :
-        sustainModel.bowedWaveFromComponents(phase, components);
+        clarinet ? sustainModel.clarinetWaveFromComponents(phase, components) :
+          sustainModel.bowedWaveFromComponents(phase, components);
       if (!i) ctx.moveTo(left, middle - value * amp);
       else ctx.lineTo(left + w * i / count, middle - value * amp);
     }
@@ -5403,7 +5432,8 @@
   function drawSustainSpectrum() {
     const { ctx, width, height } = plotContext($("sustainSpectrumCanvas"));
     const left = 36, right = width - 14, top = 21, bottom = height - 29;
-    const strength = state.sustainKind === "flute" ? state.sustainBreath : state.sustainBowPressure;
+    const strength = ["flute", "clarinet"].includes(state.sustainKind) ?
+      state.sustainBreath : state.sustainBowPressure;
     const partials = sustainModel.partials(state.sustainKind, strength, state.sustainPitch);
     const w = right - left, h = bottom - top, slot = w / partials.length;
     drawFrame(ctx, width, height, left, right, top, bottom);
@@ -5420,7 +5450,9 @@
     ctx.textAlign = "center";
     const labels = partials.length <= 8 ?
       (w < 315 ? [0, 2, 4, 7] : [0, 1, 2, 3, 4, 5, 6, 7]) :
-      (w < 315 ? [0, 5, 11, 17, 23] : [0, 3, 7, 11, 15, 19, 23]);
+      partials.length <= 12 ?
+        (w < 315 ? [0, 2, 5, 8, 11] : [0, 1, 3, 5, 7, 9, 11]) :
+        (w < 315 ? [0, 5, 11, 17, 23] : [0, 3, 7, 11, 15, 19, 23]);
     for (const i of labels) ctx.fillText(i === 0 ? "f" : (i + 1) + "f",
       left + (i + .5) * slot, height - 10);
   }
@@ -7055,11 +7087,12 @@
   });
   document.querySelectorAll("[data-sustain-family]").forEach(button => {
     button.addEventListener("click", () => selectSustainKind(button.dataset.sustainFamily === "air" ?
-      "flute" : state.sustainBowKind));
+      state.sustainAirKind : state.sustainBowKind));
   });
   $("sustainInstrument").addEventListener("change", event => {
     const kind = event.target.value;
-    const family = state.sustainKind === "flute" ? ["flute"] : ["violin", "morin"];
+    const family = ["flute", "clarinet"].includes(state.sustainKind) ?
+      ["flute", "clarinet"] : ["violin", "morin"];
     if (family.includes(kind)) selectSustainKind(kind);
   });
   document.querySelectorAll("[data-drum-size]").forEach(button => {
@@ -7486,7 +7519,7 @@
     }
   });
   $("sustainFrequencySlider").addEventListener("input", event =>
-    setSustainPitch(sustainModel.sliderToHz(Number(event.target.value))));
+    setSustainPitch(sustainModel.sliderToHz(Number(event.target.value), state.sustainKind)));
   $("sustainFrequencyInput").addEventListener("change", event => setSustainPitch(event.target.value));
   $("sustainSnap").addEventListener("change", event => {
     state.sustainSnap = event.target.checked;

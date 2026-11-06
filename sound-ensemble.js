@@ -18,10 +18,10 @@
 })(typeof window !== "undefined" ? window : null, function (abc, scoreModel, playerModel, presets, drums, drumPatterns) {
   "use strict";
   const VOICES = Object.freeze({
-    en: { flute: "Flute", violin: "Violin", morin: "Morin khuur", guitar: "Guitar",
+    en: { flute: "Flute", clarinet: "Clarinet", violin: "Violin", morin: "Morin khuur", guitar: "Guitar",
       piano: "Acoustic piano", chimes: "Chimes", marimba: "Marimba", xylophone: "Xylophone", sine: "Sine wave", triangle: "Triangle wave",
       square: "Square wave", sawtooth: "Sawtooth wave", fmep: "Electric piano" },
-    mn: { flute: "Лимбэ", violin: "Хийл", morin: "Морин хуур", guitar: "Гитар",
+    mn: { flute: "Лимбэ", clarinet: "Кларнет", violin: "Хийл", morin: "Морин хуур", guitar: "Гитар",
       piano: "Төгөлдөр хуур", chimes: "Хонх", marimba: "Маримба", xylophone: "Ксилофон", sine: "Синус", triangle: "Гурвалжин",
       square: "Дөрвөлжин", sawtooth: "Хөрөө", fmep: "Цахилгаан хуур" }
   });

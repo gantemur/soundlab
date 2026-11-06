@@ -8,13 +8,16 @@
  */
 (function (root, makeModel) {
   "use strict";
-  const model = makeModel();
+  const clarinet = typeof module === "object" && module.exports ?
+    require("./sound-clarinet.js") : root.SoundLabClarinet;
+  const model = makeModel(clarinet);
   if (typeof module === "object" && module.exports) module.exports = model;
   if (root) root.SoundLabSustain = model;
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (clarinet) {
   "use strict";
 
-  const KINDS = Object.freeze(["flute", "violin", "morin"]);
+  if (!clarinet) throw new Error("Load sound-clarinet.js before sound-sustain.js");
+  const KINDS = Object.freeze(["flute", "clarinet", "violin", "morin"]);
   const MIN_HZ = 110;
   const MAX_HZ = 880;
   const MIN_ATTACK = 0.02;
@@ -45,6 +48,7 @@
     // Breath turbulence should be barely audible beside the radiated tone;
     // the earlier .016 mix sounded too hissy at ordinary listening distance.
     flute: Object.freeze({ attack: .08, release: .16, noise: .002, cutoff: 3600 }),
+    clarinet: Object.freeze({ attack: .055, release: .19, noise: .006, cutoff: clarinet.BODY.noiseBandpass }),
     violin: Object.freeze({ attack: .18, release: .29, noise: .003, cutoff: 4600 }),
     morin: Object.freeze({ attack: .11, release: .32, noise: .0035, cutoff: 2600 })
   });
@@ -215,9 +219,41 @@
     return components.reduce((value, c, index) => value +
       c.sin * Math.sin((index + 1) * phase) + c.cos * Math.cos((index + 1) * phase), 0);
   }
+  function rangeFor(kind) {
+    if (!KINDS.includes(kind)) throw new RangeError("Unknown held-sound model");
+    return kind === "clarinet" ? [clarinet.MIN_HZ, clarinet.MAX_HZ] : [MIN_HZ, MAX_HZ];
+  }
+  function clarinetComponents(breath = DEFAULT_BREATH, hz = 440,
+    sampleRate = FLUTE_PLOT_SAMPLE_RATE) {
+    if (!Number.isFinite(hz) || hz < clarinet.MIN_HZ || hz > clarinet.MAX_HZ ||
+        !Number.isFinite(sampleRate) || sampleRate < 16000 || sampleRate > 384000) {
+      throw new RangeError("Invalid clarinet pitch or sample rate");
+    }
+    const weights = clarinet.strengthWeights(breath);
+    const body = clarinet.BODY;
+    return clarinet.SOURCES.soft.map((soft, index) => {
+      const bright = clarinet.SOURCES.bright[index];
+      const frequency = (index + 1) * hz;
+      const hp = biquadResponse("highpass", frequency, body.highpass, sampleRate);
+      const peak = peakingResponse(frequency, body.peak, body.peakQ, body.peakGain, sampleRate);
+      const lp = biquadResponse("lowpass", frequency, body.lowpass, sampleRate);
+      const transfer = complexProduct(complexProduct(hp, peak), lp);
+      const sin = weights.soft * soft.sin + weights.bright * bright.sin;
+      const cos = weights.soft * soft.cos + weights.bright * bright.cos;
+      return Object.freeze({ sin: sin * transfer.real - cos * transfer.imag,
+        cos: sin * transfer.imag + cos * transfer.real });
+    });
+  }
+  function clarinetWaveFromComponents(phase, components) {
+    if (!Number.isFinite(phase) || !Array.isArray(components) ||
+        components.length !== clarinet.PARTIALS) throw new RangeError("Invalid clarinet waveform");
+    return components.reduce((sum, c, i) => sum +
+      c.sin * Math.sin((i + 1) * phase) + c.cos * Math.cos((i + 1) * phase), 0);
+  }
   function validate(kind, hz, attack, release) {
     if (!KINDS.includes(kind)) throw new RangeError("Unknown held-sound model");
-    if (!Number.isFinite(hz) || hz < MIN_HZ || hz > MAX_HZ) {
+    const [lower, upper] = rangeFor(kind);
+    if (!Number.isFinite(hz) || hz < lower || hz > upper) {
       throw new RangeError("Held-sound pitch outside supported range");
     }
     if (!Number.isFinite(attack) || attack < MIN_ATTACK || attack > MAX_ATTACK ||
@@ -228,7 +264,7 @@
   function partials(kind, strength = DEFAULT_BREATH, hz = 440) {
     if (!KINDS.includes(kind)) throw new RangeError("Unknown held-sound model");
     const components = kind === "flute" ? fluteComponents(strength, hz) :
-      bowedComponents(kind, strength, hz);
+      kind === "clarinet" ? clarinetComponents(strength, hz) : bowedComponents(kind, strength, hz);
     return components.map(c => Math.hypot(c.sin, c.cos));
   }
   function defaults(kind) {
@@ -238,6 +274,7 @@
   function waveAt(phase, kind, strength = DEFAULT_BREATH, hz = 440) {
     if (!Number.isFinite(phase)) throw new RangeError("Invalid wave phase");
     if (kind === "flute") return fluteWaveFromComponents(phase, fluteComponents(strength, hz));
+    if (kind === "clarinet") return clarinetWaveFromComponents(phase, clarinetComponents(strength, hz));
     return bowedWaveFromComponents(phase, bowedComponents(kind, strength, hz));
   }
   function smoothstep(fraction) {
@@ -260,20 +297,23 @@
     if (elapsed < hold) return attackLevelAt(elapsed, attack);
     return releaseLevelAt(elapsed - hold, attackLevelAt(hold, attack), release);
   }
-  function sliderToHz(position) {
-    return MIN_HZ * Math.pow(MAX_HZ / MIN_HZ, position / 1000);
+  function sliderToHz(position, kind = "flute") {
+    const [minHz, maxHz] = rangeFor(kind);
+    return minHz * Math.pow(maxHz / minHz, position / 1000);
   }
-  function hzToSlider(hz) {
-    return 1000 * Math.log(hz / MIN_HZ) / Math.log(MAX_HZ / MIN_HZ);
+  function hzToSlider(hz, kind = "flute") {
+    const [minHz, maxHz] = rangeFor(kind);
+    return 1000 * Math.log(hz / minHz) / Math.log(maxHz / minHz);
   }
 
   return Object.freeze({
     KINDS, MIN_HZ, MAX_HZ, MIN_ATTACK, MAX_ATTACK, MIN_RELEASE, MAX_RELEASE,
     EXAMPLE_HOLD, DEFAULT_BREATH, DEFAULT_BOW_PRESSURE, BOW_PARTIALS,
     FLUTE_TONE_GAIN, FLUTE_HIGHPASS, FLUTE_LOWPASS, FLUTE_Q,
-    validate, defaults, partials, waveAt, fluteDrive, fluteJetAt, fluteNoiseGain,
+    validate, defaults, rangeFor, partials, waveAt, fluteDrive, fluteJetAt, fluteNoiseGain,
     fluteComponents, fluteWaveFromComponents, bowBody, bowPressureWeights,
     bowNoiseGain, bowSourceComponents, bowedComponents, bowedWaveFromComponents, smoothstep,
+    clarinet, clarinetComponents, clarinetWaveFromComponents,
     attackLevelAt, releaseLevelAt, envelopeAt, sliderToHz, hzToSlider
   });
 });

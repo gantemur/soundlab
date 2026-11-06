@@ -2,9 +2,9 @@
  * SPDX-License-Identifier: MIT
  * Shared native Web Audio voices for the held-instrument explorer and scores.
  *
- * This is the existing illustrative source/filter model, not a new physical
- * flute or bow/string solver. It deliberately uses the same nonlinear flute
- * jet, phase-locked bowed sources, body filters and quiet noise in every host.
+ * These are illustrative source/filter models, not complete physical solvers.
+ * Each host shares the nonlinear flute jet, bounded reed-inspired clarinet
+ * voice, phase-locked bowed sources, body filters and quiet noise.
  * One intentional timbre correction converts the model's linear LP/HP Q to
  * native Web Audio dB units, removing the old unintended filter resonance so
  * the plotted and sounding tone-filter responses agree. Peaking Q is linear.
@@ -40,7 +40,8 @@
   function defaults(kind, model = defaultModel) {
     const recipe = model.defaults(kind);
     return Object.freeze({ attack: recipe.attack, release: recipe.release,
-      strength: kind === "flute" ? model.DEFAULT_BREATH : model.DEFAULT_BOW_PRESSURE });
+      strength: kind === "flute" || kind === "clarinet" ?
+        model.DEFAULT_BREATH : model.DEFAULT_BOW_PRESSURE });
   }
   function bufferFrames(sampleRate) {
     // The model's filter-response contract starts at 16 kHz. This finite upper
@@ -112,7 +113,7 @@
 
     const nodes = [], sources = [];
     let voice, oscillator, noise, noiseGain, filter, envelope, volume;
-    let fluteNodes = null, bowNodes = null, resumeGain = null;
+    let fluteNodes = null, clarinetNodes = null, bowNodes = null, resumeGain = null;
     let ended = false, stopping = false, endTime = Infinity, releaseTime = Infinity;
     const values = { hz, strength, level };
     const originalAttack = Array.from({ length: RAMP_STEPS + 1 }, (_, i) =>
@@ -215,12 +216,18 @@
       if (changes.hz !== undefined) {
         oscillator.frequency.setTargetAtTime(next.hz, time, .018);
         if (bowNodes) bowNodes.sharpOscillator.frequency.setTargetAtTime(next.hz, time, .018);
+        if (clarinetNodes) clarinetNodes.brightOscillator.frequency.setTargetAtTime(next.hz, time, .018);
       }
       if (changes.level !== undefined) volume.gain.setTargetAtTime(next.level, time, .015);
       if (changes.strength !== undefined) {
         if (fluteNodes) {
           fluteNodes.drive.gain.setTargetAtTime(model.fluteDrive(next.strength), time, .025);
           noiseGain.gain.setTargetAtTime(model.fluteNoiseGain(next.strength), time, .025);
+        } else if (clarinetNodes) {
+          const weights = model.clarinet.strengthWeights(next.strength);
+          clarinetNodes.softGain.gain.setTargetAtTime(weights.soft, time, .025);
+          clarinetNodes.brightGain.gain.setTargetAtTime(weights.bright, time, .025);
+          noiseGain.gain.setTargetAtTime(model.clarinet.noiseGain(next.strength), time, .025);
         } else {
           const weights = model.bowPressureWeights(next.strength);
           bowNodes.softGain.gain.setTargetAtTime(weights.soft, time, .025);
@@ -255,6 +262,46 @@
         oscillator.connect(drive); drive.connect(shaper); shaper.connect(highpass);
         highpass.connect(lowpass); lowpass.connect(toneGain);
         fluteNodes = { drive, shaper, highpass, lowpass, toneGain };
+      } else if (kind === "clarinet") {
+        const reed = model.clarinet;
+        const makeWave = profile => {
+          const components = reed.SOURCES[profile];
+          return context.createPeriodicWave(new Float32Array([0, ...components.map(c => c.cos)]),
+            new Float32Array([0, ...components.map(c => c.sin)]), { disableNormalization: true });
+        };
+        oscillator.setPeriodicWave(makeWave("soft"));
+        const brightOscillator = addSource(context.createOscillator());
+        brightOscillator.setPeriodicWave(makeWave("bright"));
+        brightOscillator.frequency.setValueAtTime(hz, at);
+        const weights = reed.strengthWeights(strength);
+        const softGain = addNode(context.createGain());
+        const brightGain = addNode(context.createGain());
+        softGain.gain.setValueAtTime(weights.soft, at);
+        brightGain.gain.setValueAtTime(weights.bright * reed.brightOnset(offsetSeconds), at);
+        if (offsetSeconds < reed.TONGUE_SECONDS) {
+          for (let i = 1; i <= RAMP_STEPS; i++) {
+            const age = offsetSeconds + (reed.TONGUE_SECONDS - offsetSeconds) * i / RAMP_STEPS;
+            brightGain.gain.linearRampToValueAtTime(weights.bright * reed.brightOnset(age),
+              at + age - offsetSeconds);
+          }
+        }
+        const highpass = addNode(context.createBiquadFilter());
+        highpass.type = "highpass";
+        highpass.frequency.setValueAtTime(reed.BODY.highpass, at);
+        highpass.Q.setValueAtTime(filterQDb, at);
+        const peak = addNode(context.createBiquadFilter());
+        peak.type = "peaking";
+        peak.frequency.setValueAtTime(reed.BODY.peak, at);
+        peak.Q.setValueAtTime(reed.BODY.peakQ, at);
+        peak.gain.setValueAtTime(reed.BODY.peakGain, at);
+        const lowpass = addNode(context.createBiquadFilter());
+        lowpass.type = "lowpass";
+        lowpass.frequency.setValueAtTime(reed.BODY.lowpass, at);
+        lowpass.Q.setValueAtTime(filterQDb, at);
+        oscillator.connect(softGain); brightOscillator.connect(brightGain);
+        softGain.connect(highpass); brightGain.connect(highpass);
+        highpass.connect(peak); peak.connect(lowpass);
+        clarinetNodes = { brightOscillator, softGain, brightGain, highpass, peak, lowpass };
       } else {
         const makeWave = edge => {
           const components = model.bowSourceComponents(kind, edge);
@@ -293,17 +340,28 @@
       volume.gain.setValueAtTime(level, at);
       envelope.gain.setValueAtTime(points[0].level, at);
       for (const point of points.slice(1)) envelope.gain.linearRampToValueAtTime(point.level, point.time);
-      (fluteNodes ? fluteNodes.toneGain : bowNodes.lowpass).connect(envelope);
+      (fluteNodes ? fluteNodes.toneGain :
+        clarinetNodes ? clarinetNodes.lowpass : bowNodes.lowpass).connect(envelope);
       noise = addSource(context.createBufferSource());
       noise.buffer = noiseBuffer(context);
       noise.loop = true;
       filter = addNode(context.createBiquadFilter());
-      filter.type = "lowpass";
+      filter.type = clarinetNodes ? "bandpass" : "lowpass";
       filter.frequency.setValueAtTime(model.defaults(kind).cutoff, at);
       filter.Q.setValueAtTime(1, at); // The old explorer used the native default Q.
       noiseGain = addNode(context.createGain());
-      noiseGain.gain.setValueAtTime(fluteNodes ? model.fluteNoiseGain(strength) :
-        model.bowNoiseGain(kind, strength), at);
+      const baseNoise = fluteNodes ? model.fluteNoiseGain(strength) :
+        clarinetNodes ? model.clarinet.noiseGain(strength) : model.bowNoiseGain(kind, strength);
+      noiseGain.gain.setValueAtTime(baseNoise * (clarinetNodes ?
+        model.clarinet.noiseOnset(offsetSeconds) : 1), at);
+      if (clarinetNodes && offsetSeconds < model.clarinet.NOISE_SECONDS) {
+        for (let i = 1; i <= RAMP_STEPS; i++) {
+          const age = offsetSeconds +
+            (model.clarinet.NOISE_SECONDS - offsetSeconds) * i / RAMP_STEPS;
+          noiseGain.gain.linearRampToValueAtTime(baseNoise * model.clarinet.noiseOnset(age),
+            at + age - offsetSeconds);
+        }
+      }
       noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(envelope);
       if (offsetSeconds > 0) {
         resumeGain = addNode(context.createGain());
@@ -313,7 +371,7 @@
       } else envelope.connect(volume);
       volume.connect(output);
       voice = { kind, oscillator, noise, noiseGain, filter, envelope, volume,
-        fluteNodes, bowNodes, resumeGain, startedAt: at, attack,
+        fluteNodes, clarinetNodes, bowNodes, resumeGain, startedAt: at, attack,
         releaseDuration, offsetSeconds, noteDurationSeconds,
         nodes: Object.freeze(nodes), sources: Object.freeze(sources),
         update, release, stop, envelopeAt,
@@ -322,6 +380,7 @@
       oscillator.onended = () => finish(true);
       oscillator.start(at);
       if (bowNodes) bowNodes.sharpOscillator.start(at);
+      if (clarinetNodes) clarinetNodes.brightOscillator.start(at);
       noise.start(at, offsetSeconds % NOISE_SECONDS);
       if (noteDurationSeconds !== undefined) stopSources(endTime);
       return voice;
@@ -332,6 +391,7 @@
   }
 
   return Object.freeze({ createVoice, defaults, bufferFrames, clearNoiseBuffer,
+    rangeFor: defaultModel.rangeFor,
     STOP_PAD, NOISE_SECONDS, RESUME_FADE, KINDS: defaultModel.KINDS,
     MIN_HZ: defaultModel.MIN_HZ, MAX_HZ: defaultModel.MAX_HZ });
 });

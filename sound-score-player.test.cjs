@@ -287,12 +287,15 @@ test("held and marimba score ranges are checked before audio starts in both host
   const { player, calls } = audioFixture();
   const score = body => abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + body + " |]");
   for (const instrument of heldVoice.KINDS) {
-    assert.deepEqual(playerModel.instrumentRange(instrument), [sustain.MIN_HZ, sustain.MAX_HZ]);
+    assert.deepEqual(playerModel.instrumentRange(instrument), sustain.rangeFor(instrument));
+    const [lower, upper] = sustain.rangeFor(instrument);
     for (const part of [score("G,,4"), score("b4")]) {
-      assert.throws(() => player.configure({ score: part, instrument }), /110–880/);
-      assert.throws(() => playerModel.validateEnsemble([{ score: part, instrument, volume: 50 }]), /110–880/);
+      assert.throws(() => player.configure({ score: part, instrument }), new RegExp(lower + "–" + upper));
+      assert.throws(() => playerModel.validateEnsemble([{ score: part, instrument, volume: 50 }]),
+        new RegExp(lower + "–" + upper));
     }
-    assert.doesNotThrow(() => player.configure({ score: score("A,,2 a2"), instrument }));
+    assert.doesNotThrow(() => player.configure({
+      score: score(instrument === "clarinet" ? "D,2 e2" : "A,,2 a2"), instrument }));
   }
   assert.deepEqual(playerModel.instrumentRange("marimba"), [marimba.MIN_HZ, marimba.MAX_HZ]);
   assert.doesNotThrow(() => player.configure({ score: score("A,,2 a'2"), instrument: "marimba" }));
@@ -347,12 +350,16 @@ test("Compose held voices retain the explorer graph, quiet noise and default att
     assert.equal(voice.noise.loop, true);
     assert.equal(voice.noise.buffer.duration, heldVoice.NOISE_SECONDS);
     const expectedNoise = instrument === "flute" ? sustain.fluteNoiseGain(recipe.strength) :
-      sustain.bowNoiseGain(instrument, recipe.strength);
+      instrument === "clarinet" ? sustain.clarinet.noiseGain(recipe.strength) :
+        sustain.bowNoiseGain(instrument, recipe.strength);
     assert.equal(voice.noiseGain.gain.value, expectedNoise);
     assert.ok(Math.abs(voice.volume.gain.value - .19 * .4) < 1e-12, "Compose applies only its existing mix level");
     if (instrument === "flute") {
       assert.equal(voice.fluteNodes.shaper.oversample, "4x");
       assert.equal(voice.fluteNodes.drive.gain.value, sustain.fluteDrive(recipe.strength));
+    } else if (instrument === "clarinet") {
+      assert.equal(voice.clarinetNodes.lowpass.frequency.value, sustain.clarinet.BODY.lowpass);
+      assert.equal(voice.sources.length, 3, "Clarinet has two phased reed sources and one noise source");
     } else {
       assert.equal(voice.bowNodes.peaks.length, sustain.bowBody(instrument).peaks.length);
       assert.equal(voice.sources.length, 3, "Soft/hard bow sources plus quiet noise are present");

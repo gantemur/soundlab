@@ -94,7 +94,7 @@ function near(actual, expected, tolerance = 1e-12) {
 }
 
 test("model defaults and memory metadata are available without audio allocation", () => {
-  assert.deepEqual(held.KINDS, ["flute", "violin", "morin"]);
+  assert.deepEqual(held.KINDS, ["flute", "clarinet", "violin", "morin"]);
   assert.equal(held.MIN_HZ, model.MIN_HZ);
   assert.equal(held.MAX_HZ, model.MAX_HZ);
   for (const kind of held.KINDS) {
@@ -189,6 +189,64 @@ for (const kind of ["violin", "morin"]) {
   });
 }
 
+test("I2b clarinet builds two phase-locked reed spectra, bore filters and a tongued onset", () => {
+  const { create, context, output } = fixture();
+  const voice = create({ kind: "clarinet", hz: 220, at: 1, strength: 60, level: .28 });
+  const reed = model.clarinet;
+  const nodes = voice.clarinetNodes;
+  assert.equal(voice.fluteNodes, null);
+  assert.equal(voice.bowNodes, null);
+  assert.equal(voice.sources.length, 3);
+  assert.equal(voice.oscillator.type, "custom");
+  assert.equal(nodes.brightOscillator.type, "custom");
+  assert.equal(voice.oscillator.frequency.value, 220);
+  assert.equal(nodes.brightOscillator.frequency.value, 220);
+  assert.deepEqual(voice.oscillator.starts, [[1]]);
+  assert.deepEqual(nodes.brightOscillator.starts, [[1]]);
+  for (const [profile, oscillator] of [["soft", voice.oscillator], ["bright", nodes.brightOscillator]]) {
+    assert.equal(oscillator.wave.options.disableNormalization, true);
+    assert.deepEqual(oscillator.wave.imag,
+      new Float32Array([0, ...reed.SOURCES[profile].map(component => component.sin)]));
+  }
+  const weights = reed.strengthWeights(60);
+  near(nodes.softGain.gain.value, weights.soft);
+  near(nodes.brightGain.gain.valueAt(1), 0);
+  near(nodes.brightGain.gain.valueAt(1 + reed.TONGUE_SECONDS), weights.bright);
+  near(voice.noiseGain.gain.valueAt(1), reed.noiseGain(60) * reed.noiseOnset(0));
+  near(voice.noiseGain.gain.valueAt(1 + reed.NOISE_SECONDS), reed.noiseGain(60));
+  assert.equal(voice.filter.type, "bandpass");
+  assert.equal(voice.filter.frequency.value, reed.BODY.noiseBandpass);
+  assert.deepEqual(voice.oscillator.connections, [nodes.softGain]);
+  assert.deepEqual(nodes.brightOscillator.connections, [nodes.brightGain]);
+  assert.deepEqual(nodes.softGain.connections, [nodes.highpass]);
+  assert.deepEqual(nodes.brightGain.connections, [nodes.highpass]);
+  assert.deepEqual(nodes.highpass.connections, [nodes.peak]);
+  assert.deepEqual(nodes.peak.connections, [nodes.lowpass]);
+  assert.deepEqual(nodes.lowpass.connections, [voice.envelope]);
+  assert.deepEqual(voice.envelope.connections, [voice.volume]);
+  assert.deepEqual(voice.volume.connections, [output]);
+  assert.equal(voice.nodes.length, context.nodes.length);
+  voice.release(1.2);
+  assert.ok(voice.sources.every(source => source.stops[0] === voice.endTime));
+  context.currentTime = 1.3;
+  assert.equal(voice.stop(), true);
+  assert.ok(voice.nodes.every(node => node.disconnects > 0));
+});
+
+test("I2b clarinet pause/seek uses note age for tongue noise and brightening", () => {
+  const reed = model.clarinet;
+  const { create } = fixture();
+  for (const offsetSeconds of [.025, .061, .25, 3]) {
+    const voice = create({ kind: "clarinet", at: 5, hz: 330, offsetSeconds });
+    const weights = reed.strengthWeights(60);
+    near(voice.clarinetNodes.brightGain.gain.valueAt(5), weights.bright * reed.brightOnset(offsetSeconds));
+    near(voice.noiseGain.gain.valueAt(5), reed.noiseGain(60) * reed.noiseOnset(offsetSeconds));
+    near(voice.clarinetNodes.brightGain.gain.valueAt(5 + .2), weights.bright);
+    near(voice.noiseGain.gain.valueAt(5 + .2), reed.noiseGain(60));
+    assert.deepEqual(voice.noise.starts, [[5, offsetSeconds % held.NOISE_SECONDS]]);
+  }
+});
+
 test("LP/HP dB-Q parameters reproduce the analytic linear-Q cutoff response; peaking Q stays linear", () => {
   function cutoffMagnitude(node, sampleRate) {
     const frequency = node.frequency.value;
@@ -208,7 +266,8 @@ test("LP/HP dB-Q parameters reproduce the analytic linear-Q cutoff response; pea
     const { create, context } = fixture();
     const voice = create({ kind });
     const toneFilters = voice.fluteNodes ? [voice.fluteNodes.highpass, voice.fluteNodes.lowpass] :
-      [voice.bowNodes.lowpass];
+      voice.clarinetNodes ? [voice.clarinetNodes.highpass, voice.clarinetNodes.lowpass] :
+        [voice.bowNodes.lowpass];
     for (const node of toneFilters) {
       near(Math.pow(10, node.Q.value / 20), model.FLUTE_Q);
       near(cutoffMagnitude(node, context.sampleRate), model.FLUTE_Q);
@@ -218,6 +277,7 @@ test("LP/HP dB-Q parameters reproduce the analytic linear-Q cutoff response; pea
       voice.bowNodes.peaks.forEach((node, index) =>
         assert.equal(node.Q.value, model.bowBody(kind).peaks[index].q));
     }
+    if (voice.clarinetNodes) assert.equal(voice.clarinetNodes.peak.Q.value, model.clarinet.BODY.peakQ);
     assert.equal(voice.filter.Q.value, 1, "quiet noise keeps its original native-Q coloration");
   }
 });
@@ -267,7 +327,10 @@ test("zero strength silences both the periodic and turbulence source for every k
     const voice = fixture().create({ kind, strength: 0 });
     assert.equal(voice.noiseGain.gain.value, 0);
     if (voice.fluteNodes) assert.equal(voice.fluteNodes.drive.gain.value, 0);
-    else {
+    else if (voice.clarinetNodes) {
+      assert.equal(voice.clarinetNodes.softGain.gain.value, 0);
+      assert.equal(voice.clarinetNodes.brightGain.gain.value, 0);
+    } else {
       assert.equal(voice.bowNodes.softGain.gain.value, 0);
       assert.equal(voice.bowNodes.hardGain.gain.value, 0);
     }
@@ -285,6 +348,11 @@ test("live pitch, strength and volume update in place using the explorer's smoot
     if (voice.fluteNodes) {
       assert.equal(voice.fluteNodes.drive.gain.value, model.fluteDrive(100));
       assert.equal(voice.noiseGain.gain.value, model.fluteNoiseGain(100));
+    } else if (voice.clarinetNodes) {
+      assert.equal(voice.clarinetNodes.brightOscillator.frequency.value, 220);
+      assert.equal(voice.clarinetNodes.softGain.gain.value, model.clarinet.strengthWeights(100).soft);
+      assert.equal(voice.clarinetNodes.brightGain.gain.value, model.clarinet.strengthWeights(100).bright);
+      assert.equal(voice.noiseGain.gain.value, model.clarinet.noiseGain(100));
     } else {
       assert.equal(voice.bowNodes.sharpOscillator.frequency.value, 220);
       assert.equal(voice.bowNodes.softGain.gain.value, model.bowPressureWeights(100).soft);

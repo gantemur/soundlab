@@ -22,8 +22,8 @@
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
-  const HELD_INSTRUMENTS = Object.freeze(["flute", "violin", "morin"]);
-  const INSTRUMENTS = Object.freeze(["flute", "violin", "morin", "guitar", "piano", "chimes", "marimba", "xylophone",
+  const HELD_INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin"]);
+  const INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", "guitar", "piano", "chimes", "marimba", "xylophone",
     ...WAVEFORMS, "fmep"]);
   const GUITAR_MODES = Object.freeze(["pluck", "down", "up", "alternate"]);
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
@@ -42,7 +42,7 @@
   }
 
   function instrumentRange(instrument) {
-    if (HELD_INSTRUMENTS.includes(instrument)) return [heldVoice.MIN_HZ, heldVoice.MAX_HZ];
+    if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.rangeFor(instrument);
     if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
     if (instrument === "xylophone") return [xylophoneModel.MIN_HZ, xylophoneModel.MAX_HZ];
     return [instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ,

@@ -5,11 +5,12 @@ const assert = require("node:assert/strict");
 const sound = require("./sound-sustain.js");
 
 test("held instrument recipes are valid and spectrally distinct", () => {
-  assert.deepEqual(sound.KINDS, ["flute", "violin", "morin"]);
+  assert.deepEqual(sound.KINDS, ["flute", "clarinet", "violin", "morin"]);
   for (const kind of sound.KINDS) {
     const defaults = sound.defaults(kind);
     sound.validate(kind, 220, defaults.attack, defaults.release);
-    assert.equal(sound.partials(kind).length, kind === "flute" ? 8 : sound.BOW_PARTIALS);
+    assert.equal(sound.partials(kind).length, kind === "flute" ? 8 :
+      kind === "clarinet" ? sound.clarinet.PARTIALS : sound.BOW_PARTIALS);
     assert.ok(defaults.noise > 0 && defaults.noise < .04);
     let peak = 0;
     for (let n = 0; n < 2048; n++) {
@@ -18,6 +19,8 @@ test("held instrument recipes are valid and spectrally distinct", () => {
     }
     if (kind === "flute") {
       assert.ok(peak > .7 && peak < 1, "default flute includes its actual breath-driven amplitude");
+    } else if (kind === "clarinet") {
+      assert.ok(peak > .35 && peak < 1, "default clarinet level remains bounded");
     } else assert.ok(peak > .6 && peak < 1, kind + " default bowed level must remain bounded");
   }
   assert.ok(sound.partials("violin")[1] / sound.partials("violin")[0] >

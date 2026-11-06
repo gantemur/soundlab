@@ -48,10 +48,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-marimba\.js\?v=s059"/);
   assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
   assert.match(html, /src="sound-transient\.js\?v=s060"/);
-  assert.match(html, /src="sound-sustain\.js\?v=s020b"/);
-  assert.match(html, /src="sound-held-voice\.js\?v=s059"/);
+  assert.match(html, /src="sound-clarinet\.js\?v=s061"/);
+  assert.match(html, /src="sound-sustain\.js\?v=s061"/);
+  assert.match(html, /src="sound-held-voice\.js\?v=s061"/);
   assert.ok(html.indexOf('src="sound-marimba.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-xylophone.js') < html.indexOf('src="sound-transient.js'));
+  assert.ok(html.indexOf('src="sound-clarinet.js') < html.indexOf('src="sound-sustain.js'));
   assert.ok(html.indexOf('src="sound-sustain.js') < html.indexOf('src="sound-held-voice.js'));
   assert.ok(html.indexOf('src="sound-held-voice.js') < html.indexOf('src="sound-score-player.js'));
   assert.match(html, /src="sound-fft\.js\?v=s058"/);
@@ -70,16 +72,16 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s060"/);
-  assert.match(html, /src="sound-compose\.js\?v=s060"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s061"/);
+  assert.match(html, /src="sound-compose\.js\?v=s061"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s060"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s061"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s056"/);
-  assert.match(html, /src="sound-lab\.js\?v=s060"/);
+  assert.match(html, /src="sound-lab\.js\?v=s061"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s059"/);
   for (const module of ["wave-reader", "analysis-dsp", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -2760,7 +2762,7 @@ test("held families keep morin khuur selectable, remember it, and never autoplay
   const app = fakePage();
   app.fire("modeSustain", "click");
   const menu = app.elements.get("sustainInstrument");
-  assert.deepEqual(menu.children.map(option => option.value), ["flute"]);
+  assert.deepEqual(menu.children.map(option => option.value), ["flute", "clarinet"]);
   app.sustainButtons[1].click();
   assert.deepEqual(menu.children.map(option => option.value), ["violin", "morin"]);
   menu.value = "morin";
@@ -2771,7 +2773,7 @@ test("held families keep morin khuur selectable, remember it, and never autoplay
   assert.equal(menu.value, "morin");
   assert.equal(menu.children[1].textContent, "Morin khuur");
   app.sustainButtons[0].click();
-  assert.deepEqual(menu.children.map(option => option.value), ["flute"]);
+  assert.deepEqual(menu.children.map(option => option.value), ["flute", "clarinet"]);
   app.sustainButtons[1].click();
   assert.equal(menu.value, "morin", "returning to the bowed family remembers its instrument");
   assert.equal(app.contexts.length, 0);
@@ -2780,6 +2782,52 @@ test("held families keep morin khuur selectable, remember it, and never autoplay
   app.sustainButtons[0].click();
   assert.equal(app.elements.get("sustainToggleButton").getAttribute("aria-pressed"), "false");
   assert.ok(app.contexts[0].oscillators.every(source => source.stopped));
+});
+
+test("I2b Clarinet shows bounded Aerophone controls, odd harmonics and a releasable tongued voice", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeSustain", "click");
+  const menu = app.elements.get("sustainInstrument");
+  assert.deepEqual(menu.children.map(option => option.value), ["flute", "clarinet"]);
+  menu.value = "clarinet";
+  app.fire("sustainInstrument", "change");
+  assert.equal(menu.value, "clarinet");
+  assert.equal(app.contexts.length, 0, "selection never requests audio");
+  assert.equal(app.elements.get("sustainBowGroup").hidden, true);
+  assert.equal(app.elements.get("sustainBreathGroup").hidden, false);
+  assert.equal(app.elements.get("sustainFrequencyInput").min, String(sustainModel.clarinet.MIN_HZ));
+  assert.equal(app.elements.get("sustainFrequencyInput").max, String(sustainModel.clarinet.MAX_HZ));
+  assert.match(app.elements.get("sustainMinHz").textContent, /146/);
+  assert.match(app.elements.get("sustainMaxHz").textContent, /659/);
+  assert.match(app.elements.get("sustainBreathHint").textContent, /odd harmonics/);
+  assert.match(app.elements.get("sustainDetailHint").textContent, /reed-inspired/);
+  assert.match(app.elements.get("sustainDescription").textContent, /concert pitch/i);
+  const pitch = app.elements.get("sustainFrequencyInput");
+  pitch.value = "100";
+  app.fire("sustainFrequencyInput", "change");
+  assert.match(app.elements.get("sustainStatus").textContent, /displayed range/);
+  assert.equal(pitch.value, "440", "invalid frequency does not change the model");
+  app.elements.get("sustainBreath").value = "88";
+  app.fire("sustainBreath", "input");
+  assert.equal(app.elements.get("sustainBreathValue").textContent, "88%");
+  await app.fire("sustainToggleButton", "click");
+  const context = app.contexts[0];
+  assert.equal(context.oscillators.length, 2);
+  assert.ok(context.filters.some(node => node.type === "bandpass"), "the tongue/air texture is filtered");
+  const totalNodes = context.oscillators.length;
+  app.elements.get("sustainBreath").value = "45";
+  app.fire("sustainBreath", "input");
+  assert.equal(context.oscillators.length, totalNodes, "live colour change does not create voices");
+  app.fire("langMn", "click");
+  assert.equal(menu.value, "clarinet");
+  assert.equal(menu.children[1].textContent, "Кларнет");
+  assert.match(app.elements.get("sustainBreathHint").textContent, /гармоник/);
+  app.sustainButtons[1].click();
+  app.sustainButtons[0].click();
+  assert.equal(menu.value, "clarinet", "returning to Aerophones remembers Clarinet");
+  assert.ok(context.oscillators.every(source => source.stopped), "switching families releases the note");
+  app.fire("stopAll", "click");
+  assert.equal(app.elements.get("sustainToggleButton").getAttribute("aria-pressed"), "false");
 });
 
 test("Pitched moves chimes without changing its recipe and gives bar voices a momentary Strike", async () => {

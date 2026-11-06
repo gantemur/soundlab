@@ -272,6 +272,35 @@ test("four-part I0/I1 exports preserve mix levels while sharing noise and ringin
   cleaned(context);
 });
 
+test("I2b Clarinet exports its complete release with the shared reed graph in solo and four-part WAV", async () => {
+  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nz15/4 C/4 |]";
+  const single = fixture();
+  const result = await exporter.render(solo({ abc: text, instrument: "clarinet" }), single.deps);
+  const tail = sustain.defaults("clarinet").release + heldVoice.STOP_PAD;
+  close(result.duration, Math.ceil((2 + tail + .02) * 44100) / 44100, 1 / 44100);
+  const sourceGraph = single.contexts[0].graph;
+  assert.equal(sourceGraph.sources.filter(source => source.kind === "oscillator").length, 2);
+  assert.equal(sourceGraph.sources.filter(source => source.loop).length, 1);
+  assert.equal(single.modelCalls.length, 0, "No transient sample substitution");
+  assert.equal(new DataView(result.bytes.buffer).getUint32(24, true), 44100);
+  cleaned(single.contexts[0]);
+
+  const mixed = fixture();
+  const arrangementResult = await exporter.render(arrangement([
+    track(1, "clarinet", text, { volume: 30 }),
+    track(2, "flute", text, { volume: 20 }),
+    track(3, "violin", text, { volume: 40 }),
+    track(4, "xylophone", text, { volume: 35 })
+  ]), mixed.deps);
+  const graph = mixed.contexts[0].graph;
+  assert.equal(graph.sources.filter(source => source.loop).length, 3);
+  assert.equal(mixed.contexts[0].buffers.length, 2,
+    "Three held instruments share one noise buffer, plus the xylophone note sample");
+  assert.deepEqual(mixed.modelCalls.map(call => call.kind), ["xylophone"]);
+  assert.ok(arrangementResult.duration > 2 + tail);
+  cleaned(mixed.contexts[0]);
+});
+
 test("I2a exports independent xylophone and marimba bar tails from both Compose modes", async () => {
   const score = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]";
   const x = fixture(), xResult = await exporter.render(solo({

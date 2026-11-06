@@ -14,8 +14,9 @@
   <script src="sound-marimba.js?v=s059" defer></script>
   <script src="sound-xylophone.js?v=s060" defer></script>
   <script src="sound-transient.js?v=s060" defer></script>
-  <script src="sound-sustain.js?v=s020b" defer></script>
-  <script src="sound-held-voice.js?v=s059" defer></script>
+  <script src="sound-clarinet.js?v=s061" defer></script>
+  <script src="sound-sustain.js?v=s061" defer></script>
+  <script src="sound-held-voice.js?v=s061" defer></script>
   <script src="sound-fft.js?v=s058" defer></script>
   <script src="sound-spectrum.js?v=s058" defer></script>
   <script src="sound-motion.js?v=s020c" defer></script>
@@ -33,10 +34,10 @@
   <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s053" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s060" defer></script>
-  <script src="sound-compose.js?v=s060" defer></script>
+  <script src="sound-score-player.js?v=s061" defer></script>
+  <script src="sound-compose.js?v=s061" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
-  <script src="sound-ensemble.js?v=s060" defer></script>
+  <script src="sound-ensemble.js?v=s061" defer></script>
   <script src="sound-project.js?v=s055" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s059" defer></script>
@@ -45,7 +46,7 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-examples.js?v=s059" defer></script>
   <script src="sound-analysis.js?v=s058" defer></script>
-  <script src="sound-lab.js?v=s060" defer></script>
+  <script src="sound-lab.js?v=s061" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -446,12 +447,12 @@
             <input id="sustainFrequencySlider" type="range" min="0" max="1000" step="1" value="667" aria-label="Нотын давтамжийн гулсуур">
             <div class="number-wrap"><input id="sustainFrequencyInput" type="number" min="110" max="880" step="any" inputmode="decimal" value="440" aria-label="Давтамжийг герцээр оруулах"><span data-i18n="unitHz">Гц</span></div>
           </div>
-          <div class="scale-row"><span data-unit-hz="110">110 Гц</span><label class="check-label"><input id="sustainSnap" type="checkbox"> <span data-i18n="snap">Нотод тааруулах</span></label><span data-unit-hz="880">880 Гц</span></div>
+          <div class="scale-row"><span id="sustainMinHz" data-unit-hz="110">110 Гц</span><label class="check-label"><input id="sustainSnap" type="checkbox"> <span data-i18n="snap">Нотод тааруулах</span></label><span id="sustainMaxHz" data-unit-hz="880">880 Гц</span></div>
         </div>
         <div class="field-group" id="sustainBreathGroup">
           <div class="field-title"><label for="sustainBreath" data-i18n="sustainBreath">Үлээлтийн хүч</label><output id="sustainBreathValue">60%</output></div>
           <input id="sustainBreath" type="range" min="0" max="100" step="1" value="60">
-          <p class="field-help" data-i18n="sustainBreathHint">Илүү хүчтэй үлээхэд дуу чангарч, гармоникууд болон амьсгалын шуугиан өөрчлөгдөнө.</p>
+          <p id="sustainBreathHint" class="field-help" data-i18n="sustainBreathHint">Илүү хүчтэй үлээхэд дуу чангарч, гармоникууд болон амьсгалын шуугиан өөрчлөгдөнө.</p>
         </div>
         <div class="field-group" id="sustainBowGroup" hidden>
           <div class="field-title"><label for="sustainBowPressure" data-i18n="sustainBow">Нумын даралт</label><output id="sustainBowValue">60%</output></div>
@@ -1376,6 +1377,7 @@
             <select id="composeInstrument">
               <optgroup label="Акустик загварууд" data-compose-group-i18n="instrumentAcoustic">
                 <option value="flute" data-compose-i18n="flute">Лимбэ</option>
+                <option value="clarinet" data-compose-i18n="clarinet">Кларнет</option>
                 <option value="violin" data-compose-i18n="violin">Хийл</option>
                 <option value="morin" data-compose-i18n="morin">Морин хуур</option>
                 <option value="guitar" data-compose-i18n="guitar">Гитар</option>

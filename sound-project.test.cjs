@@ -134,6 +134,25 @@ test("I2a stores xylophone and marimba as distinct version-1 solo and ensemble i
   assert.equal(decoded.content.tracks[2].mute, true);
 });
 
+test("I2b Clarinet remains a concert-pitch instrument in unchanged version-1 projects", () => {
+  assert.equal(codec.VERSION, 1);
+  assert.equal(compose.UI.en.clarinet, "Clarinet");
+  assert.equal(compose.UI.mn.clarinet, "Кларнет");
+  const single = solo({ instrument: "clarinet" });
+  assert.deepEqual(codec.decode(codec.encode(single)), single);
+  const ensemble = arrangement();
+  ensemble.content.tracks = ["clarinet", "flute", "violin", "xylophone"].map((instrument, index) => ({
+    id: index + 1, name: instrument, instrument, abc: compose.EXAMPLES.first,
+    volume: 40 + index * 5, mute: index === 1, solo: false
+  }));
+  ensemble.content.selectedId = 1;
+  ensemble.content.nextId = 5;
+  const read = codec.decode(codec.encode(ensemble));
+  assert.deepEqual(read.content.tracks.map(track => track.instrument),
+    ["clarinet", "flute", "violin", "xylophone"]);
+  assert.equal(read.content.tracks[1].mute, true);
+});
+
 test("track ordering, IDs, mix settings and editor choices round-trip", () => {
   const project = arrangement();
   project.title = "Өөрчлөлт";
