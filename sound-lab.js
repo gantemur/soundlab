@@ -4712,7 +4712,8 @@
       harp: "strikeDescHarp" }[state.strikePianoVoice];
     $("strikeDescription").textContent = state.strikeKind === "piano" && pitchedDescription ?
       text(pitchedDescription) : text("strikeDesc")[state.strikeKind];
-    $("strikeButtonLabel").textContent = text("strikeKickButton");
+    $("strikeButtonLabel").textContent = text(state.strikeKind === "piano" &&
+      state.strikePianoVoice === "harp" ? "strikePluckButton" : "strikeKickButton");
     const strikePlayLabels = { single: "strikePluckButton", strum: "strikeStrumButton",
       press: "strikePianoButton", tap: "strikePianoTapButton",
       pick: "strikeMandolinPick", tremolo: "strikeMandolinTremolo" };

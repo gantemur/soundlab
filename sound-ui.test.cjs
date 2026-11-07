@@ -3055,6 +3055,7 @@ test("I3 harp appears in Pitched, strikes once, and plots the same deterministic
   assert.equal(app.contexts.length, 0);
   assert.equal(app.elements.get("strikePianoPlayModes").hidden, true);
   assert.equal(app.elements.get("strikeButton").hidden, false);
+  assert.equal(app.elements.get("strikeButtonLabel").textContent, "Pluck");
   assert.equal(app.elements.get("strikeFrequencyInput").min, String(harpModel.MIN_HZ));
   assert.equal(app.elements.get("strikeFrequencyInput").max, String(harpModel.MAX_HZ));
   assert.equal(app.elements.get("strikeDecay").value, String(harpModel.DEFAULT_DECAY));
@@ -3064,6 +3065,7 @@ test("I3 harp appears in Pitched, strikes once, and plots the same deterministic
   assert.equal(context.sources[0].buffer.length, 3 * context.sampleRate);
   assert.ok(context.sources[0].buffer.getChannelData(0).some(value => Math.abs(value) > .001));
   app.fire("langMn", "click");
+  assert.equal(app.elements.get("strikeButtonLabel").textContent, "Татах");
   assert.match(app.elements.get("strikeDescription").textContent, /чавхдас/);
   app.fire("stopAll", "click");
   assert.equal(context.sources[0].stopped, true);
