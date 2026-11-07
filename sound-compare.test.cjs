@@ -121,7 +121,7 @@ function fixture() {
     load, setAnalysis(value) { analysis = value; } };
 }
 
-test("C1 uses peer Analysis sub-tabs, nested Single source views and plot-side listening controls", () => {
+test("C2a keeps peer Analysis sub-tabs, moves Single source modes to its right chart, and adds an A/B overlay", () => {
   const f = fixture();
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(ids.length, new Set(ids).size);
@@ -130,9 +130,12 @@ test("C1 uses peer Analysis sub-tabs, nested Single source views and plot-side l
   assert.doesNotMatch(html, /id="analysisViewCompare"|id="compareNavSpectrum"|id="compareNavSpectro"/);
   assert.match(html, /id="analysisCompareWorkspace" hidden/);
   const singleLeft = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisOfflineVisuals"'));
-  assert.doesNotMatch(singleLeft, /id="analysisPlay"|id="analysisVolume"/);
+  assert.doesNotMatch(singleLeft, /id="analysisPlay"|id="analysisVolume"|id="analysisViewModes"|id="analysisSpectrumModes"/);
   assert.match(html.slice(html.indexOf('id="analysisWaveTitle"'), html.indexOf('id="analysisWaveCanvas"')),
     /id="analysisPlay"[\s\S]*id="analysisVolume"/);
+  const singleResult = html.slice(html.indexOf('class="analysis-result-toolbar"'), html.indexOf('id="analysisSpectrumView"'));
+  assert.match(singleResult, /id="analysisViewModes"[\s\S]*id="analysisViewSpectrum"[\s\S]*id="analysisViewSpectro"/);
+  assert.match(singleResult, /id="analysisSpectrumModes"[\s\S]*id="analysisAtCursor"[\s\S]*id="analysisAverage"/);
   const compareLeft = html.slice(html.indexOf('id="analysisCompareWorkspace"'), html.indexOf('class="visuals compare-visuals"'));
   assert.doesNotMatch(compareLeft, /id="compare[AB]Play"|id="compare[AB]Volume"/);
   for (const key of ["A", "B"]) {
@@ -143,6 +146,9 @@ test("C1 uses peer Analysis sub-tabs, nested Single source views and plot-side l
   assert.match(compareLeft, /id="compareVolume"[^>]*value="100"/);
   assert.match(html, /id="compareAClass"[\s\S]*id="compareAExample"[\s\S]*id="compareAOpen"[\s\S]*id="compareAMic"/);
   assert.match(html, /id="compareBClass"[\s\S]*id="compareBExample"[\s\S]*id="compareBOpen"[\s\S]*id="compareBMic"/);
+  const compareResults = html.slice(html.indexOf('class="visuals compare-visuals"'), html.indexOf('id="analysisMicWorkspace"'));
+  assert.match(compareResults, /id="compareAVisualTitle"[\s\S]*id="compareBVisualTitle"[\s\S]*class="panel chart-panel compare-overlay-panel"/);
+  assert.match(compareResults, /id="compareLinkCursors"[\s\S]*id="compareNormalize"[\s\S]*id="compareOverlaySpectrum"/);
   assert.deepEqual(f.controller.slots.A.pcm, null);
   assert.deepEqual(f.controller.slots.B.pcm, null);
   assert.equal(f.owner.readyCalls, 0);
@@ -152,8 +158,60 @@ test("C1 uses peer Analysis sub-tabs, nested Single source views and plot-side l
   assert.equal(f.get("compareKindCompare").textContent, "Compare");
   assert.equal(f.get("compareVolumeValue").textContent, "100%");
   assert.equal(f.get("compareAMic").textContent, "Microphone…");
+  assert.equal(f.get("compareOverlayTitle").textContent, "Overlay spectra A/B");
+  assert.equal(f.get("compareLinkCursors").checked, false);
+  assert.equal(f.get("compareNormalize").checked, false);
   f.get("compareAMic").click(); f.get("compareBMic").click();
   assert.deepEqual(f.microphones, ["A", "B"]);
+});
+
+test("C2a overlays native spectra without resampling or silently normalizing their amplitudes", () => {
+  const am = new Float64Array(201), bm = new Float64Array(201);
+  am[3] = .4; bm[4] = .1;
+  const slots = {
+    A: { pcm: { sampleRate: 16000 }, spectrum: { magnitudes: am, binHz: 40, fftSize: 400 } },
+    B: { pcm: { sampleRate: 8000 }, spectrum: { magnitudes: bm, binHz: 20, fftSize: 400 } }
+  };
+  const original = compare.overlayModel(slots, { maxHz: 5000, axis: "log" });
+  assert.equal(original.low, 20);
+  assert.equal(original.high, 5000);
+  assert.deepEqual(original.traces.map(t => [t.key, t.spectrum.binHz, t.nyquist, t.last, t.referenceDb]),
+    [["A", 40, 8000, 125, 0], ["B", 20, 4000, 200, 0]]);
+  assert.deepEqual(original.traces.map(t => t.windowMs), [25, 50]);
+  const normalized = compare.overlayModel(slots, { maxHz: 5000, normalize: true });
+  assert.ok(Math.abs(normalized.traces[0].referenceDb - 20 * Math.log10(.4)) < 1e-10);
+  assert.ok(Math.abs(normalized.traces[1].referenceDb - 20 * Math.log10(.1)) < 1e-10);
+  assert.equal(am[3], .4);
+  assert.equal(bm[4], .1);
+  assert.equal(compare.overlayModel({ A: {}, B: {} }), null);
+});
+
+test("C2a links inspection times in seconds, clamps unequal durations and leaves independent mode available", async () => {
+  const f = fixture();
+  await f.load("A", pcm([sine(16000, .4, 440)], 16000));
+  await f.load("B", pcm([sine(8000, .08, 700)], 8000));
+  f.controller.renderLanguage("en");
+  assert.match(f.get("compareOverlayInfo").textContent, /Original levels \(dBFS\)/);
+  assert.match(f.get("compareOverlayInfo").textContent, /above 4000 Hz/);
+  f.controller.setCursor("A", .12);
+  assert.notEqual(f.controller.slots.B.cursor, .08);
+  f.get("compareLinkCursors").checked = true;
+  f.get("compareLinkCursors").dispatch("change");
+  assert.equal(f.controller.linkCursors, true);
+  assert.equal(f.controller.slots.B.cursor, .08, "shorter recording is clamped to its endpoint");
+  f.controller.setCursor("B", .03);
+  assert.equal(f.controller.slots.A.cursor, .03, "moving B changes A to the same time in seconds");
+  const aSpectrum = f.controller.slots.A.spectrum, bSpectrum = f.controller.slots.B.spectrum;
+  f.get("compareNormalize").checked = true;
+  f.get("compareNormalize").dispatch("change");
+  assert.match(f.get("compareOverlayInfo").textContent, /Each displayed peak = 0 dB/);
+  assert.equal(f.controller.slots.A.spectrum, aSpectrum, "display normalization never changes FFT samples");
+  assert.equal(f.controller.slots.B.spectrum, bSpectrum);
+  f.get("compareLinkCursors").checked = false;
+  f.get("compareLinkCursors").dispatch("change");
+  f.controller.setCursor("A", .2);
+  assert.equal(f.controller.slots.B.cursor, .03, "independent inspection resumes when unchecked");
+  assert.equal(f.owner.readyCalls, 0, "plot controls never initiate audio");
 });
 
 test("C1 compares modeled guitar A with microphone piano B at different rates and keeps origins explicit", async () => {

@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Tsogtgerel Gantumur
  * SPDX-License-Identifier: MIT
- * C1: two independent, local PCM sources for side-by-side waveform/FFT comparison.
+ * C1/C2a: two independent local PCM sources, linked inspection and spectral overlay.
  */
 (function (root, factory) {
   "use strict";
@@ -19,11 +19,38 @@
   const fmt = (value, digits = 2) => Number.isFinite(value) ? Number(value.toFixed(digits)).toString() : "—";
   const safeName = name => String(name || "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 180);
   const totalBytes = pcm => pcm?.channels?.reduce((total, channel) => total + channel.byteLength, 0) || 0;
+  // The overlay retains each FFT's own Hz/bin and Nyquist limit. A dB offset is
+  // applied only to the optional display, never to the underlying PCM/spectrum.
+  function overlayModel(slots, { maxHz = null, axis = "log", normalize = false } = {}) {
+    const series = ["A", "B"].flatMap(key => {
+      const { pcm, spectrum } = slots[key] || {};
+      return pcm && spectrum?.magnitudes?.length && spectrum.binHz > 0 && pcm.sampleRate > 0 ?
+        [{ key, pcm, spectrum, nyquist: pcm.sampleRate / 2 }] : [];
+    });
+    if (!series.length) return null;
+    const high = Math.min(Number.isFinite(maxHz) && maxHz > 0 ? maxHz : Infinity,
+      Math.max(...series.map(s => s.nyquist)));
+    const low = axis === "log" ? Math.min(20, high / 2) : 0;
+    if (!(high > low)) return null;
+    const traces = series.map(item => {
+      const { spectrum, nyquist } = item, last = Math.min(spectrum.magnitudes.length - 1,
+        Math.floor(Math.min(high, nyquist) / spectrum.binHz + 1e-9));
+      const first = Math.max(0, Math.ceil(low / spectrum.binHz));
+      let peak = 0;
+      for (let i = first; i <= last; i++) {
+        const mag = spectrum.magnitudes[i];
+        if (Number.isFinite(mag) && mag > peak) peak = mag;
+      }
+      return { ...item, first, last, peak, referenceDb: normalize && peak > 1e-5 ? 20 * Math.log10(peak) : 0,
+        windowMs: 1000 * spectrum.fftSize / item.pcm.sampleRate };
+    });
+    return { low, high, axis, normalize, traces };
+  }
   const words = {
     en: {
       title: "Compare two sounds", intro: "Choose A and B independently; compare waveforms, spectra and listening.",
       spectrumTab: "Spectrum", spectrogramTab: "Spectrogram", compareTab: "Compare",
-      kindSingle: "Single source", kindCompare: "Compare", masterVolume: "Master listening volume",
+      kindSingle: "Single source", kindCompare: "Compare", kindModes: "Analysis sub-tabs", masterVolume: "Master listening volume",
       volumeHint: "A/B volume is multiplied by the master level; neither changes the measured samples or spectra.",
       sourceA: "Sound A", sourceB: "Sound B", classLabel: "Class", exampleLabel: "Example",
       open: "Open WAV…", mic: "Microphone…", fromAnalysis: "Use current Analysis sound",
@@ -51,12 +78,21 @@
       cursorInfo: "Cursor {time} s · source duration {duration} s · amplitude scale ±{scale}",
       spectrumInfo: "Hann {fft} · {bin} Hz/bin · strongest displayed bin {peak} Hz ({level} dBFS); not a pitch estimate",
       spectrumSilent: "Hann {fft} · {bin} Hz/bin · no significant peak",
+      overlayTitle: "Overlay spectra A/B", overlayIntro: "Compare the two spectra on one frequency axis, without resampling.",
+      linkCursors: "Link inspection times (seconds)", normalizeOverlay: "Normalize each displayed spectral peak",
+      overlayNote: "Native Hann windows use the same sample count but may span different times. Peak normalization affects only this overlay, not the source audio or the two separate spectra.",
+      overlayWaiting: "Choose two sounds to compare their spectra.",
+      overlayInfo: "{scale} · A: {a} · B: {b}{missing}",
+      overlayAbsolute: "Original levels (dBFS)", overlayRelative: "Each displayed peak = 0 dB",
+      overlayWindow: "{ms} ms Hann · {bin} Hz/bin · cursor {time} s",
+      overlayUnavailable: "no source", overlayMissing: " · above {hz} Hz, only the higher-rate source has samples",
+      overlayAria: "Two spectra with shared frequency and level axes",
       disclaimer: "Native sample rates and durations may differ. Both spectra use fixed −100…0 dBFS without automatic level matching, time alignment or resampling. This is not an acoustic dB SPL measurement."
     },
     mn: {
       title: "Хоёр авиаг харьцуулах", intro: "A ба B авиаг тусад нь сонгож, долгион, спектр болон сонсголыг харьцуулаарай.",
       spectrumTab: "Спектр", spectrogramTab: "Спектрограмм", compareTab: "Харьцуулах",
-      kindSingle: "Нэг авиа", kindCompare: "Харьцуулах", masterVolume: "Нийт сонсох дууны хэмжээ",
+      kindSingle: "Нэг авиа", kindCompare: "Харьцуулах", kindModes: "Шинжилгээний хэсэг", masterVolume: "Нийт сонсох дууны хэмжээ",
       volumeHint: "A/B-ийн хэмжээ нийт хэмжээтэй үржигдэнэ; эх сорьц, спектрийн хэмжилт өөрчлөгдөхгүй.",
       sourceA: "Эх авиа A", sourceB: "Эх авиа B", classLabel: "Бүлэг", exampleLabel: "Жишээ",
       open: "WAV нээх…", mic: "Микрофон…", fromAnalysis: "Шинжлэх хэсгийн авиаг авах",
@@ -84,6 +120,15 @@
       cursorInfo: "Курсор {time} сек · урт {duration} сек · далайцын хуваарь ±{scale}",
       spectrumInfo: "Hann {fft} · алхам {bin} Гц · хамгийн хүчтэй зурвас {peak} Гц ({level} dBFS); нот тодорхойлохгүй",
       spectrumSilent: "Hann {fft} · алхам {bin} Гц · тод зурвас илрээгүй",
+      overlayTitle: "A/B спектрийг давхарлах", overlayIntro: "Сорьцлолтыг өөрчлөхгүйгээр нэг давтамжийн тэнхлэг дээр харьцуулна.",
+      linkCursors: "Шинжлэх хугацааг (сек) холбох", normalizeOverlay: "Харагдах спектр бүрийн оргилыг нормчлох",
+      overlayNote: "Hann цонхны сорьцын тоо ижил боловч хугацааны урт өөр байж болно. Оргилын нормчлол нь зөвхөн энэ давхар зурагт нөлөөлнө; эх авиа, тусдаа спектрүүд өөрчлөгдөхгүй.",
+      overlayWaiting: "Хоёр авиа сонгож, спектрүүдийг харьцуулаарай.",
+      overlayInfo: "{scale} · A: {a} · B: {b}{missing}",
+      overlayAbsolute: "Эх түвшин (dBFS)", overlayRelative: "Харагдах оргил бүр = 0 dB",
+      overlayWindow: "Hann {ms} мс · {bin} Гц/алхам · курсор {time} сек",
+      overlayUnavailable: "авиа байхгүй", overlayMissing: " · {hz} Гц-ээс дээш зөвхөн өндөр сорьцлолттой авиа",
+      overlayAria: "Ижил давтамж, түвшний тэнхлэгтэй A/B спектр",
       disclaimer: "Сорьцлох давтамж болон хугацаа өөр байж болно. Хоёр спектр тогтмол −100…0 dBFS хуваарьтай; дууны түвшин, хугацаа, сорьцлолтыг автоматаар тааруулахгүй. Акустик dB SPL хэмжилт биш."
     }
   };
@@ -98,6 +143,7 @@
       this.getAnalysis = getAnalysis; this.onMic = onMic; this.models = models;
       this.active = false; this.initialized = false; this.language = "mn";
       this.fftSize = 4096; this.axis = "log"; this.maxHz = 5000; this.volume = 1;
+      this.linkCursors = false; this.normalizeOverlay = false;
       this.slots = Object.fromEntries(["A", "B"].map(key => [key, {
         pcm: null, source: null, index: null, channel: 0, cursor: .25, volume: .2,
         classId: examples.CATALOGUE.find(entry => entry.id === DEFAULTS[key]).classId,
@@ -153,6 +199,18 @@
         this.volume = clamp(Number(event.target.value) || 0, 0, 100) / 100;
         if (this.voice) this.updateListeningGain();
         this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
+      });
+      this.$("compareLinkCursors").addEventListener("change", event => {
+        this.linkCursors = Boolean(event.target.checked);
+        if (this.linkCursors) {
+          const anchor = this.slots.A.pcm ? "A" : this.slots.B.pcm ? "B" : null;
+          if (anchor) this.setCursor(anchor, this.slots[anchor].cursor);
+          else this.drawOverlay();
+        } else this.drawOverlay();
+      });
+      this.$("compareNormalize").addEventListener("change", event => {
+        this.normalizeOverlay = Boolean(event.target.checked);
+        this.drawOverlay();
       });
       for (const id of ["compareFFT", "compareAxis", "compareMaxHz"]) this.$(id).addEventListener("change", () => {
         this.fftSize = Number(this.$("compareFFT").value);
@@ -220,11 +278,16 @@
         this.$(`compare${key}Wave`).setAttribute("aria-label", `${key}: ${this.text("visualTitle")}`);
         this.$(`compare${key}Spectrum`).setAttribute("aria-label", `${key}: ${this.text("visualTitle")} FFT`);
       }
+      this.$("compareOverlaySpectrum").setAttribute("aria-label", this.text("overlayAria"));
+      this.$("compareKindModes").setAttribute("aria-label", this.text("kindModes"));
       this.render();
+      this.drawOverlay();
     }
     render() {
       for (const key of ["A", "B"]) this.renderSlot(key);
       this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
+      this.$("compareLinkCursors").checked = this.linkCursors;
+      this.$("compareNormalize").checked = this.normalizeOverlay;
     }
     renderSlot(key) {
       const s = this.slots[key], entry = examples.CATALOGUE.find(item => item.id === s.source?.exampleId);
@@ -318,7 +381,9 @@
           isCancelled: cancelled, yieldTask: () => this.yieldTask()
         });
         if (cancelled()) return false;
-        const cursor = Math.min(pcm.duration / 2, .25);
+        const other = this.slots[key === "A" ? "B" : "A"];
+        const cursor = this.linkCursors && other.pcm ? Math.min(other.cursor, pcm.duration) :
+          Math.min(pcm.duration / 2, .25);
         const spectrum = dsp.spectrumAt(pcm.channels[0], pcm.sampleRate, cursor, this.fftSize);
         if (cancelled()) return false;
         // Commit only after all work passes: a failed load cannot disturb the other slot.
@@ -363,7 +428,16 @@
       s.cursor = clamp(time, 0, s.pcm.duration);
       s.spectrum = dsp.spectrumAt(s.pcm.channels[s.channel], s.pcm.sampleRate, s.cursor, this.fftSize);
       this.$(`compare${key}Cursor`).value = String(s.cursor);
-      this.drawSlot(key);
+      if (this.linkCursors) {
+        const otherKey = key === "A" ? "B" : "A", other = this.slots[otherKey];
+        if (other.pcm && !other.busy) {
+          other.cursor = Math.min(s.cursor, other.pcm.duration);
+          other.spectrum = dsp.spectrumAt(other.pcm.channels[other.channel], other.pcm.sampleRate,
+            other.cursor, this.fftSize);
+          this.$(`compare${otherKey}Cursor`).value = String(other.cursor);
+        }
+        this.draw();
+      } else this.drawSlot(key);
     }
 
     listeningGain(key) { return this.volume * this.slots[key].volume; }
@@ -452,15 +526,19 @@
       g.font = "11px system-ui, sans-serif"; g.lineWidth = 1;
       return { g, left: 44, right: width - 14, top: 18, bottom: height - 30, width, height };
     }
-    draw() { for (const key of ["A", "B"]) this.drawSlot(key); }
-    drawSlot(key) {
+    draw() { for (const key of ["A", "B"]) this.drawSlot(key, false); this.drawOverlay(); }
+    drawSlot(key, includeOverlay = true) {
       const s = this.slots[key], pcm = s.pcm;
-      if (!pcm || !s.index || !this.active || s.busy) return;
+      if (!pcm || !s.index || !this.active || s.busy) {
+        if (includeOverlay) this.drawOverlay();
+        return;
+      }
       if (!s.spectrum || s.spectrum.fftSize !== this.fftSize) {
         s.spectrum = dsp.spectrumAt(pcm.channels[s.channel], pcm.sampleRate, s.cursor, this.fftSize);
       }
       this.drawWave(key); this.drawSpectrum(key);
       this.put(`compare${key}Measure`, this.text("measure", { peak: fmt(s.index.peak, 4), rms: fmt(s.index.rms, 4) }));
+      if (includeOverlay) this.drawOverlay();
     }
     drawWave(key) {
       const s = this.slots[key], pcm = s.pcm, p = this.canvas(`compare${key}Wave`); if (!p) return;
@@ -530,6 +608,60 @@
         fft: this.fftSize, bin: fmt(spectrum.binHz, 2), peak: fmt(peakHz, 1), level: fmt(best, 1)
       }));
     }
+    drawOverlay() {
+      const data = overlayModel(this.slots, {
+        maxHz: this.maxHz, axis: this.axis, normalize: this.normalizeOverlay
+      });
+      if (!data) { this.put("compareOverlayInfo", this.text("overlayWaiting")); return; }
+      const { low, high, traces } = data;
+      const limit = traces.length === 2 ? Math.min(...traces.map(trace => trace.nyquist)) : high;
+      const details = key => {
+        const trace = traces.find(item => item.key === key);
+        return trace ? this.text("overlayWindow", { ms: fmt(trace.windowMs, 1),
+          bin: fmt(trace.spectrum.binHz, 2), time: fmt(this.slots[key].cursor, 3) }) : this.text("overlayUnavailable");
+      };
+      this.put("compareOverlayInfo", this.text("overlayInfo", {
+        scale: this.text(this.normalizeOverlay ? "overlayRelative" : "overlayAbsolute"),
+        a: details("A"), b: details("B"),
+        missing: limit < high ? this.text("overlayMissing", { hz: fmt(limit, 0) }) : ""
+      }));
+      const p = this.canvas("compareOverlaySpectrum"); if (!p) return;
+      const { g, left, right, top, bottom, height } = p;
+      const x = hz => left + (right - left) * (data.axis === "log" ?
+        Math.log(Math.max(low, hz) / low) / Math.log(high / low) : hz / high);
+      const y = level => bottom - (clamp(level, -100, 0) + 100) / 100 * (bottom - top);
+      if (limit < high) {
+        const edge = x(limit);
+        g.fillStyle = "#eff2f6";
+        g.fillRect(edge, top, right - edge, bottom - top);
+      }
+      g.strokeStyle = "#dbe7ef"; g.fillStyle = "#56738d";
+      for (let level = -100; level <= 0; level += 20) {
+        g.beginPath(); g.moveTo(left, y(level)); g.lineTo(right, y(level)); g.stroke();
+        g.textAlign = "right"; g.fillText(String(level), left - 5, y(level) + 4);
+      }
+      const ticks = data.axis === "log" ? [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000]
+        .filter(hz => hz >= low && hz <= high) : [0, high / 4, high / 2, high * .75, high];
+      let lastX = -Infinity;
+      for (const hz of [...ticks, high]) {
+        const px = x(hz);
+        if (px - lastX < 48 && hz !== high) continue;
+        g.textAlign = "center"; g.fillText(hz >= 1000 ? fmt(hz / 1000, 1) + "k" : fmt(hz, 0),
+          clamp(px, left + 12, right - 12), height - 7); lastX = px;
+      }
+      for (const trace of traces) {
+        g.strokeStyle = trace.key === "A" ? "#237b9a" : "#b46c3e";
+        g.lineWidth = 2; g.beginPath();
+        let started = false;
+        for (let i = trace.first; i <= trace.last; i++) {
+          const hz = i * trace.spectrum.binHz, mag = trace.spectrum.magnitudes[i];
+          const db = Number.isFinite(mag) && mag > 0 ? 20 * Math.log10(mag) - trace.referenceDb : -Infinity;
+          const px = x(hz), py = y(db);
+          if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py);
+        }
+        if (started) g.stroke();
+      }
+    }
   }
-  return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, totalBytes });
+  return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, totalBytes, overlayModel });
 });

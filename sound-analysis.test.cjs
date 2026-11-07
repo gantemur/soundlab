@@ -234,6 +234,8 @@ test("Analysis is a lazy eighth tab with two compact source buttons and a separa
 test("A2a spectrogram stays linked to waveform time, cursor, selection, channel and frequency without rescanning on pointer moves", async () => {
   const f = fixture({ width: 390 }), c = f.controller;
   await f.activate();
+  assert.equal(f.get("analysisSpectrumModes").hidden, false);
+  assert.equal(f.get("analysisViewSpectrum").getAttribute("aria-pressed"), "true");
   c.setView("spectrogram");
   await f.settle();
   assert.equal(f.get("analysisSpectrumView").hidden, true);
@@ -242,6 +244,12 @@ test("A2a spectrogram stays linked to waveform time, cursor, selection, channel 
   assert.equal(f.get("analysisSpectroFFTField").hidden, false);
   assert.equal(f.get("analysisSpectroMaxHzField").hidden, false);
   assert.equal(f.get("analysisViewSpectro").getAttribute("aria-pressed"), "true");
+  c.setView("spectrum");
+  await f.settle();
+  assert.equal(f.get("analysisSpectrumModes").hidden, false,
+    "At cursor / Average choices belong to the right Spectrum card and reappear with that view");
+  c.setView("spectrogram");
+  await f.settle();
   assert.ok(c.spectrogram && c.spectrogram.pixels.length > 0);
   assert.equal(c.spectrogram.minDb, -100); assert.equal(c.spectrogram.maxDb, 0);
   assert.ok(c.spectrogram.columns <= 384);

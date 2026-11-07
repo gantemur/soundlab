@@ -22,7 +22,7 @@
       generated: "Generated signal", modeled: "Modeled instrument", recorded: "Real recording", imported: "Your local file",
       recordingCredit: "Recording by", spectroMaxHz: "Spectrogram upper frequency", spectroFullRange: "Full range (Nyquist)",
       top2k: "2,000 Hz", top5k: "5,000 Hz", top10k: "10,000 Hz",
-      prepared: "Prepared Sound Lab WAV", chooseView: "Analysis view", kindSingle: "Single source",
+      prepared: "Prepared Sound Lab WAV", chooseView: "Analysis view", chooseSection: "Analysis sub-tabs", kindSingle: "Single source",
       kindCompare: "Compare", viewSpectrum: "Spectrum", viewSpectro: "Spectrogram",
       spectrogram: "Time–frequency spectrogram", spectroFFT: "Spectrogram window · samples",
       spectroInfo: "Hann · {n} samples ({ms} ms) · hop {hop} ms · {axis} frequency · {low}–{high} dB (unit peak)",
@@ -86,7 +86,7 @@
       generated: "Тооцоолж үүсгэсэн авиа", modeled: "Хөгжмийн загвар", recorded: "Бодит бичлэг", imported: "Таны төхөөрөмжийн файл",
       recordingCredit: "Бичлэгийн эх", spectroMaxHz: "Спектрограммын дээд давтамж", spectroFullRange: "Бүх давтамж (Найквист)",
       top2k: "2,000 Гц", top5k: "5,000 Гц", top10k: "10,000 Гц",
-      prepared: "Sound Lab-д бэлдсэн WAV", chooseView: "Шинжилгээний харагдац", kindSingle: "Нэг авиа",
+      prepared: "Sound Lab-д бэлдсэн WAV", chooseView: "Шинжилгээний харагдац", chooseSection: "Шинжилгээний хэсэг", kindSingle: "Нэг авиа",
       kindCompare: "Харьцуулах", viewSpectrum: "Спектр", viewSpectro: "Спектрограмм",
       spectrogram: "Хугацаа–давтамжийн спектрограмм", spectroFFT: "Спектрограммын цонх · сорьц",
       spectroInfo: "Hann · {n} сорьц ({ms} мс) · алхам {hop} мс · {axis} давтамж · {low}–{high} dB (нэгж оргил)",
@@ -783,7 +783,8 @@
       for (const [id, key] of [["analysisSpectrumModes", "modes"], ["analysisPanLeft", "panLeft"],
         ["analysisPanRight", "panRight"], ["analysisCursorSlider", "cursorSlider"],
         ["analysisWaveCanvas", "waveAria"], ["analysisSpectrumCanvas", "spectrumAria"],
-        ["analysisSpectroCanvas", "spectroAria"], ["analysisViewModes", "chooseView"]])
+        ["analysisSpectroCanvas", "spectroAria"], ["analysisViewModes", "chooseView"],
+        ["analysisKindModes", "chooseSection"]])
         this.$(id).setAttribute("aria-label", this.text(key));
       if (this.spectrogram) this.put("analysisSpectroStatus", this.text("spectroReady"));
       this.renderSource(); this.renderControls(); this.renderMeasurements(); this.renderPlayback(); this.draw();

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s079">
+  <link rel="stylesheet" href="sound-lab.css?v=s080">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -49,9 +49,9 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
-  <script src="sound-analysis.js?v=s079" defer></script>
+  <script src="sound-analysis.js?v=s080" defer></script>
   <script src="sound-microphone.js?v=s078" defer></script>
-  <script src="sound-compare.js?v=s079" defer></script>
+  <script src="sound-compare.js?v=s080" defer></script>
   <script src="sound-lab.js?v=s079" defer></script>
 </head>
 <body>
@@ -1719,10 +1719,6 @@
           <button id="analysisKindSingle" type="button" class="selected" aria-pressed="true" data-analysis-i18n="kindSingle">Нэг авиа</button>
           <button id="analysisKindCompare" type="button" aria-pressed="false" data-analysis-i18n="kindCompare">Харьцуулах</button>
         </div>
-        <div class="experiment-switch analysis-experiment-switch analysis-inner-switch" role="group" id="analysisViewModes" aria-label="Нэг авианы шинжилгээний харагдац">
-          <button id="analysisViewSpectrum" type="button" class="selected" aria-pressed="true" data-analysis-i18n="viewSpectrum">Спектр</button>
-          <button id="analysisViewSpectro" type="button" aria-pressed="false" data-analysis-i18n="viewSpectro">Спектрограмм</button>
-        </div>
         <label class="analysis-field"><span data-analysis-i18n="classLabel">Бүлэг</span><select id="analysisClass"></select></label>
         <label class="analysis-field"><span data-analysis-i18n="exampleLabel">Жишээ</span><select id="analysisExample"></select></label>
         <div class="analysis-source-actions">
@@ -1739,10 +1735,6 @@
             <a id="analysisRecordingSource" href="#" target="_blank" rel="noopener noreferrer"></a> ·
             <a id="analysisRecordingLicense" href="#" target="_blank" rel="noopener noreferrer"></a>
           </p>
-        </div>
-        <div class="experiment-switch analysis-experiment-switch" role="group" id="analysisSpectrumModes">
-          <button id="analysisAtCursor" type="button" aria-pressed="true" class="selected" data-analysis-i18n="atCursor">Курсор дээр</button>
-          <button id="analysisAverage" type="button" aria-pressed="false" data-analysis-i18n="average">Хэсгийн дундаж</button>
         </div>
         <label id="analysisChannelField" class="analysis-field" hidden><span data-analysis-i18n="channel">Шинжлэх суваг</span><select id="analysisChannel"></select></label>
         <p id="analysisStatus" class="analysis-status" role="status" aria-live="polite"></p>
@@ -1799,6 +1791,16 @@
           <p id="analysisWaveHelp" class="field-help" data-analysis-i18n="keyboardHelp">←/→ товчоор курсор хөдөлгөнө (Shift: том алхам). Эхлэл/төгсгөлийн тоон талбараар нарийн хэсэг сонгоно. Курсор ба тоглуулах байрлал тусдаа.</p>
         </section>
         <section class="panel chart-panel" aria-labelledby="analysisSpectrumTitle">
+          <div class="analysis-result-toolbar">
+            <div class="experiment-switch analysis-experiment-switch analysis-result-switch" role="group" id="analysisViewModes" aria-label="Нэг авианы шинжилгээний харагдац">
+              <button id="analysisViewSpectrum" type="button" class="selected" aria-pressed="true" data-analysis-i18n="viewSpectrum">Спектр</button>
+              <button id="analysisViewSpectro" type="button" aria-pressed="false" data-analysis-i18n="viewSpectro">Спектрограмм</button>
+            </div>
+            <div class="experiment-switch analysis-experiment-switch analysis-result-switch analysis-spectrum-switch" role="group" id="analysisSpectrumModes">
+              <button id="analysisAtCursor" type="button" aria-pressed="true" class="selected" data-analysis-i18n="atCursor">Курсор дээр</button>
+              <button id="analysisAverage" type="button" aria-pressed="false" data-analysis-i18n="average">Хэсгийн дундаж</button>
+            </div>
+          </div>
           <div id="analysisSpectrumView">
           <div class="chart-heading"><div><h2 id="analysisSpectrumTitle" data-analysis-i18n="spectrum">Давтамжийн бүрэлдэхүүн</h2><p id="analysisFFTInfo"></p></div></div>
           <canvas id="analysisSpectrumCanvas" width="920" height="280" role="img" aria-describedby="analysisSpectrumReadout analysisSpectrumNote"></canvas>
@@ -1915,6 +1917,17 @@
           <p id="compareBCursorInfo" class="chart-foot"></p>
           <canvas id="compareBSpectrum" width="580" height="200" role="img" aria-describedby="compareBSpectrumInfo"></canvas>
           <p id="compareBSpectrumInfo" class="chart-foot"></p>
+        </section>
+        <section class="panel chart-panel compare-overlay-panel" aria-labelledby="compareOverlayTitle">
+          <div class="chart-heading"><div><h2 id="compareOverlayTitle" data-compare-i18n="overlayTitle">Хоёр спектрийг давхарлан харах</h2><p data-compare-i18n="overlayIntro">Нэг давтамжийн тэнхлэг дээр A ба B-ийн эх спектрийг давхарлана.</p></div></div>
+          <div class="compare-overlay-toolbar">
+            <label class="compare-option"><input id="compareLinkCursors" type="checkbox"><span data-compare-i18n="linkCursors">Курсоруудыг ижил хугацаанд холбох</span></label>
+            <label class="compare-option"><input id="compareNormalize" type="checkbox"><span data-compare-i18n="normalizeOverlay">Спектрийн оргил бүрийг 0 dB болгох</span></label>
+          </div>
+          <div class="compare-overlay-legend" aria-hidden="true"><span class="compare-legend-a">A</span><span class="compare-legend-b">B</span></div>
+          <canvas id="compareOverlaySpectrum" width="1080" height="280" role="img" aria-describedby="compareOverlayInfo compareOverlayNote"></canvas>
+          <p id="compareOverlayInfo" class="chart-foot" aria-live="off"></p>
+          <p id="compareOverlayNote" class="field-help" data-compare-i18n="overlayNote">Тус бүрийн 4096 сорьцтой Hann цонх нь өөр хугацааны урттай байж болно. Нормчлол зөвхөн давхарласан зурагт нөлөөлнө; эх авиа, хоёр үндсэн спектр өөрчлөгдөхгүй.</p>
         </section>
       </div>
     </div>
