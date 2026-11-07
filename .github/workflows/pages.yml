@@ -35,8 +35,9 @@ jobs:
       - uses: actions/configure-pages@v5
       - name: Assemble dependency-free website
         run: |
-          mkdir -p _site
+          mkdir -p _site/assets
           cp index.html *.js *.css LICENSE _site/
+          cp -R assets/analysis _site/assets/analysis
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v4
         with:

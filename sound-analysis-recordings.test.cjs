@@ -24,6 +24,11 @@ const expected = Object.freeze({
 });
 const recorded = examples.CATALOGUE.filter(item => item.kind === "recorded");
 
+test("A2b Pages deployment includes the locally bundled recordings", () => {
+  const workflow = fs.readFileSync(path.join(__dirname, ".github/workflows/pages.yml"), "utf8");
+  assert.match(workflow, /cp -R assets\/analysis _site\/assets\/analysis/);
+});
+
 test("A2b recording catalogue has exactly 11 locally bundled, credited and bilingual samples", () => {
   assert.equal(examples.CATALOGUE.length, 18);
   assert.equal(recorded.length, 11);
