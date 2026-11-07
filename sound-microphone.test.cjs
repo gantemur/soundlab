@@ -53,7 +53,8 @@ function fixture({ width = 390, secure = true, api = true, worklet = true,
   for (const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
     const attrs = {};
     for (const a of match[2].matchAll(/([\w-]+)(?:="([^"]*)")?/g)) attrs[a[1]] = a[2] ?? "";
-    if (!attrs.id?.startsWith("analysis") && !attrs["data-mic-i18n"]) continue;
+    if (!attrs.id?.startsWith("analysis") && !/^compare[AB]Mic$/.test(attrs.id || "") &&
+      !attrs["data-mic-i18n"]) continue;
     const element = new Element(attrs);
     if (attrs.id) elements.set(attrs.id, element);
     if (attrs["data-mic-i18n"]) translations.push(element);
@@ -127,7 +128,9 @@ function fixture({ width = 390, secure = true, api = true, worklet = true,
   const controller = new mic.Controller({ document, window,
     onBegin: () => { begins++; }, onStop: () => { stops++; },
     onViewChange: open => views.push(open),
-    onCapture: async (blob, name, origin) => { captures.push({ blob, name, origin }); return true; }
+    onCapture: async (blob, name, origin, destination) => {
+      captures.push({ blob, name, origin, destination }); return true;
+    }
   });
   const get = id => document.getElementById(id);
   return { controller, get, document, window, contexts, requests, timers, frames, captures, views, drawing,
@@ -214,6 +217,27 @@ test("M2 Close & analyze without Record passes a valid bounded rolling WAV and i
   assert.equal(new DataView(bytes.buffer).getUint32(40, true), 8);
   assert.equal(f.get("analysisMicWorkspace").hidden, true);
   assert.equal(f.get("analysisWorkspace").hidden, false);
+  assert.equal(captured.destination, "analysis");
+});
+
+test("C1 microphone returns a rolling or deliberate take to the selected Compare slot", async () => {
+  for (const [destination, mode] of [["A", "rolling"], ["B", "take"]]) {
+    const f = fixture(), c = f.controller;
+    c.setActive(true);
+    const start = c.openView(destination); f.grant();
+    assert.equal(await start, true);
+    if (mode === "take") {
+      assert.equal(c.beginTake(), true);
+      f.captureNode().port.send({ type: "takeStopped", takeId: 1, reason: "manual",
+        frames: 96000, sampleRate: 48000 });
+    }
+    const pending = c.finish(); f.snapshot(new Float32Array([.4, -.2]), mode);
+    assert.equal(await pending, true);
+    assert.equal(f.captures.length, 1);
+    assert.equal(f.captures[0].destination, destination);
+    assert.equal(f.captures[0].origin.captureMode, mode);
+    assert.equal(f.requests.length, 1);
+  }
 });
 
 test("M2 Record and Stop freeze a specific take; Close uses that take, not the newer rolling sound", async () => {

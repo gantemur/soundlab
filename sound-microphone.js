@@ -148,6 +148,7 @@
       this.capture = null; this.sink = null;
       this.frame = null; this.lastDraw = -Infinity; this.timeData = null; this.frequencyData = null;
       this.recording = false; this.takeReady = false; this.takeDuration = 0; this.available = 0;
+      this.destination = "analysis";
       this.takeId = 0;
       this.finishing = false; this.pendingSnapshot = null; this.snapshotId = 0;
       this.trackListeners = [];
@@ -177,9 +178,10 @@
       if (!active) this.stop();
       else this.render();
     }
-    openView() {
+    openView(destination = "analysis") {
       if (!this.active || this.open) return false;
       this.open = true;
+      this.destination = ["A", "B"].includes(destination) ? destination : "analysis";
       this.recording = false; this.takeReady = false; this.takeDuration = 0; this.available = 0;
       this.onViewChange(true);
       this.render();
@@ -361,9 +363,10 @@
         const name = "microphone-" + recordedAt.replace(/[:.]/g, "-") + ".wav";
         const origin = { kind: "microphone", classId: "microphone", name,
           origin: "microphone", captureMode: result.mode, recordedAt };
-        // Release microphone *before* opening the normal offline source.
+        // Release microphone *before* opening the target offline source.
+        const destination = this.destination;
         this.stop();
-        return await this.onCapture(blob, name, origin);
+        return await this.onCapture(blob, name, origin, destination);
       } catch (_) {
         if (ticket !== this.ticket || !this.open) return false;
         this.finishing = false; this.statusKey = "captureError"; this.render(); return false;
@@ -480,14 +483,17 @@
       this.timeData = null; this.frequencyData = null;
     }
     stop(reason = "stopped") {
-      const wasActive = this.isActive(), wasOpen = this.open;
+      const wasActive = this.isActive(), wasOpen = this.open, destination = this.destination;
       this.ticket++; this.releaseGraph();
       this.open = false; this.finishing = false;
+      this.destination = "analysis";
       this.recording = false; this.takeReady = false; this.takeDuration = 0; this.available = 0;
       this.phase = "idle"; this.statusKey = wasActive ? reason : "ready";
       this.render();
       if (wasOpen) this.onViewChange(false);
-      if (wasOpen && this.active && !this.document.hidden) this.$("analysisMicOpen").focus?.();
+      if (wasOpen && this.active && !this.document.hidden) {
+        this.$(["A", "B"].includes(destination) ? `compare${destination}Mic` : "analysisMicOpen").focus?.();
+      }
       if (wasActive) this.onStop();
     }
   }

@@ -25,6 +25,7 @@
   const exportUI = window.SoundLabExportUI;
   const analysisModel = window.SoundLabAnalysis;
   const microphoneModel = window.SoundLabMicrophone;
+  const compareModel = window.SoundLabCompare;
   const $ = id => document.getElementById(id);
   const heldFamily = kind => ["flute", "clarinet"].includes(kind) ? "air" :
     ["violin", "morin"].includes(kind) ? "bow" :
@@ -2588,20 +2589,57 @@
       OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext }),
     onAnalyze: (blob, name) => {
       selectMode("analysis");
+      switchAnalysisScreen("spectrum");
       return analysis?.openPrepared(blob, name);
     }
   }) : null;
   const analysis = analysisModel ? new analysisModel.Controller({ document, window,
     contextOwner: audio, transientModel, sustainModel, temperamentModel: tempModel,
     OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext }) : null;
+  let analysisScreen = "normal";
+  const compare = compareModel ? new compareModel.Controller({ document, window, contextOwner: audio,
+    transientModel, sustainModel, temperamentModel: tempModel,
+    OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext,
+    getAnalysis: () => ({ pcm: analysis?.pcm, source: analysis?.source }),
+    onMic: key => microphone?.openView(key) }) : null;
   const microphone = microphoneModel ? new microphoneModel.Controller({ document, window,
-    onBegin: () => analysis?.stopPlayback?.(true),
-    onStop: () => analysis?.draw?.(),
-    onViewChange: open => {
-      $("analysisWorkspace").hidden = state.mode !== "analysis" || open;
-      $("analysisMicWorkspace").hidden = state.mode !== "analysis" || !open;
-    },
-    onCapture: (blob, name, source) => analysis?.openPrepared(blob, name, source) }) : null;
+    onBegin: () => { analysis?.stopPlayback?.(true); compare?.stopPlayback?.(); },
+    onStop: () => { analysis?.draw?.(); compare?.draw?.(); },
+    onViewChange: () => updateAnalysisScreens(),
+    onCapture: (blob, name, source, destination) =>
+      ["A", "B"].includes(destination) ? compare?.openPrepared(destination, blob, name, source) :
+        analysis?.openPrepared(blob, name, source) }) : null;
+
+  function updateAnalysisScreens() {
+    const active = state.mode === "analysis", micOpen = Boolean(microphone?.open);
+    $("analysisWorkspace").hidden = !active || micOpen || analysisScreen === "compare";
+    $("analysisCompareWorkspace").hidden = !active || micOpen || analysisScreen !== "compare";
+    $("analysisMicWorkspace").hidden = !active || !micOpen;
+    const isCompare = analysisScreen === "compare";
+    for (const [id, selected] of [
+      ["analysisViewCompare", isCompare], ["compareNavCompare", isCompare],
+      ["analysisViewSpectrum", !isCompare && analysis?.analysisView === "spectrum"],
+      ["analysisViewSpectro", !isCompare && analysis?.analysisView === "spectrogram"],
+      ["compareNavSpectrum", false], ["compareNavSpectro", false]
+    ]) {
+      $(id).classList.toggle("selected", Boolean(selected));
+      $(id).setAttribute("aria-pressed", String(Boolean(selected)));
+    }
+  }
+  function switchAnalysisScreen(view) {
+    if (view === "compare") {
+      analysis?.stopPlayback?.(true);
+      analysisScreen = "compare";
+      if (state.mode === "analysis") compare?.setActive(true);
+    } else {
+      analysisScreen = "normal";
+      compare?.setActive(false);
+      if (["spectrum", "spectrogram"].includes(view)) analysis?.setView?.(view);
+    }
+    updateAnalysisScreens();
+    if (analysisScreen === "compare") compare?.draw();
+    else analysis?.draw();
+  }
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
@@ -4501,10 +4539,10 @@
     $("pureChallenge").hidden = !isWaves;
     $("pureExplanation").hidden = !isWaves;
     $("projectToolbar").hidden = !isCompose;
-    $("analysisWorkspace").hidden = !isAnalysis || Boolean(microphone?.open);
-    $("analysisMicWorkspace").hidden = !isAnalysis || !microphone?.open;
     if (analysis) analysis.setActive(isAnalysis);
     if (microphone) microphone.setActive(isAnalysis);
+    if (compare) compare.setActive(isAnalysis && analysisScreen === "compare");
+    updateAnalysisScreens();
     $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";
     $("composeEnsembleWorkspace").hidden = !isCompose || state.composeSubtab !== "ensemble";
     document.querySelectorAll("[data-compose-subtab]").forEach(button => {
@@ -4575,7 +4613,9 @@
     if (projectFiles) projectFiles.renderLanguage(state.language);
     if (wavExport) wavExport.renderLanguage(state.language);
     if (analysis) analysis.renderLanguage(state.language);
+    if (compare) compare.renderLanguage(state.language);
     if (microphone) microphone.renderLanguage(state.language);
+    updateAnalysisScreens();
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-i18n]").forEach(element => {
       const key = element.getAttribute("data-i18n");
@@ -5028,6 +5068,7 @@
   function stopAllAudio(immediate = false, message = "stopped") {
     if (microphone) microphone.stop();
     if (analysis) analysis.stop();
+    if (compare) compare.stop();
     if (compose && compose.hasSession()) compose.stop();
     if (ensemble && ensemble.hasSession()) ensemble.stop();
     strikeTicket++;
@@ -5046,6 +5087,9 @@
     stopNoiseSound(immediate);
     stopSound(immediate, message);
     setStrikeStatus(message === "hidden" ? "strikeHidden" : "strikeStopped");
+    // The microphone controller owns its standalone screen; reassert the
+    // three-way Analysis view after its Stop/render side effect.
+    updateAnalysisScreens();
   }
 
   async function toggleSound() {
@@ -7242,7 +7286,8 @@
 
   function drawPlots() {
     if (state.mode === "analysis") {
-      if (analysis) analysis.draw();
+      if (analysisScreen === "compare") compare?.draw();
+      else analysis?.draw();
     } else if (state.mode === "strike") {
       renderStrikeTime();
       drawStrikeWave();
@@ -7677,6 +7722,9 @@
   $("modeTuning").addEventListener("click", () => selectMode("tuning"));
   $("modeCompose").addEventListener("click", () => selectMode("compose"));
   $("modeAnalysis").addEventListener("click", () => selectMode("analysis"));
+  $("analysisViewCompare").addEventListener("click", () => switchAnalysisScreen("compare"));
+  $("compareNavSpectrum").addEventListener("click", () => switchAnalysisScreen("spectrum"));
+  $("compareNavSpectro").addEventListener("click", () => switchAnalysisScreen("spectrogram"));
   document.querySelectorAll("[data-compose-subtab]").forEach(button =>
     button.addEventListener("click", () => selectComposeSubtab(button.dataset.composeSubtab, true)));
   const sustainPad = $("sustainHoldButton");
@@ -7889,6 +7937,7 @@
     if (!recordPreparedBlob || !analysis) return;
     $("recordPreview").pause();
     selectMode("analysis");
+    switchAnalysisScreen("spectrum");
     analysis.openPrepared(recordPreparedBlob, $("recordDownload").download);
     showRecordResult = false;
     renderRecordControls();
@@ -7975,6 +8024,10 @@
     observer.observe($("analysisWaveCanvas"));
     observer.observe($("analysisSpectrumCanvas"));
     observer.observe($("analysisSpectroCanvas"));
+    observer.observe($("compareAWave"));
+    observer.observe($("compareASpectrum"));
+    observer.observe($("compareBWave"));
+    observer.observe($("compareBSpectrum"));
   } else window.addEventListener("resize", drawPlots);
 
   renderTexts();

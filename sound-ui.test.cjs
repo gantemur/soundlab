@@ -103,7 +103,9 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s077"/);
+  assert.match(html, /src="sound-lab\.js\?v=s078"/);
+  assert.match(html, /src="sound-compare\.js\?v=s078"/);
+  assert.ok(html.indexOf('src="sound-compare.js') < html.indexOf('src="sound-lab.js'));
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -114,7 +116,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
       (module === "analysis" ? "s077" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
-  assert.match(html, /src="sound-microphone\.js\?v=s077"/);
+  assert.match(html, /src="sound-microphone\.js\?v=s078"/);
   assert.ok(html.indexOf('src="sound-analysis.js') < html.indexOf('src="sound-microphone.js'));
   assert.ok(html.indexOf('src="sound-microphone.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fft.js') < html.indexOf('src="sound-spectrum.js'));
@@ -127,7 +129,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s077"/);
+  assert.match(html, /href="sound-lab\.css\?v=s078"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -255,7 +257,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
   assert.doesNotMatch(html, /id="mixExperimentSwitch"/);
-  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 13);
+  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 14);
   assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-tuning-kind="/g)].length, 25);
   for (const kind of ["waves", "harmonics"]) {

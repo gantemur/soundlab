@@ -205,7 +205,7 @@ test("Analysis is a lazy eighth tab with two compact source buttons and a separa
   assert.equal(f.get("analysisExample").children.length, 4);
   assert.match(html, /id="modeCompose"[\s\S]*id="modeAnalysis"/);
   assert.match(html, /id="analysisWorkspace" hidden/);
-  const markup = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisWorkspace"') + 18000);
+  const markup = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisCompareWorkspace"'));
   assert.equal([...markup.matchAll(/<details class="analysis-settings">/g)].length, 2);
   assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|getUserMedia|decodeAudioData)\s*\(/);
   assert.match(markup, /id="analysisOpen"[\s\S]*id="analysisMicOpen"/);
