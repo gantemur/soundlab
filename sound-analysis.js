@@ -190,6 +190,8 @@
       this.voice = null;
       this.frame = null;
       this.lastPlaybackDrawTime = -Infinity;
+      this.ignorePointerClick = false;
+      this.pointerClickTimer = null;
       this.analysisTimer = null;
       this.spectroTimer = null;
       this.drag = null;
@@ -201,7 +203,12 @@
       return String(words[this.language][key] || words.en[key] || key)
         .replace(/\{(\w+)\}/g, (_, name) => values[name] ?? "");
     }
-    put(id, value) { this.$(id).textContent = value; }
+    put(id, value) {
+      const target = this.$(id);
+      // Replacing even an unchanged button text node during a touch gesture
+      // can invalidate the eventual click on some WebKit devices.
+      if (target.textContent !== value) target.textContent = value;
+    }
     yieldTask() { return new Promise(resolve => this.window.setTimeout(resolve, 0)); }
     on(id, event, callback) { this.$(id).addEventListener(event, callback); }
     bind() {
@@ -216,7 +223,30 @@
         event.target.value = "";
         if (file) this.openFile(file);
       });
-      this.on("analysisPlay", "click", () => {
+      // Pointerdown remains deliverable when a browser drops the subsequent
+      // click during canvas repainting. Stop the sounding node immediately;
+      // suppress the synthetic click so it cannot start playback again.
+      this.on("analysisPlay", "pointerdown", event => {
+        if (event.button !== 0 || !this.isPlaying()) {
+          this.ignorePointerClick = false;
+          return;
+        }
+        this.pause();
+        this.ignorePointerClick = true;
+        if (this.pointerClickTimer !== null) this.window.clearTimeout(this.pointerClickTimer);
+        this.pointerClickTimer = this.window.setTimeout(() => {
+          this.ignorePointerClick = false;
+          this.pointerClickTimer = null;
+        }, 800);
+      });
+      this.on("analysisPlay", "click", event => {
+        if (this.ignorePointerClick && event.detail !== 0) {
+          this.ignorePointerClick = false;
+          if (this.pointerClickTimer !== null) this.window.clearTimeout(this.pointerClickTimer);
+          this.pointerClickTimer = null;
+          return;
+        }
+        this.ignorePointerClick = false;
         if (this.isPlaying()) this.pause();
         else this.play(false);
       });
@@ -708,11 +738,12 @@
       // main-thread work on phones. Redrawing at 60 fps can queue the next
       // frame ahead of a pointer click, making Pause feel unresponsive on
       // short recordings such as the cricket clip. Audio stays on the audio
-      // clock; only the animated overlays are throttled to about 12 fps.
+      // clock; only the animated overlays are throttled to about eight fps.
       const time = this.contextOwner.context.currentTime;
-      if (time - this.lastPlaybackDrawTime >= 1 / 12 || time < this.lastPlaybackDrawTime) {
+      if (time - this.lastPlaybackDrawTime >= 1 / 8 || time < this.lastPlaybackDrawTime) {
         this.lastPlaybackDrawTime = time;
-        this.renderPlayback(); this.drawWave(); this.drawSpectrogram();
+        // Progress changes only a status readout, never the active button.
+        this.renderPlaybackProgress(); this.drawWave(); this.drawSpectrogram();
       }
       this.frame = this.window.requestAnimationFrame(() => { this.frame = null; this.followPlayback(); });
     }
@@ -802,13 +833,19 @@
       this.$("analysisStatus").classList.toggle("error", this.error);
       this.put("analysisStatus", this.text(this.statusKey) + (this.statusProgress === null ? "" : " " + Math.round(this.statusProgress * 100) + "%"));
       this.put("analysisVolumeValue", Math.round(this.volume * 100) + "%");
-      this.put("analysisPlay", this.text(this.isPlaying() ? "pause" : "play"));
-      this.$("analysisPlay").setAttribute("aria-pressed", String(this.isPlaying()));
+      this.renderPlaybackButton();
       this.$("analysisWorkspace").setAttribute("aria-busy", String(this.sourceBusy));
     }
-    renderPlayback() {
+    renderPlaybackButton() {
       this.put("analysisPlay", this.text(this.isPlaying() ? "pause" : "play"));
-      this.$("analysisPlay").setAttribute("aria-pressed", String(this.isPlaying()));
+      const button = this.$("analysisPlay"), pressed = String(this.isPlaying());
+      if (button.getAttribute("aria-pressed") !== pressed) button.setAttribute("aria-pressed", pressed);
+    }
+    renderPlayback() {
+      this.renderPlaybackButton();
+      this.renderPlaybackProgress();
+    }
+    renderPlaybackProgress() {
       const key = this.starting ? "starting" : this.playing ? "playing" : this.paused ? "paused" : "idle";
       this.put("analysisPlaybackStatus", this.text(key) + (this.pcm ? ` · ${number(this.currentPosition(), 2)} / ${number(this.pcm.duration, 2)} ${this.text("seconds")}` : ""));
     }

@@ -111,7 +111,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   }
   for (const module of ["analysis-spectrogram", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=' +
-      (module === "analysis" ? "s066" : "s065") + '"'));
+      (module === "analysis" ? "s075" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
   assert.ok(html.indexOf('src="sound-fft.js') < html.indexOf('src="sound-spectrum.js'));

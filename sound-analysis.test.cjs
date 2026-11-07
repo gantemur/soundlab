@@ -579,8 +579,8 @@ test("cricket-length Analysis playback limits heavy redraws and Pause wins immed
     f.context.currentTime = startedAt + i / 60;
     f.tickFrame();
   }
-  assert.ok(wavePaints <= 14 && spectroPaints <= 14,
-    "60 frames of 5-second playback should paint only about 12 expensive spectrogram frames");
+  assert.ok(wavePaints <= 10 && spectroPaints <= 10,
+    "60 frames of 5-second playback should paint at most about eight expensive spectrogram frames");
   f.get("analysisPlay").click();
   assert.equal(c.paused, true); assert.equal(c.isPlaying(), false);
   assert.ok(c.position >= .95 && c.position <= 1.05);
@@ -590,6 +590,64 @@ test("cricket-length Analysis playback limits heavy redraws and Pause wins immed
   assert.match(f.get("analysisPlaybackStatus").textContent, /Түр зогссон/);
   const resumedPlayback = c.play(false); await f.settle();
   assert.equal(await resumedPlayback, true, "Resume remains playable");
+  c.stop();
+});
+
+test("Analysis Pause reacts on pointerdown without double-toggling on the following click", async () => {
+  const f = fixture({ width: 320 }), c = f.controller;
+  await f.load(pcm([sine(5, 16000, .18, 3100)], 16000), "cricket.wav");
+  c.setView("spectrogram"); await f.settle();
+  const firstPlayback = c.play(false); await f.settle(); assert.equal(await firstPlayback, true);
+  const node = f.nodes.at(-1), button = f.get("analysisPlay");
+  const label = button.textContent;
+  let buttonWrites = 0, currentLabel = label;
+  Object.defineProperty(button, "textContent", {
+    configurable: true,
+    get() { return currentLabel; },
+    set(value) { currentLabel = value; buttonWrites++; }
+  });
+  for (let i = 1; i <= 60; i++) {
+    f.context.currentTime = 5 + i / 60;
+    f.tickFrame();
+  }
+  assert.equal(buttonWrites, 0, "playhead paints must not replace the active Pause button label");
+  button.dispatch("pointerdown", { button: 0, pointerType: "touch" });
+  assert.equal(node.stopped, 1, "audio stops on the first pointer event, before click");
+  assert.equal(node.disconnected, true);
+  assert.equal(c.paused, true); assert.equal(c.isPlaying(), false);
+  assert.equal(f.frames.size, 0);
+  button.dispatch("click", { detail: 1, pointerType: "touch" });
+  assert.equal(c.isPlaying(), false, "the synthesized touch click cannot immediately restart audio");
+  assert.equal(f.nodes.length, 1);
+  assert.equal(f.timers.size, 0, "pointer-click suppression timer clears after click");
+  button.dispatch("click", { detail: 0 }); // Keyboard/SR activation still works.
+  await f.settle();
+  assert.equal(c.playing, true); assert.equal(f.nodes.length, 2);
+  const secondNode = f.nodes.at(-1);
+  button.dispatch("pointerdown", { button: 0, pointerType: "mouse" });
+  button.dispatch("click", { detail: 1, pointerType: "mouse" });
+  assert.equal(secondNode.stopped, 1); assert.equal(c.paused, true);
+  assert.equal(f.nodes.length, 2, "mouse click does not double-toggle either");
+  c.stop();
+});
+
+test("Analysis pointer Pause cancels async startup even if no click event is delivered", async () => {
+  const f = fixture(), c = f.controller; await f.activate();
+  let resolveContext;
+  f.owner.readyContext = () => new Promise(resolve => { resolveContext = resolve; });
+  const pending = c.play(false); await f.until(() => !!resolveContext);
+  assert.equal(c.starting, true);
+  f.get("analysisPlay").dispatch("pointerdown", { button: 0, pointerType: "touch" });
+  assert.equal(c.starting, false); assert.equal(c.paused, true);
+  resolveContext(f.context); await pending; await f.settle();
+  assert.equal(f.nodes.length, 0, "late audio startup cannot create a source after Pause");
+  assert.equal(c.isPlaying(), false);
+  // A new tap must work even if WebKit never dispatched the previous click.
+  f.owner.readyContext = async () => f.context;
+  f.get("analysisPlay").dispatch("pointerdown", { button: 0, pointerType: "touch" });
+  const second = f.get("analysisPlay").dispatch("click", { detail: 1, pointerType: "touch" });
+  assert.equal(second.prevented, false);
+  await f.settle(); assert.equal(c.playing, true);
   c.stop();
 });
 
