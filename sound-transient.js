@@ -10,10 +10,11 @@
   const marimba = typeof module === "object" && module.exports ? require("./sound-marimba.js") : root.SoundLabMarimba;
   const xylophone = typeof module === "object" && module.exports ? require("./sound-xylophone.js") : root.SoundLabXylophone;
   const mandolin = typeof module === "object" && module.exports ? require("./sound-mandolin.js") : root.SoundLabMandolin;
-  const model = makeModel(strings, piano, fm, marimba, xylophone, mandolin);
+  const harp = typeof module === "object" && module.exports ? require("./sound-harp.js") : root.SoundLabHarp;
+  const model = makeModel(strings, piano, fm, marimba, xylophone, mandolin, harp);
   if (typeof module === "object" && module.exports) module.exports = model;
   if (root) root.SoundLabTransientModel = model;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm, marimba, xylophone, mandolin) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (strings, piano, fm, marimba, xylophone, mandolin, harp) {
   "use strict";
 
   if (!strings) throw new Error("String synthesis must load before transient synthesis");
@@ -22,9 +23,10 @@
   if (!marimba) throw new Error("Marimba synthesis must load before transient synthesis");
   if (!xylophone) throw new Error("Xylophone synthesis must load before transient synthesis");
   if (!mandolin) throw new Error("Mandolin synthesis must load before transient synthesis");
+  if (!harp) throw new Error("Harp synthesis must load before transient synthesis");
 
   const TAU = 2 * Math.PI;
-  const KINDS = Object.freeze(["pluck", "kick", "piano", "marimba", "xylophone", "mandolin"]);
+  const KINDS = Object.freeze(["pluck", "kick", "piano", "marimba", "xylophone", "mandolin", "harp"]);
   const MIN_PITCH_HZ = 110;
   const MAX_PITCH_HZ = 880;
   const MIN_DECAY = 0.12;
@@ -74,6 +76,8 @@
     if (kind === "mandolin") mandolin.validate(pitchHz, decaySec,
       options.velocity ?? mandolin.DEFAULT_VELOCITY, options.sampleRate ?? mandolin.RATE,
       options.articulation ?? "pick");
+    if (kind === "harp") harp.validate(pitchHz, decaySec,
+      options.velocity ?? harp.DEFAULT_VELOCITY, options.sampleRate ?? 48000);
     if (kind === "kick" && (!Object.hasOwn(KICK_SIZES, kickSize) ||
         !DRUM_VOICES.includes(options.drumVoice ?? "membrane") ||
         !Number.isFinite(options.drumTension ?? 1) ||
@@ -104,6 +108,8 @@
       options.velocity ?? xylophone.DEFAULT_VELOCITY);
     if (kind === "mandolin") return mandolin.envelope(time, decaySec,
       options.velocity ?? mandolin.DEFAULT_VELOCITY, options.articulation ?? "pick");
+    if (kind === "harp") return harp.envelope(time, decaySec,
+      options.velocity ?? harp.DEFAULT_VELOCITY);
     if (kind === "piano") return options.pianoVoice === "electric" ?
       fm.envelopeAt(time, decaySec, options.velocity ?? .55, options.touch ?? "press") :
       piano.envelope(time, decaySec, options.touch ?? "press");
@@ -252,6 +258,8 @@
     if (kind === "mandolin") return mandolin.sampleAt(time, pitchHz, decaySec,
       options.velocity ?? mandolin.DEFAULT_VELOCITY, options.sampleRate ?? mandolin.RATE,
       options.articulation ?? "pick");
+    if (kind === "harp") return harp.sampleAt(time, pitchHz, decaySec,
+      options.velocity ?? harp.DEFAULT_VELOCITY, options.sampleRate ?? 48000);
     if (options.pianoVoice === "electric") return fm.sampleAt(time, pitchHz,
       options.sampleRate ?? 48000, { decaySec, velocity: options.velocity ?? .55,
         touch: options.touch ?? "press" });
@@ -259,18 +267,19 @@
       options.touch ?? "press");
   }
 
-  function duration(decaySec) {
+  function duration(decaySec, kind = "") {
+    if (kind === "harp") return harp.duration(decaySec);
     return Math.max(0.35, Math.min(3, decaySec * 4));
   }
 
   function plottedEnvelope(kind, time, decaySec, options = {}) {
-    const length = duration(decaySec);
+    const length = duration(decaySec, kind);
     if (time >= length) return 0;
     return envelope(kind, time, decaySec, options) * Math.min(1, (length - time) / 0.018);
   }
 
   function plottedSampleAt(kind, time, pitchHz, decaySec, kickSize = "medium", options = {}) {
-    const length = duration(decaySec);
+    const length = duration(decaySec, kind);
     if (time <= 0 || time >= length) return 0;
     const fade = Math.min(1, (length - time) / 0.018);
     return sampleAt(kind, time, pitchHz, decaySec, kickSize, options) * fade;
@@ -281,12 +290,12 @@
     if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 192000) {
       throw new RangeError("Unsupported sampling rate");
     }
-    const seconds = duration(decaySec);
+    const seconds = duration(decaySec, kind);
     const count = Math.ceil(seconds * sampleRate);
     const samples = new Float32Array(count);
     // Supply the playback sample rate to models with sample-rate-aware mode
     // suppression. Tuned bars' fixed band caps also match the 16 kHz plots.
-    const modelOptions = kind === "marimba" || kind === "xylophone" || kind === "mandolin" ||
+    const modelOptions = kind === "marimba" || kind === "xylophone" || kind === "mandolin" || kind === "harp" ||
       (kind === "piano" && options.pianoVoice === "electric") ?
       { ...options, sampleRate } : options;
     for (let i = 0; i < count; i++) {

@@ -189,6 +189,7 @@
       this.paused = false;
       this.voice = null;
       this.frame = null;
+      this.lastPlaybackDrawTime = -Infinity;
       this.analysisTimer = null;
       this.spectroTimer = null;
       this.drag = null;
@@ -621,6 +622,7 @@
       this.playing = false; this.starting = false;
       if (this.frame !== null) this.window.cancelAnimationFrame(this.frame);
       this.frame = null;
+      this.lastPlaybackDrawTime = -Infinity;
       const voice = this.voice;
       this.voice = null;
       if (voice) {
@@ -702,7 +704,16 @@
     }
     followPlayback() {
       if (!this.playing) return;
-      this.drawWave(); this.drawSpectrogram(); this.renderPlayback();
+      // Spectrogram compositing, axes and time-window plots are substantial
+      // main-thread work on phones. Redrawing at 60 fps can queue the next
+      // frame ahead of a pointer click, making Pause feel unresponsive on
+      // short recordings such as the cricket clip. Audio stays on the audio
+      // clock; only the animated overlays are throttled to about 12 fps.
+      const time = this.contextOwner.context.currentTime;
+      if (time - this.lastPlaybackDrawTime >= 1 / 12 || time < this.lastPlaybackDrawTime) {
+        this.lastPlaybackDrawTime = time;
+        this.renderPlayback(); this.drawWave(); this.drawSpectrogram();
+      }
       this.frame = this.window.requestAnimationFrame(() => { this.frame = null; this.followPlayback(); });
     }
     status(key, error = false) {

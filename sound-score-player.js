@@ -17,10 +17,14 @@
     require("./sound-xylophone.js") : root.SoundLabXylophone;
   const mandolinModel = typeof module === "object" && module.exports ?
     require("./sound-mandolin.js") : root.SoundLabMandolin;
-  const api = factory(scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel, mandolinModel);
+  const harpModel = typeof module === "object" && module.exports ?
+    require("./sound-harp.js") : root.SoundLabHarp;
+  const i3Held = typeof module === "object" && module.exports ?
+    require("./sound-i3-held.js") : root.SoundLabI3Held;
+  const api = factory(scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel, mandolinModel, harpModel, i3Held);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabScorePlayer = api;
-})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel, mandolinModel) {
+})(typeof window !== "undefined" ? window : null, function (scoreModel, fmModel, drumModel, heldVoice, marimbaModel, xylophoneModel, mandolinModel, harpModel, i3Held) {
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
@@ -29,11 +33,13 @@
   // piano/FM and plucked courses). Keep each track fader linear and separate;
   // Solo/Explore retain their established playback levels.
   const ENSEMBLE_VOICE_GAIN = Object.freeze({
-    mandolin: 2.1, xylophone: 1.4, piano: .56, chimes: .65, fmep: .38,
+    mandolin: 2.1, harp: 1.5, xylophone: 1.4, piano: .56, chimes: .65, fmep: .38,
+    "organ-stopped": 1.05, "organ-principal": .86, accordion: 1.4, bayan: 1.5,
     sine: .30, triangle: .36, square: .30, sawtooth: .50
   });
-  const HELD_INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin"]);
-  const INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", "guitar", "mandolin", "piano", "chimes", "marimba", "xylophone",
+  const HELD_INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", ...i3Held.KINDS]);
+  const INSTRUMENTS = Object.freeze(["flute", "clarinet", "violin", "morin", ...i3Held.KINDS,
+    "guitar", "mandolin", "harp", "piano", "chimes", "marimba", "xylophone",
     ...WAVEFORMS, "fmep"]);
   const GUITAR_MODES = Object.freeze(["pluck", "down", "up", "alternate"]);
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
@@ -52,10 +58,12 @@
   }
 
   function instrumentRange(instrument) {
+    if (i3Held.KINDS.includes(instrument)) return i3Held.rangeFor(instrument);
     if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.rangeFor(instrument);
     if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
     if (instrument === "xylophone") return [xylophoneModel.MIN_HZ, xylophoneModel.MAX_HZ];
     if (instrument === "mandolin") return [mandolinModel.MIN_HZ, mandolinModel.MAX_HZ];
+    if (instrument === "harp") return [harpModel.MIN_HZ, harpModel.MAX_HZ];
     return [instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ,
       instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
   }
@@ -356,13 +364,15 @@
     // The held graph caches a single noise buffer per AudioContext, shared by
     // all held notes and parts. Specs must reserve it once, not once per note.
     sharedBufferBytes(event, sampleRate) {
-      return HELD_INSTRUMENTS.includes(this.eventInstrument(event)) ? heldVoice.bufferFrames(sampleRate) * 4 : 0;
+      const instrument = this.eventInstrument(event);
+      return HELD_INSTRUMENTS.includes(instrument) && !i3Held.KINDS.includes(instrument) ?
+        heldVoice.bufferFrames(sampleRate) * 4 : 0;
     }
 
     // The same recipes describe live buffers, offline memory requirements and
     // the full audible ending. Preparing a spec never allocates audio samples.
-    transientDuration(decay) {
-      return typeof this.transientModel.duration === "function" ? this.transientModel.duration(decay) :
+    transientDuration(decay, kind = "") {
+      return typeof this.transientModel.duration === "function" ? this.transientModel.duration(decay, kind) :
         Math.max(.35, Math.min(3, decay * 4));
     }
 
@@ -373,19 +383,21 @@
       const percussive = instrument === "chimes";
       const kind = instrument === "guitar" ? "pluck" : percussive ? "kick" :
         instrument === "fmep" ? "fmep" :
-          ["marimba", "xylophone", "mandolin"].includes(instrument) ? instrument : "piano";
+          ["marimba", "xylophone", "mandolin", "harp"].includes(instrument) ? instrument : "piano";
       const decay = instrument === "piano" || instrument === "fmep" ? .8 : percussive ? .7 :
         instrument === "marimba" ? marimbaModel.DEFAULT_DECAY :
           instrument === "xylophone" ? xylophoneModel.DEFAULT_DECAY :
-            instrument === "mandolin" ? mandolinModel.DEFAULT_DECAY : .65;
+            instrument === "mandolin" ? mandolinModel.DEFAULT_DECAY :
+              instrument === "harp" ? harpModel.DEFAULT_DECAY : .65;
       const options = instrument === "guitar" ? { position: .22 } :
         instrument === "piano" ? { velocity: .62, touch: "press" } :
           percussive ? { drumVoice: "chimes", chimeHz: hz } :
             instrument === "marimba" ? { velocity: marimbaModel.DEFAULT_VELOCITY } :
               instrument === "xylophone" ? { velocity: xylophoneModel.DEFAULT_VELOCITY } :
-                instrument === "mandolin" ? { velocity: mandolinModel.DEFAULT_VELOCITY, articulation: "pick" } : {};
+                instrument === "mandolin" ? { velocity: mandolinModel.DEFAULT_VELOCITY, articulation: "pick" } :
+                  instrument === "harp" ? { velocity: harpModel.DEFAULT_VELOCITY } : {};
       const seconds = instrument === "fmep" ? fmModel.DURATION_SECONDS :
-        this.transientDuration(decay);
+        this.transientDuration(decay, kind);
       return { key: [sampleRate, kind, hz.toFixed(5), decay, instrument].join("|"),
         sampleRate, frames: Math.ceil(seconds * sampleRate), kind, hz, decay,
         size: "medium", options, fm: instrument === "fmep",
@@ -430,7 +442,8 @@
     voiceEndTime(event, at, endsAt, sampleRate, offsetSeconds = 0) {
       const instrument = this.eventInstrument(event);
       if (HELD_INSTRUMENTS.includes(instrument)) {
-        return endsAt + heldVoice.defaults(instrument, this.sustainModel).release + heldVoice.STOP_PAD;
+        const voice = i3Held.KINDS.includes(instrument) ? i3Held : heldVoice;
+        return endsAt + voice.defaults(instrument, this.sustainModel).release + voice.STOP_PAD;
       }
       const spec = this.bufferSpec(event, sampleRate);
       if (!spec) return endsAt + .005;
@@ -451,7 +464,8 @@
       const output = settings?.output || this.outputBus || this.contextOwner.output;
       if (HELD_INSTRUMENTS.includes(instrument)) {
         let voice;
-        const held = heldVoice.createVoice({ context, output, model: this.sustainModel,
+        const synth = i3Held.KINDS.includes(instrument) ? i3Held : heldVoice;
+        const held = synth.createVoice({ context, output, model: this.sustainModel,
           kind: instrument, hz, level, at, offsetSeconds,
           noteDurationSeconds: Math.max(0, offsetSeconds + endsAt - at),
           onended: () => this.voices.delete(voice) });

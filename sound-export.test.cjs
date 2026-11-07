@@ -42,7 +42,8 @@ const percussion = (body = "[!accent!CE]4 D4 F4 G4 |]") =>
 function fixture(options = {}) {
   const contexts = [], modelCalls = [];
   let pendingRecipe = null;
-  const duration = options.duration || (decay => Math.max(.35, Math.min(3, decay * 4)));
+  const duration = options.duration || ((decay, kind) => kind === "harp" ? Math.min(3, Math.max(.7, 5 * decay)) :
+    Math.max(.35, Math.min(3, decay * 4)));
   const transientModel = {
     duration,
     makeSamples(kind, hz, decay, rate, size, settings) {
@@ -50,7 +51,7 @@ function fixture(options = {}) {
       modelCalls.push(recipe);
       if (options.modelErrorAt === modelCalls.length) throw new Error("model preparation failed");
       pendingRecipe = recipe;
-      const samples = new Float32Array(Math.ceil(duration(decay) * rate));
+      const samples = new Float32Array(Math.ceil(duration(decay, kind) * rate));
       if (samples.length > 1) samples[1] = .25;
       return samples;
     }
@@ -559,6 +560,44 @@ test("failed held rendering disconnects all excitation, body-filter and noise no
     cleaned(f.contexts[0]);
     assert.ok(f.contexts[0].sources.every(source => source.disconnected));
   }
+});
+
+test("I3 harp and organ/free-reed voices export from the shared score graph without samples or network dependencies", async () => {
+  const sound = ["harp", "organ-stopped", "organ-principal", "accordion", "bayan"];
+  for (const instrument of sound) {
+    const f = fixture();
+    const result = await exporter.render(solo({ instrument }), f.deps);
+    assert.ok(result.bytes.length > 44, instrument + " exported an audio file");
+    const context = f.contexts[0];
+    const audio = context.graph.sources;
+    if (instrument === "harp") {
+      assert.equal(f.modelCalls[0].kind, "harp");
+      assert.equal(audio[0].kind, "buffer");
+      assert.equal(context.buffers[0].length, 3 * 44100);
+    } else {
+      assert.equal(f.modelCalls.length, 0, "held voices use no transient samples");
+      assert.ok(audio.some(source => source.wave), "the voice has a real harmonic source");
+      assert.ok(audio.every(source => source.kind === "oscillator"));
+      assert.equal(audio.filter(source => source.wave).length, 4 * (instrument === "accordion" ? 2 : 1));
+    }
+    cleaned(context);
+  }
+});
+
+test("I3 four-track ensemble survives project round-trip and exports separate instruments on shared timing", async () => {
+  const original = arrangement([track(1, "harp"), track(2, "organ-stopped"),
+    track(3, "accordion"), track(4, "bayan")]);
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT, version: projects.VERSION,
+    title: "I3", ...original }));
+  assert.deepEqual(saved.content.tracks.map(item => item.instrument),
+    ["harp", "organ-stopped", "accordion", "bayan"]);
+  const f = fixture();
+  await exporter.render(saved, f.deps);
+  assert.equal(f.contexts.length, 1);
+  assert.ok(f.contexts[0].graph.sources.some(source => source.kind === "buffer"));
+  assert.ok(f.contexts[0].graph.sources.filter(source => source.wave).length >= 4);
+  assert.equal(f.modelCalls.length, 4, "harp notes are generated once per distinct pitch");
+  cleaned(f.contexts[0]);
 });
 
 test("more than 24 distinct buffered pitches with repeats never evict and regenerate scheduled buffers", async () => {

@@ -10,14 +10,16 @@
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
+  <script src="sound-harp.js?v=s066" defer></script>
   <script src="sound-piano.js?v=s019" defer></script>
   <script src="sound-fm.js?v=s044" defer></script>
   <script src="sound-marimba.js?v=s059" defer></script>
   <script src="sound-xylophone.js?v=s060" defer></script>
-  <script src="sound-transient.js?v=s062" defer></script>
+  <script src="sound-transient.js?v=s066" defer></script>
   <script src="sound-clarinet.js?v=s061" defer></script>
   <script src="sound-sustain.js?v=s061" defer></script>
   <script src="sound-held-voice.js?v=s061" defer></script>
+  <script src="sound-i3-held.js?v=s066" defer></script>
   <script src="sound-fft.js?v=s058" defer></script>
   <script src="sound-spectrum.js?v=s058" defer></script>
   <script src="sound-motion.js?v=s020c" defer></script>
@@ -35,10 +37,10 @@
   <script src="sound-abc.js?v=s051" defer></script>
   <script src="sound-drum-abc.js?v=s053" defer></script>
   <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s063" defer></script>
-  <script src="sound-compose.js?v=s062" defer></script>
+  <script src="sound-score-player.js?v=s066" defer></script>
+  <script src="sound-compose.js?v=s066" defer></script>
   <script src="sound-ensemble-presets.js?v=s053" defer></script>
-  <script src="sound-ensemble.js?v=s063" defer></script>
+  <script src="sound-ensemble.js?v=s066" defer></script>
   <script src="sound-project.js?v=s055" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s059" defer></script>
@@ -47,8 +49,8 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
-  <script src="sound-analysis.js?v=s065" defer></script>
-  <script src="sound-lab.js?v=s064" defer></script>
+  <script src="sound-analysis.js?v=s066" defer></script>
+  <script src="sound-lab.js?v=s066" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -256,6 +258,7 @@
             <option value="marimba" data-i18n="strikeMarimba">Маримба</option>
             <option value="xylophone" data-i18n="strikeXylophone">Ксилофон</option>
             <option value="mandolin" data-i18n="strikeMandolin">Мандолин</option>
+            <option value="harp" data-i18n="strikeHarp">Ятга (арфа)</option>
           </select>
         </div>
         <div id="strikePianoPlayModes" class="ear-play-controls" role="group" data-i18n-aria="strikePianoTouchTitle" hidden>
@@ -438,6 +441,8 @@
         <div class="strike-choices sustain-families" id="sustainChoices" role="group" aria-label="Үргэлжлэх авианы бүлэг">
           <button class="strike-choice selected" type="button" data-sustain-family="air" aria-pressed="true"><span class="strike-glyph" aria-hidden="true">🪈</span><span data-i18n="sustainAir">Үлээвэр</span></button>
           <button class="strike-choice" type="button" data-sustain-family="bow" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">🎻</span><span data-i18n="sustainBowed">Нумт чавхдас</span></button>
+          <button class="strike-choice" type="button" data-sustain-family="organ" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">🎹</span><span data-i18n="sustainOrgan">Хоолойт орган</span></button>
+          <button class="strike-choice" type="button" data-sustain-family="reed" aria-pressed="false"><span class="strike-glyph" aria-hidden="true">🪗</span><span data-i18n="sustainFreeReed">Чөлөөт хэлт</span></button>
         </div>
         <div class="field-group">
           <label class="field-title" for="sustainInstrument" data-i18n="strikePianoTypeTitle">Хөгжмийн зэмсэг</label>
@@ -458,7 +463,7 @@
           <div class="scale-row"><span id="sustainMinHz" data-unit-hz="110">110 Гц</span><label class="check-label"><input id="sustainSnap" type="checkbox"> <span data-i18n="snap">Нотод тааруулах</span></label><span id="sustainMaxHz" data-unit-hz="880">880 Гц</span></div>
         </div>
         <div class="field-group" id="sustainBreathGroup">
-          <div class="field-title"><label for="sustainBreath" data-i18n="sustainBreath">Үлээлтийн хүч</label><output id="sustainBreathValue">60%</output></div>
+          <div class="field-title"><label id="sustainBreathLabel" for="sustainBreath" data-i18n="sustainBreath">Үлээлтийн хүч</label><output id="sustainBreathValue">60%</output></div>
           <input id="sustainBreath" type="range" min="0" max="100" step="1" value="60">
           <p id="sustainBreathHint" class="field-help" data-i18n="sustainBreathHint">Илүү хүчтэй үлээхэд дуу чангарч, гармоникууд болон амьсгалын шуугиан өөрчлөгдөнө.</p>
         </div>
@@ -1394,6 +1399,11 @@
                 <option value="marimba" data-compose-i18n="marimba">Маримба</option>
                 <option value="xylophone" data-compose-i18n="xylophone">Ксилофон</option>
                 <option value="mandolin" data-compose-i18n="mandolin">Мандолин</option>
+                <option value="harp" data-compose-i18n="harp">Ятга (арфа)</option>
+                <option value="organ-stopped" data-compose-i18n="organStopped">Орган · битүү лимбэ 8′</option>
+                <option value="organ-principal" data-compose-i18n="organPrincipal">Орган · принципал 8′</option>
+                <option value="accordion" data-compose-i18n="accordion">Аккордеон</option>
+                <option value="bayan" data-compose-i18n="bayan">Баян хуур</option>
               </optgroup>
               <optgroup label="Электрон авиа" data-compose-group-i18n="instrumentElectronic">
                 <option value="sine" data-compose-i18n="sine">Синус долгион</option>

@@ -19,10 +19,14 @@
   "use strict";
   const VOICES = Object.freeze({
     en: { flute: "Flute", clarinet: "Clarinet", violin: "Violin", morin: "Morin khuur", guitar: "Guitar",
-      piano: "Acoustic piano", mandolin: "Mandolin", chimes: "Chimes", marimba: "Marimba", xylophone: "Xylophone", sine: "Sine wave", triangle: "Triangle wave",
+      piano: "Acoustic piano", mandolin: "Mandolin", harp: "Harp", chimes: "Chimes", marimba: "Marimba", xylophone: "Xylophone",
+      "organ-stopped": "Organ · Stopped Flute 8′", "organ-principal": "Organ · Principal 8′", accordion: "Accordion · Musette", bayan: "Bayan · Dry",
+      sine: "Sine wave", triangle: "Triangle wave",
       square: "Square wave", sawtooth: "Sawtooth wave", fmep: "Electric piano" },
     mn: { flute: "Лимбэ", clarinet: "Кларнет", violin: "Хийл", morin: "Морин хуур", guitar: "Гитар",
-      piano: "Төгөлдөр хуур", mandolin: "Мандолин", chimes: "Хонх", marimba: "Маримба", xylophone: "Ксилофон", sine: "Синус", triangle: "Гурвалжин",
+      piano: "Төгөлдөр хуур", mandolin: "Мандолин", harp: "Ятга (арфа)", chimes: "Хонх", marimba: "Маримба", xylophone: "Ксилофон",
+      "organ-stopped": "Орган · Битүү лимбэ 8′", "organ-principal": "Орган · Принципал 8′", accordion: "Аккордеон · Мюзет", bayan: "Баян хуур · Цэвэр хөг",
+      sine: "Синус", triangle: "Гурвалжин",
       square: "Дөрвөлжин", sawtooth: "Хөрөө", fmep: "Цахилгаан хуур" }
   });
   const TEXT = Object.freeze({

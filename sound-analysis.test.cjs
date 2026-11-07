@@ -564,6 +564,35 @@ test("playback uses a peak-safe copy of every channel without changing original 
   assert.equal(c.start, .2); assert.equal(c.end, .6); assert.equal(c.cursor, .5);
 });
 
+test("cricket-length Analysis playback limits heavy redraws and Pause wins immediately during a spectrogram", async () => {
+  const f = fixture({ width: 320 }), c = f.controller;
+  await f.load(pcm([sine(5, 16000, .18, 3100)], 16000), "cricket.wav");
+  c.setView("spectrogram"); await f.settle();
+  let wavePaints = 0, spectroPaints = 0;
+  const drawWave = c.drawWave.bind(c), drawSpectrogram = c.drawSpectrogram.bind(c);
+  c.drawWave = () => { wavePaints++; drawWave(); };
+  c.drawSpectrogram = () => { spectroPaints++; drawSpectrogram(); };
+  const firstPlayback = c.play(false); await f.settle();
+  assert.equal(await firstPlayback, true);
+  const startedAt = f.nodes.at(-1).started[0][0];
+  for (let i = 1; i <= 60; i++) {
+    f.context.currentTime = startedAt + i / 60;
+    f.tickFrame();
+  }
+  assert.ok(wavePaints <= 14 && spectroPaints <= 14,
+    "60 frames of 5-second playback should paint only about 12 expensive spectrogram frames");
+  f.get("analysisPlay").click();
+  assert.equal(c.paused, true); assert.equal(c.isPlaying(), false);
+  assert.ok(c.position >= .95 && c.position <= 1.05);
+  assert.equal(f.frames.size, 0, "Pause must cancel its animation immediately");
+  assert.equal(f.nodes.at(-1).disconnected, true, "Pause disconnects sound synchronously");
+  assert.equal(f.get("analysisPlay").attrs["aria-pressed"], "false");
+  assert.match(f.get("analysisPlaybackStatus").textContent, /Түр зогссон/);
+  const resumedPlayback = c.play(false); await f.settle();
+  assert.equal(await resumedPlayback, true, "Resume remains playable");
+  c.stop();
+});
+
 test("global Stop's controller hook cancels pending audio startup and leaves source and FFT data inspectable", async () => {
   const f = fixture(), c = f.controller; await f.activate();
   let resolveContext;

@@ -173,6 +173,36 @@ test("pause and resume preserve playback position, while Stop returns to bar one
   assert.ok(context.sources.every(source => Number.isFinite(source.stoppedAt)));
 });
 
+test("I3 held score voices stop and resume within note age without re-triggering chiff or musette attacks", async () => {
+  const longNote = abc.parse("M:4/4\nL:1/4\nQ:1/4=60\nK:C\nC4 |]");
+  for (const instrument of ["organ-stopped", "organ-principal", "accordion", "bayan"]) {
+    const { player, context } = audioFixture();
+    player.configure({ score: longNote, instrument });
+    assert.equal(context.sources.length, 0);
+    await player.play();
+    assert.equal(player.voices.size, 1);
+    assert.equal(context.sources.length,
+      instrument === "accordion" ? 2 : instrument.startsWith("organ-") ? 2 : 1);
+    context.currentTime = 1.5;
+    player.pause();
+    assert.equal(player.status, "paused");
+    assert.equal(player.voices.size, 0);
+    assert.ok(context.sources.every(source => Number.isFinite(source.stoppedAt)),
+      instrument + " had no lingering oscillator after Pause");
+    const initialCount = context.sources.length;
+    context.currentTime = 2.6;
+    await player.play();
+    assert.equal(player.voices.size, 1);
+    const resumed = context.sources.slice(initialCount);
+    assert.equal(resumed.length,
+      instrument === "accordion" ? 2 : 1,
+      "a resumed organ pipe omits the original short chiff");
+    assert.ok(resumed.some(source => source.wave?.imag?.some(value => value > 0)));
+    player.stop();
+    assert.ok(context.sources.every(source => Number.isFinite(source.stoppedAt)));
+  }
+});
+
 test("Pause silences a scheduled voice even when Safari-style stop/gain calls throw", async () => {
   const { player, context } = audioFixture();
   player.configure({ score: melody, instrument: "piano" });
