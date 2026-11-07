@@ -11,7 +11,7 @@ test("all transient kinds are bounded decaying mathematical signals", () => {
     const pitch = kind === "xylophone" ? 523.251131 : 220;
     assert.equal(sound.sampleAt(kind, 0, pitch, decay), 0);
     assert.ok(sound.envelope(kind, 0.01, decay) > sound.envelope(kind, 1, decay));
-    assert.equal(sound.plottedEnvelope(kind, sound.duration(decay), decay), 0);
+    assert.equal(sound.plottedEnvelope(kind, sound.duration(decay, kind), decay), 0);
     const samples = sound.makeSamples(kind, pitch, decay, 16000);
     assert.ok(samples.length > 10000);
     assert.ok(samples.every(sample => Number.isFinite(sample) && Math.abs(sample) <= 1));
