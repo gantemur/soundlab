@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s074">
+  <link rel="stylesheet" href="sound-lab.css?v=s076">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -50,7 +50,8 @@
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
   <script src="sound-analysis.js?v=s075" defer></script>
-  <script src="sound-lab.js?v=s074" defer></script>
+  <script src="sound-microphone.js?v=s076" defer></script>
+  <script src="sound-lab.js?v=s076" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -1717,6 +1718,17 @@
         <label class="analysis-field"><span data-analysis-i18n="exampleLabel">Жишээ</span><select id="analysisExample"></select></label>
         <button id="analysisOpen" type="button" class="analysis-secondary" data-analysis-i18n="open">WAV нээх…</button>
         <input id="analysisFile" type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
+        <section id="analysisMicrophone" class="analysis-microphone" aria-labelledby="analysisMicTitle">
+          <div class="analysis-mic-heading">
+            <strong id="analysisMicTitle" data-mic-i18n="title">Микрофон</strong>
+            <span id="analysisMicIndicator" class="analysis-mic-indicator" data-state="off">● Унтраалттай</span>
+          </div>
+          <p class="field-help" data-mic-i18n="intro">Зөвшөөрөл өгөөд орчны авианы долгион, спектрийг шууд ажиглаарай.</p>
+          <button id="analysisMicStart" class="analysis-primary" type="button" data-mic-i18n="start">Микрофон асаах</button>
+          <button id="analysisMicStop" class="analysis-secondary analysis-mic-stop" type="button" data-mic-i18n="stop" hidden>Микрофон унтраах</button>
+          <p id="analysisMicStatus" class="analysis-status" role="status" aria-live="polite"></p>
+          <p class="field-help analysis-mic-privacy" data-mic-i18n="privacy">Зөвхөн таны төхөөрөмж дээр. Чанга яригчаар гаргахгүй, бичихгүй, илгээхгүй.</p>
+        </section>
         <div class="analysis-source">
           <strong id="analysisSourceName"></strong>
           <span id="analysisSourceInfo"></span>
@@ -1760,7 +1772,7 @@
           <p class="field-help" data-analysis-i18n="unsupportedFormats">Шахсан WAV, RF64, RIFX, WAVE_FORMAT_EXTENSIBLE одоогоор дэмжихгүй. Микрофон ашиглахгүй.</p>
         </details>
       </section>
-      <div class="visuals">
+      <div class="visuals" id="analysisOfflineVisuals">
         <section class="panel chart-panel analysis-wave-panel" aria-labelledby="analysisWaveTitle">
           <div class="chart-heading">
             <div><h2 id="analysisWaveTitle" data-analysis-i18n="waveform">Долгионы хэлбэр</h2><p data-analysis-i18n="waveHelp">Дарж курсор байрлуулна. Дээд талын A/B бариулаар хэсэг сонгоно.</p></div>
@@ -1815,6 +1827,32 @@
           </dl>
           <p id="analysisLevelWarning" class="analysis-warning" hidden></p>
           <p class="field-help" data-analysis-i18n="levelNote">Хэмжилт нь сонгосон суваг, хэсгийн эх сорьцод хамаарна. Сонсох чангыг өөрчлөхөд хэмжилт өөрчлөгдөхгүй.</p>
+        </section>
+      </div>
+      <div class="visuals analysis-mic-visuals" id="analysisMicVisuals" hidden>
+        <section class="panel chart-panel" aria-labelledby="analysisMicWaveTitle">
+          <div class="chart-heading">
+            <div><h2 id="analysisMicWaveTitle" data-mic-i18n="waveTitle">Шууд долгион</h2>
+              <p data-mic-i18n="waveHelp">Сүүлийн сорьцууд · босоо хуваарь −1…+1</p></div>
+          </div>
+          <canvas id="analysisMicWaveCanvas" width="920" height="255" role="img" aria-describedby="analysisMicWaveInfo"></canvas>
+          <p id="analysisMicWaveInfo" class="chart-foot" aria-live="off"></p>
+        </section>
+        <section class="panel chart-panel" aria-labelledby="analysisMicSpectrumTitle">
+          <div class="chart-heading">
+            <div><h2 id="analysisMicSpectrumTitle" data-mic-i18n="spectrumTitle">Шууд спектр</h2>
+              <p data-mic-i18n="spectrumHelp">Дижитал түвшин, dBFS · дууны даралтын dB SPL биш</p></div>
+          </div>
+          <div class="analysis-mic-settings">
+            <label class="analysis-field"><span data-mic-i18n="axis">Давтамжийн тэнхлэг</span>
+              <select id="analysisMicAxis"><option value="linear" data-mic-i18n="linear">Шугаман</option><option value="log" data-mic-i18n="log">Логарифмын</option></select>
+            </label>
+            <label class="analysis-field"><span data-mic-i18n="upper">Дээд давтамж</span>
+              <select id="analysisMicMaxHz"><option value="2000">2,000 Гц</option><option value="5000" selected>5,000 Гц</option><option value="10000">10,000 Гц</option><option value="all" data-mic-i18n="all">Бүх давтамж</option></select>
+            </label>
+          </div>
+          <canvas id="analysisMicSpectrumCanvas" width="920" height="255" role="img" aria-describedby="analysisMicSpectrumInfo"></canvas>
+          <p id="analysisMicSpectrumInfo" class="chart-foot" aria-live="off"></p>
         </section>
       </div>
     </div>

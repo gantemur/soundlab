@@ -14,7 +14,7 @@
   "use strict";
   const words = {
     en: {
-      title: "Analyze a sound", intro: "Choose an example or open a WAV to inspect its waveform and frequency content.",
+      title: "Analyze a sound", intro: "Choose an example, open a WAV, or inspect live microphone sound.",
       classLabel: "Class", exampleLabel: "Example", open: "Open WAV…", local: "Local file",
       generated: "Generated signal", modeled: "Modeled instrument", recorded: "Real recording", imported: "Your local file",
       recordingCredit: "Recording by", spectroMaxHz: "Spectrogram upper frequency", spectroFullRange: "Full range (Nyquist)",
@@ -34,7 +34,7 @@
       settingsHint: "Hann window. Waveform zoom does not change the FFT length. Source samples and source sample rate are preserved.",
       fileDetails: "File details and limits",
       limits: "RIFF-WAV: 8/16/24/32-bit PCM or 32-bit float; mono/stereo. Up to 120 seconds, 32 MiB input and 64 MiB decoded samples. Nothing is uploaded.",
-      unsupportedFormats: "Compressed WAV, RF64, RIFX and WAVE_FORMAT_EXTENSIBLE are not supported yet. No microphone is used.",
+      unsupportedFormats: "Compressed WAV, RF64, RIFX and WAVE_FORMAT_EXTENSIBLE are not supported yet. Opening a WAV does not use the microphone.",
       waveform: "Waveform", waveHelp: "Click to inspect. Drag the A/B handles at the top to select an interval.",
       zoomIn: "+ Zoom", zoomOut: "− Zoom", fit: "Fit", panLeft: "Pan left", panRight: "Pan right",
       cursor: "Inspection cursor · s", cursorSlider: "Move the inspection cursor through the whole sound",
@@ -69,12 +69,12 @@
       legend: "Orange: inspection / FFT · A/B: selection · blue dashed: playback",
       waveAria: "PCM waveform with inspection cursor and selection handles; arrow keys move the cursor",
       spectrumAria: "Hann-window amplitude spectrum of the selected source channel",
-      noUpload: "This WAV stays on your device. No upload or microphone access.",
+      noUpload: "This WAV stays on your device. Opening it does not access the microphone.",
       frequencyValue: "{hz} Hz · {db} dB · amplitude {value}", logDC: "Log axis omits DC; DC amplitude {value}.",
       cursorPosition: "Cursor {time} s", selected: "Selection"
     },
     mn: {
-      title: "Дуу шинжлэх", intro: "Жишээ сонгох эсвэл WAV файл нээж, долгион ба давтамжийн бүрэлдэхүүнийг шинжлээрэй.",
+      title: "Дуу шинжлэх", intro: "Жишээ сонгох, WAV нээх эсвэл микрофоны авиаг шууд шинжлээрэй.",
       classLabel: "Бүлэг", exampleLabel: "Жишээ", open: "WAV нээх…", local: "Төхөөрөмжийн файл",
       generated: "Тооцоолж үүсгэсэн авиа", modeled: "Хөгжмийн загвар", recorded: "Бодит бичлэг", imported: "Таны төхөөрөмжийн файл",
       recordingCredit: "Бичлэгийн эх", spectroMaxHz: "Спектрограммын дээд давтамж", spectroFullRange: "Бүх давтамж (Найквист)",
@@ -94,7 +94,7 @@
       settingsHint: "Hann цонх. FFT-ийн урт долгионыг томруулахад өөрчлөгдөхгүй. Сорьцын утга болон эх давтамжийг хэвээр хадгална.",
       fileDetails: "Файлын тухай ба хязгаар",
       limits: "RIFF-WAV: 8/16/24/32-бит PCM эсвэл 32-бит float; 1–2 суваг. 120 секунд, 32 МиБ файл, 64 МиБ задарсан сорьц хүртэл. Серверт илгээхгүй.",
-      unsupportedFormats: "Шахсан WAV, RF64, RIFX, WAVE_FORMAT_EXTENSIBLE одоогоор дэмжихгүй. Микрофон ашиглахгүй.",
+      unsupportedFormats: "Шахсан WAV, RF64, RIFX, WAVE_FORMAT_EXTENSIBLE одоогоор дэмжихгүй. WAV нээхэд микрофон ашиглахгүй.",
       waveform: "Долгионы хэлбэр", waveHelp: "Дарж курсор байрлуулна. Дээд талын A/B бариулаар хэсэг сонгоно.",
       zoomIn: "+ Томруулах", zoomOut: "− Багасгах", fit: "Бүтнээр", panLeft: "Зүүн тийш", panRight: "Баруун тийш",
       cursor: "Шинжлэх курсор · сек", cursorSlider: "Бүтэн дууны дагуу шинжлэх курсор хөдөлгөх",
@@ -130,7 +130,7 @@
       legend: "Улбар шар: курсор / FFT · A/B: сонгосон хэсэг · цэнхэр тасархай: тоглуулах байрлал",
       waveAria: "Эх сорьцын долгион, шинжлэх курсор, хэсгийн бариул; суман товчоор курсор хөдөлгөнө",
       spectrumAria: "Сонгосон сувгийн Hann цонхтой амплитудын спектр",
-      noUpload: "WAV таны төхөөрөмжид үлдэнэ. Серверт илгээхгүй, микрофон ашиглахгүй.",
+      noUpload: "WAV таны төхөөрөмжид үлдэнэ. Нээхэд микрофонд хандахгүй.",
       frequencyValue: "{hz} Гц · {db} dB · амплитуд {value}", logDC: "Лог тэнхлэгт тогтмол хэсэг орохгүй; түүний амплитуд {value}.",
       cursorPosition: "Курсор {time} сек", selected: "Сонгосон хэсэг"
     }

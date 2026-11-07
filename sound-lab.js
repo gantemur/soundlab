@@ -24,6 +24,7 @@
   const exportModel = window.SoundLabExport;
   const exportUI = window.SoundLabExportUI;
   const analysisModel = window.SoundLabAnalysis;
+  const microphoneModel = window.SoundLabMicrophone;
   const $ = id => document.getElementById(id);
   const heldFamily = kind => ["flute", "clarinet"].includes(kind) ? "air" :
     ["violin", "morin"].includes(kind) ? "bow" :
@@ -2593,6 +2594,9 @@
   const analysis = analysisModel ? new analysisModel.Controller({ document, window,
     contextOwner: audio, transientModel, sustainModel, temperamentModel: tempModel,
     OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext }) : null;
+  const microphone = microphoneModel ? new microphoneModel.Controller({ document, window,
+    onBegin: () => analysis?.stopPlayback?.(true),
+    onStop: () => analysis?.draw?.() }) : null;
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
@@ -4494,6 +4498,7 @@
     $("projectToolbar").hidden = !isCompose;
     $("analysisWorkspace").hidden = !isAnalysis;
     if (analysis) analysis.setActive(isAnalysis);
+    if (microphone) microphone.setActive(isAnalysis);
     $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";
     $("composeEnsembleWorkspace").hidden = !isCompose || state.composeSubtab !== "ensemble";
     document.querySelectorAll("[data-compose-subtab]").forEach(button => {
@@ -4564,6 +4569,7 @@
     if (projectFiles) projectFiles.renderLanguage(state.language);
     if (wavExport) wavExport.renderLanguage(state.language);
     if (analysis) analysis.renderLanguage(state.language);
+    if (microphone) microphone.renderLanguage(state.language);
     document.documentElement.lang = state.language;
     document.querySelectorAll("[data-i18n]").forEach(element => {
       const key = element.getAttribute("data-i18n");
@@ -5014,6 +5020,7 @@
   }
 
   function stopAllAudio(immediate = false, message = "stopped") {
+    if (microphone) microphone.stop();
     if (analysis) analysis.stop();
     if (compose && compose.hasSession()) compose.stop();
     if (ensemble && ensemble.hasSession()) ensemble.stop();

@@ -103,7 +103,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s074"/);
+  assert.match(html, /src="sound-lab\.js\?v=s076"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -114,6 +114,9 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
       (module === "analysis" ? "s075" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
+  assert.match(html, /src="sound-microphone\.js\?v=s076"/);
+  assert.ok(html.indexOf('src="sound-analysis.js') < html.indexOf('src="sound-microphone.js'));
+  assert.ok(html.indexOf('src="sound-microphone.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fft.js') < html.indexOf('src="sound-spectrum.js'));
   assert.ok(html.indexOf('src="sound-export.js') < html.indexOf('src="sound-analysis-examples.js'));
   assert.ok(html.indexOf('src="sound-wav.js') < html.indexOf('src="sound-recorder.js'));
@@ -124,7 +127,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s074"/);
+  assert.match(html, /href="sound-lab\.css\?v=s076"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -348,7 +351,8 @@ test("firetruck Play/Stop icon forwards taps to its enclosing button", () => {
   assert.match(css, /\.siren-button\s*>\s*span\s*\{\s*pointer-events:\s*none;/);
 });
 
-function fakePage(search = "", supportWorklets = true, analysisController = null, deferStops = false) {
+function fakePage(search = "", supportWorklets = true, analysisController = null, deferStops = false,
+  microphoneController = null) {
   const contexts = [];
   const offlineContexts = [];
   const exportRequests = [];
@@ -768,6 +772,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   }
   const offlineExport = window.SoundLabExport;
   if (analysisController) window.SoundLabAnalysis = { Controller: analysisController };
+  if (microphoneController) window.SoundLabMicrophone = { Controller: microphoneController };
   window.SoundLabExport = { ...offlineExport, render(snapshot, dependencies) {
     exportRequests.push(JSON.parse(JSON.stringify(snapshot)));
     return offlineExport.render(snapshot, dependencies);
@@ -844,6 +849,42 @@ test("Analysis integrates with navigation, language, resize and the shared Stop 
   assert.equal(app.elements.get("analysisWorkspace").hidden, true);
   assert.equal(app.contexts.length, 0, "Mode changes and language never open live audio");
   assert.equal(typeof calls.owner.readyContext, "function");
+});
+
+test("M1 mic controller is kept lazy and participates in navigation, language and global Stop", () => {
+  const micCalls = { active: [], languages: [], stops: 0 };
+  const wavCalls = { stops: 0, playsStopped: 0, draws: 0 };
+  let microphone;
+  class AnalysisFixture {
+    setActive() {} renderLanguage() {} isPlaying() { return false; }
+    stop() { wavCalls.stops++; }
+    stopPlayback() { wavCalls.playsStopped++; }
+    draw() { wavCalls.draws++; }
+  }
+  class MicrophoneFixture {
+    constructor(options) { this.options = options; microphone = this; }
+    setActive(active) { micCalls.active.push(active); }
+    renderLanguage(lang) { micCalls.languages.push(lang); }
+    stop() { micCalls.stops++; }
+  }
+  const app = fakePage("?lang=mn", true, AnalysisFixture, false, MicrophoneFixture);
+  assert.equal(app.contexts.length, 0);
+  assert.equal(micCalls.active.at(-1), false);
+  app.fire("modeAnalysis", "click");
+  assert.equal(micCalls.active.at(-1), true);
+  app.fire("langEn", "click");
+  assert.equal(micCalls.languages.at(-1), "en");
+  microphone.options.onBegin();
+  assert.equal(wavCalls.playsStopped, 1, "Mic takeover stops WAV playback, not its saved PCM");
+  const beforeReturn = wavCalls.draws;
+  microphone.options.onStop();
+  assert.equal(wavCalls.draws, beforeReturn + 1, "Mic return restores the WAV display");
+  const prior = micCalls.stops;
+  app.fire("stopAll", "click");
+  assert.ok(micCalls.stops > prior, "Master Stop must release microphone input");
+  app.fire("modeCompose", "click");
+  assert.equal(micCalls.active.at(-1), false, "Leaving Analysis stops microphone capture");
+  assert.equal(app.contexts.length, 0);
 });
 
 test("A2a REC Analyze reuses the prepared audio Blob and enters Analysis without another download", async () => {

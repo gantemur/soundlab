@@ -655,6 +655,24 @@ h1, h2, p { margin-top: 0; }
 .analysis-experiment-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .analysis-status { color: #52718b; font-size: 12px; margin: 0; min-height: 18px; overflow-wrap: anywhere; }
 .analysis-status.error { color: #a43830; }
+.analysis-microphone { display: grid; gap: 9px; padding: 12px; border: 1px solid #c7dfed;
+  border-radius: 11px; background: #f5fbff; }
+.analysis-mic-heading { display: flex; align-items: center; justify-content: space-between; gap: 9px; flex-wrap: wrap; }
+.analysis-mic-heading strong { color: #2f5978; font-size: 13px; }
+.analysis-mic-indicator { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px;
+  border: 1px solid #cfdae4; border-radius: 99px; background: #fff; color: #55728b;
+  font-size: 11px; font-weight: 800; }
+.analysis-mic-indicator[data-state="requesting"] { border-color: #e7cc89; background: #fff9e8; color: #865c1b; }
+.analysis-mic-indicator[data-state="live"] { border-color: #66b596; background: #e0f7eb; color: #136b45; }
+.analysis-mic-stop { border-color: #d7a2a0; background: #fff1f0; color: #a03831; }
+.analysis-mic-stop:hover { background: #ffe7e4; }
+.analysis-microphone .analysis-status { min-height: 0; }
+.analysis-mic-privacy { color: #5a7489; font-size: 11px; line-height: 1.4; }
+#analysisWorkspace.analysis-mic-live .analysis-controls > :not(.section-top):not(.analysis-microphone) { display: none !important; }
+.analysis-mic-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px;
+  margin-top: 9px; }
+.analysis-mic-visuals .chart-foot { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.analysis-mic-visuals canvas { cursor: default; }
 .analysis-settings { border-top: 1px solid #dce7f2; padding-top: 10px; }
 .analysis-settings summary { color: #365f80; font-size: 12px; font-weight: 800; cursor: pointer; min-height: 36px; }
 .analysis-settings .analysis-field, .analysis-settings .field-help { margin: 10px 0; }
@@ -682,6 +700,7 @@ h1, h2, p { margin-top: 0; }
 .analysis-measurements dd { margin: 5px 0 0; color: #295674; font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .analysis-warning { padding: 9px 12px; border-left: 3px solid #d38a26; background: #fff6e5; color: #82521d; font-size: 12px; margin: 12px 0 0; }
 @media (max-width: 630px) {
+  .analysis-mic-settings { grid-template-columns: 1fr; }
   .analysis-frequency-readout { grid-template-columns: minmax(0, 1fr) 100px; }
   .analysis-frequency-readout output { grid-column: 1 / -1; }
   .analysis-measurements { grid-template-columns: 1fr; gap: 8px; }

@@ -194,7 +194,7 @@ function fixture({ exampleModel = examples, dspModel = dsp, width = 920 } = {}) 
   return api;
 }
 
-test("Analysis is a lazy eighth tab with bilingual local-only controls, two views and collapsed settings", async () => {
+test("Analysis is a lazy eighth tab with local WAV controls and independent opt-in microphone panel", async () => {
   const f = fixture(), c = f.controller;
   assert.equal(c.pcm, null); assert.equal(c.active, false); assert.equal(f.owner.readyCalls, 0);
   assert.equal(f.timers.size, 0); assert.equal(f.frames.size, 0);
@@ -208,7 +208,8 @@ test("Analysis is a lazy eighth tab with bilingual local-only controls, two view
   const markup = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisWorkspace"') + 18000);
   assert.equal([...markup.matchAll(/<details class="analysis-settings">/g)].length, 2);
   assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|getUserMedia|decodeAudioData)\s*\(/);
-  assert.doesNotMatch(markup, /id="analysis(?:Microphone|Pitch|Compare)/);
+  assert.match(markup, /id="analysisMicrophone"/);
+  assert.doesNotMatch(markup, /id="analysis(?:Pitch|Compare)/);
   for (const element of f.translations) {
     const key = element.getAttribute("data-analysis-i18n");
     assert.ok(f.window.SoundLabAnalysis.messages.mn[key], "MN: " + key);
