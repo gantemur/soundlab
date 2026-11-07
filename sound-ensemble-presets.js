@@ -8,10 +8,12 @@
     require("./sound-compose.js") : root.SoundLabCompose;
   const drumPatterns = typeof module === "object" && module.exports ?
     require("./sound-drum-patterns.js") : root.SoundLabDrumPatterns;
-  const api = factory(compose, drumPatterns);
+  const drums = typeof module === "object" && module.exports ?
+    require("./sound-drum-abc.js") : root.SoundLabDrumABC;
+  const api = factory(compose, drumPatterns, drums);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -22,6 +24,12 @@
         en: "An original C–Am–F–G study: pick the opening notes, then alternate down/up chord strokes with single notes between them.",
         mn: "Шинээр зохиосон C–Am–F–G дасгал: эхний нотуудыг нэг нэгээр нь татаж, дараа нь аккордыг доош, дээш ээлжлүүлэн цохино. Дунд нь дан нот орно."
       }) },
+    { id: "drumKitSolo", category: "drumSolo", en: "Drum kit · Eight-bar solo",
+      mn: "Бөмбөрийн иж бүрдэл · 8 тактын гоцлол" },
+    { id: "snareStudy", category: "drumSolo", en: "Snare · Accent and stroke study",
+      mn: "Жижиг бөмбөр · Өргөлт, цохилтын дасгал" },
+    { id: "drumDialogue", category: "drumSolo", en: "Percussion · Call and response",
+      mn: "Цохивор · Асуулт, хариулт" },
     { id: "minuet", en: "Petzold · Minuet in G (32 bars)", mn: "Петцольд · Соль мажор менуэт (32 такт)" },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -420,7 +428,92 @@
     }));
   }
 
+  // D1: original, entirely percussion-based scores. Each pattern is one 4/4
+  // bar with four groups of four sixteenth-note cells. x = normal, o = soft,
+  // X = accent, . = rest. Repeated pattern letters become editable, linked
+  // patterns in the existing drum grid; no special playback format is added.
+  const DRUM_SOLOS = Object.freeze({
+    drumKitSolo: {
+      tempo: 108,
+      parts: [{ names: { en: "Drum kit", mn: "Бөмбөрийн иж бүрдэл" }, volume: 65,
+        sequence: "AABACCDE", patterns: {
+          A: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. x.x. x.x. x.x." },
+          B: { kick: "X... ..x. x... ..x.", snare: ".... X... ..o. X...", hat: "x.x. x.x. x.x. x...", openHat: ".... .... .... ..X." },
+          C: { kick: "X... .... x... .x..", snare: ".... X... .... X.x.", hat: "x.x. x.x. x.x. x.x.", woodblock: ".... .... ..o. ...." },
+          D: { kick: "X... .... x... ....", snare: ".... x... x.xX xXxX", hat: "x.x. x.x. .... ...." },
+          E: { kick: "X... .... x... X...", snare: ".... x... xxxx X...", hat: "x.x. x.x. .... ....", openHat: ".... .... .... X..." }
+        } }]
+    },
+    snareStudy: {
+      tempo: 96,
+      parts: [{ names: { en: "Snare accents", mn: "Жижиг бөмбөрийн өргөлт" }, volume: 60,
+        sequence: "AABBCDBE", patterns: {
+          A: { snare: "X.x. X.x. X.x. X.x." },
+          B: { snare: "Xooo Xooo Xooo Xooo" },
+          C: { snare: "Xoxo Xoxo Xoxo Xoxo" },
+          D: { snare: "Xoox oXoo xoXo oxoX" },
+          E: { snare: "X... x.x. xxxx X..." }
+        } }]
+    },
+    drumDialogue: {
+      tempo: 112,
+      parts: [
+        { names: { en: "Low drums · call", mn: "Нам цохилуур · асуулт" }, volume: 65,
+          sequence: "ABRRCCDE", patterns: {
+            R: {},
+            A: { kick: "X... .... .... x...", woodblock: ".... ..x. .... ...." },
+            B: { kick: "X... ..x. .... ....", woodblock: ".... ..x. x... ...." },
+            C: { kick: "X... .... X... ....", woodblock: "..x. ..x. ..x. ..x." },
+            D: { kick: "X... ...x X... .x..", woodblock: ".... .... ..x. ..X." },
+            E: { kick: "X... .... X... X...", woodblock: ".... ..x. .... X..." }
+          } },
+        { names: { en: "High drums · answer", mn: "Өндөр цохилуур · хариулт" }, volume: 56,
+          sequence: "RRABCCDE", patterns: {
+            R: {},
+            A: { snare: ".... X... ..x. X...", hat: "x.x. x.x. x.x. x.x." },
+            B: { snare: ".... X.xx .... X.xx", hat: "x.x. x.x. x.x. x.x." },
+            C: { snare: ".... X... .... X...", hat: "x.x. x.x. x.x. x.x." },
+            D: { snare: ".... X... ..xX xXxX", hat: "x.x. x.x. .... ...." },
+            E: { snare: ".... X... x.x. X...", hat: "x.x. x.x. .... ....", openHat: ".... .... .... X..." }
+          } }
+      ]
+    }
+  });
+
+  function createDrumSolo(id, language) {
+    const solo = DRUM_SOLOS[id], meter = { numerator: 4, denominator: 4, quarterBeats: 4 };
+    return solo.parts.map((part, index) => {
+      const bars = [...part.sequence].map((symbol, barIndex) => {
+        const pattern = part.patterns[symbol];
+        if (!pattern) throw new Error("Unknown drum pattern " + symbol);
+        const cells = Array.from({ length: 16 }, () => ({}));
+        for (const [voice, notation] of Object.entries(pattern)) {
+          const marks = notation.replace(/\s+/g, "");
+          if (marks.length !== 16) throw new Error("Drum pattern needs 16 subdivisions");
+          for (let step = 0; step < marks.length; step++) {
+            const mark = marks[step];
+            if (mark === ".") continue;
+            const velocity = { o: drums.VELOCITIES.p, x: drums.VELOCITIES.normal,
+              X: drums.VELOCITIES.accent }[mark];
+            if (velocity === undefined) throw new Error("Unknown drum strength mark");
+            cells[step][voice] = velocity;
+          }
+        }
+        return { number: barIndex + 1, cells };
+      });
+      const title = part.names[language === "en" ? "en" : "mn"];
+      const abc = drums.fromGrid({ title, meter, tempoQuarter: solo.tempo }, bars)
+        .replace(/^X:1$/m, "X:" + (index + 1));
+      const patterns = drumPatterns.fromABC(abc);
+      return { id: index + 1, name: title, instrument: "drums", volume: part.volume,
+        mute: false, solo: false, abc: drumPatterns.toABC(patterns), patterns,
+        patternBar: 1, patternId: drumPatterns.atBar(patterns, 1).pattern.id,
+        textMode: "pattern", patternDraft: null };
+    });
+  }
+
   function create(id, language = "mn") {
+    if (Object.hasOwn(DRUM_SOLOS, id)) return createDrumSolo(id, language);
     if (id === "guitarStrum") return createGuitarStrum(language);
     if (id === "bella") return createBella(language);
     if (Object.hasOwn(SONGS, id)) return createSong(id, language);

@@ -600,6 +600,23 @@ test("I3 four-track ensemble survives project round-trip and exports separate in
   cleaned(f.contexts[0]);
 });
 
+test("D1 drum-only kit, snare study and two-part dialogue render playable WAV files", async () => {
+  for (const id of ["drumKitSolo", "snareStudy", "drumDialogue"]) {
+    const snapshot = arrangement(presets.create(id, "mn"));
+    const restored = projects.decode(projects.encode({ format: projects.FORMAT,
+      version: projects.VERSION, title: id, ...snapshot }));
+    const f = fixture();
+    const result = await exporter.render(restored, f.deps);
+    assert.ok(result.bytes.length > 44, id + " has an audio payload");
+    assert.equal(f.contexts.length, 1, id + " renders into one synchronized mix");
+    assert.ok(f.contexts[0].graph.sources.length > 0, id + " schedules percussion sounds");
+    assert.ok(f.modelCalls.length > 0, "Percussion voices have prepared drum buffers");
+    assert.ok(f.modelCalls.every(call => call.kind === "kick" && call.settings.drumVoice),
+      "Drum-only scores request percussion recipes, not pitched instruments");
+    cleaned(f.contexts[0]);
+  }
+});
+
 test("more than 24 distinct buffered pitches with repeats never evict and regenerate scheduled buffers", async () => {
   const notes = [];
   for (let octave = 1; octave <= 5; octave++) for (const letter of "CDEFGAB") {

@@ -82,8 +82,8 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
   assert.match(html, /src="sound-score-player\.js\?v=s066"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s053"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s066"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s067"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s067"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
@@ -3976,6 +3976,35 @@ test("Compose ensemble loads complete arrangements with three synchronized edita
   app.fire("ensembleApplyPreset", "click");
   assert.equal(app.elements.get("ensembleTrackList").children.length, 2);
   assert.match(app.elements.get("ensembleText").value, /T:Melody/);
+});
+
+test("D1 drum-only compositions open a working reusable pattern grid with no melodic tracks or autoplay", async () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  for (const [choice, count] of [["drumKitSolo", 1], ["snareStudy", 1], ["drumDialogue", 2]]) {
+    app.elements.get("ensemblePreset").value = choice;
+    app.fire("ensembleApplyPreset", "click");
+    assert.equal(app.elements.get("ensembleTrackList").children.length, count, choice);
+    assert.equal(app.elements.get("ensembleTimeline").children.length, count, choice);
+    assert.equal(app.elements.get("ensemblePatternPanel").hidden, false, choice);
+    assert.equal(app.elements.get("ensembleDrumGrid").hidden, false, choice);
+    assert.equal(app.elements.get("ensembleGridCells").children.length, 5, choice);
+    assert.equal(app.elements.get("ensemblePlayPause").disabled, false, choice);
+    assert.match(app.elements.get("ensembleText").value, /%%MIDI channel 10/, choice);
+    assert.equal(app.contexts.length, 0, "Preset loading must not autoplay");
+  }
+  const first = app.elements.get("ensembleText").value;
+  const second = app.elements.get("ensembleTrackList").children[1];
+  second.children[0].children[0].click();
+  assert.notEqual(app.elements.get("ensembleText").value, first,
+    "Dialogue tracks expose independently editable percussion parts");
+  app.elements.get("ensembleGridCells").children[1].children[1].children[0].click();
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false, "Grid edits keep the arrangement valid");
+  await app.fire("ensemblePlayPause", "click");
+  assert.equal(app.contexts.length, 1);
+  assert.ok(app.contexts[0].sources.length > 0, "Drum-only playback schedules audible hits");
+  app.fire("ensembleStop", "click");
 });
 
 test("Compose drum part edits the same score through text and optional grid without autoplay", async () => {

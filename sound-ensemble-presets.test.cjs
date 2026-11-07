@@ -59,7 +59,51 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 11);
+  assert.equal(presets.CATALOG.length, 14);
+});
+
+test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {
+  const cases = [["drumKitSolo", 1], ["snareStudy", 1], ["drumDialogue", 2]];
+  for (const [id, count] of cases) {
+    for (const language of ["mn", "en"]) {
+      const tracks = presets.create(id, language);
+      assert.equal(tracks.length, count, id);
+      assert.ok(tracks.every(track => track.instrument === "drums"), id + " has no melody");
+      const { prepared, summary } = ensemble.parseTracks(tracks, "equal", temperament);
+      assert.equal(summary.totalBeats, 32, id);
+      assert.ok(summary.eventCount > 0 && summary.eventCount <= 1024, id);
+      for (const track of prepared) {
+        assert.equal(track.score.bars.length, 8, id);
+        assert.equal(track.score.totalBeats, 32);
+        assert.equal(track.score.tempoQuarter, id === "snareStudy" ? 96 : id === "drumKitSolo" ? 108 : 112);
+      }
+      for (const track of tracks) {
+        assert.equal(track.textMode, "pattern");
+        assert.equal(track.patternBar, 1);
+        assert.ok(track.patterns.patterns.length < 8, id + " reuses named patterns");
+        assert.equal(drumPatterns.toABC(track.patterns), track.abc);
+        assert.equal(drumPatterns.expanded(track.patterns).length, 8);
+      }
+      tracks[0].patterns.patterns[0].name = "Owner edit";
+      const fresh = presets.create(id, language);
+      assert.notEqual(fresh[0].patterns.patterns[0].name, "Owner edit", id + " creates independent patterns");
+    }
+  }
+});
+
+test("D1 kit and snare have dynamic variation; percussion dialogue really alternates and joins", () => {
+  const kit = drums.scheduledEvents(drums.parse(presets.create("drumKitSolo")[0].abc));
+  assert.ok(["kick", "snare", "hat", "openHat", "woodblock"].every(id => kit.some(hit => hit.drum === id)));
+  assert.ok([.55, .8, 1].every(velocity => kit.some(hit => hit.velocity === velocity)));
+  assert.ok(new Set(kit.map(hit => hit.bar)).size === 8);
+  const snare = drums.scheduledEvents(drums.parse(presets.create("snareStudy")[0].abc));
+  assert.ok(snare.length > 60);
+  assert.ok(snare.every(hit => hit.drum === "snare"));
+  const dialogue = presets.create("drumDialogue").map(track =>
+    drums.scheduledEvents(drums.parse(track.abc)));
+  assert.ok(dialogue[0].every(hit => hit.bar !== 3 && hit.bar !== 4));
+  assert.ok(dialogue[1].every(hit => hit.bar !== 1 && hit.bar !== 2));
+  assert.ok(dialogue.every(part => part.some(hit => hit.bar === 6) && part.some(hit => hit.bar === 8)));
 });
 
 test("Greensleeves, Daisy Bell and La Paloma align sourced melodies with strummed accompaniment", () => {
