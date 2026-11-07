@@ -66,7 +66,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-marimba\.js\?v=s059"/);
   assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
   assert.match(html, /src="sound-harp\.js\?v=s066"/);
-  assert.match(html, /src="sound-transient\.js\?v=s069"/);
+  assert.match(html, /src="sound-transient\.js\?v=s073"/);
   assert.match(html, /src="sound-clarinet\.js\?v=s061"/);
   assert.match(html, /src="sound-sustain\.js\?v=s061"/);
   assert.match(html, /src="sound-held-voice\.js\?v=s061"/);
@@ -92,18 +92,18 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s072"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s073"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s072"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s072"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s073"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s072"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s072"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s073"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s073"/);
   assert.match(html, /src="sound-project\.js\?v=s072"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s071"/);
+  assert.match(html, /src="sound-lab\.js\?v=s073"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -2854,7 +2854,7 @@ test("percussion pads keep the existing drum mappings and stronger default after
   assert.ok(context.sources.every(source => source.stopped), "Global Stop silences the last hit");
 });
 
-test("D2b Strike/Pluck Kit plays the exact eleven Compose recipes while Models preserves size experiments", async () => {
+test("D2e Strike/Pluck Kit plays the exact twelve Compose recipes while Models preserves size experiments", async () => {
   const app = fakePage();
   app.fire("modeStrike", "click");
   app.strikeButtons[1].click();
@@ -2880,7 +2880,9 @@ test("D2b Strike/Pluck Kit plays the exact eleven Compose recipes while Models p
   }
   assert.equal(new Set(waveformHeads).size, drumABC.DRUMS.length, "Every kit voice sounds different");
   app.fire("langEn", "click");
-  assert.equal(app.drumKitButtons[7].textContent, "High tom");
+  assert.equal(app.drumKitButtons.find(button => button.dataset.strikeKitDrum === "highTom").textContent, "High tom");
+  assert.equal(app.drumKitButtons.find(button => button.dataset.strikeKitDrum === "halfHat").textContent,
+    "Half-open hi-hat");
   app.drumViewButtons[1].click();
   assert.equal(app.elements.get("strikeDrumKitGroup").hidden, true);
   assert.equal(app.elements.get("strikeDrumModelsGroup").hidden, false);
@@ -2906,8 +2908,35 @@ test("D2c striking a closed kit hi-hat damps the earlier open hat, without choki
   assert.equal(open.stopped, true, "Pedal-closed pad damps the previously open cymbal");
   const closed = app.contexts[0].sources.at(-1);
   assert.equal(closed.stopped, false, "The new closed-hat strike is still audible");
+  await hit("halfHat");
+  const half = app.contexts[0].sources.at(-1);
+  await hit("ride");
+  assert.equal(half.stopped, false, "Ride does not damp a half-open hi-hat");
+  await hit("hat");
+  assert.equal(half.stopped, true, "Closed pad damps the half-open hi-hat too");
   app.fire("stopAll", "click");
   assert.equal(closed.stopped, true);
+});
+
+test("D2e Strike/Pluck strength changes drum waveform shape as well as live gain", async () => {
+  const app = fakePage();
+  app.fire("modeStrike", "click");
+  app.strikeButtons[1].click();
+  const snarePad = app.drumKitButtons.find(button => button.dataset.strikeKitDrum === "snare");
+  const strikeAt = async strength => {
+    app.elements.get("strikeStrength").value = String(strength);
+    app.fire("strikeStrength", "input");
+    await snarePad.click();
+    const context = app.contexts[0];
+    return { samples: context.sources.at(-1).buffer.getChannelData(0), gain: context.gains.at(-1).gain.value };
+  };
+  const quiet = await strikeAt(20), strong = await strikeAt(100);
+  assert.equal(quiet.gain, .21 * .2);
+  assert.equal(strong.gain, .21);
+  assert.notEqual(quiet.samples[170], strong.samples[170], "Buffer content changes with force");
+  assert.ok(strong.samples.slice(0, 320).reduce((sum, x) => sum + x * x, 0) >
+    quiet.samples.slice(0, 320).reduce((sum, x) => sum + x * x, 0),
+  "The louder strike has a stronger short, bright attack even before the gain stage");
 });
 
 test("D2b drum grid edits ghost, flam and roll without altering the untouched repeat pattern", () => {
@@ -4225,7 +4254,7 @@ test("D2a new tom/cymbal arrangement offers all editable drum lanes and linked r
   app.elements.get("ensemblePreset").value = "tomCymbalStudy";
   app.fire("ensembleApplyPreset", "click");
   assert.equal(app.elements.get("ensembleTrackList").children.length, 1);
-  assert.equal(app.elements.get("ensembleGridCells").children.length, 11);
+  assert.equal(app.elements.get("ensembleGridCells").children.length, drumABC.DRUMS.length);
   assert.equal(app.elements.get("ensembleDrumGrid").hidden, false);
   assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
   assert.match(app.elements.get("ensembleText").value, /%%MIDI drummap A 41/);

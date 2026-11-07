@@ -15,7 +15,7 @@
   <script src="sound-fm.js?v=s044" defer></script>
   <script src="sound-marimba.js?v=s059" defer></script>
   <script src="sound-xylophone.js?v=s060" defer></script>
-  <script src="sound-transient.js?v=s069" defer></script>
+  <script src="sound-transient.js?v=s073" defer></script>
   <script src="sound-clarinet.js?v=s061" defer></script>
   <script src="sound-sustain.js?v=s061" defer></script>
   <script src="sound-held-voice.js?v=s061" defer></script>
@@ -35,12 +35,12 @@
   <script src="sound-recorder.js?v=s057" defer></script>
   <script src="sound-score.js?v=s051" defer></script>
   <script src="sound-abc.js?v=s051" defer></script>
-  <script src="sound-drum-abc.js?v=s072" defer></script>
+  <script src="sound-drum-abc.js?v=s073" defer></script>
   <script src="sound-drum-patterns.js?v=s072" defer></script>
-  <script src="sound-score-player.js?v=s072" defer></script>
+  <script src="sound-score-player.js?v=s073" defer></script>
   <script src="sound-compose.js?v=s066" defer></script>
-  <script src="sound-ensemble-presets.js?v=s072" defer></script>
-  <script src="sound-ensemble.js?v=s072" defer></script>
+  <script src="sound-ensemble-presets.js?v=s073" defer></script>
+  <script src="sound-ensemble.js?v=s073" defer></script>
   <script src="sound-project.js?v=s072" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s059" defer></script>
@@ -50,7 +50,7 @@
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
   <script src="sound-analysis.js?v=s066" defer></script>
-  <script src="sound-lab.js?v=s071" defer></script>
+  <script src="sound-lab.js?v=s073" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -339,7 +339,7 @@
             <button type="button" data-strike-drum-view="models" aria-pressed="false" data-i18n="strikeDrumModels">Загварууд</button>
           </div>
           <div id="strikeDrumKitGroup">
-            <p class="field-help" data-i18n="strikeDrumKitHint">Бөмбөр бүрийг шууд дарж сонсоорой. Цохилтын хүч, намдах хугацааг доор тохируулна.</p>
+            <p class="field-help" data-i18n="strikeDrumKitHint">Бөмбөр бүрийг товшиж сонсоорой. Цохилтын хүч нь дууны өнгийг бас өөрчилнө; хаалттай цан нээлттэй хоёр төрлийг дарна.</p>
             <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitDrums">Бөмбөр</span>
               <div class="strike-kit-pads strike-pads" role="group" aria-label="Бөмбөрийн товчлуур" data-i18n-aria="strikeKitDrums">
                 <button type="button" data-strike-kit-drum="kick" class="selected" aria-pressed="true" data-i18n="strikeKitKick">Их бөмбөр</button>
@@ -353,6 +353,7 @@
             <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitCymbals">Цан</span>
               <div class="strike-kit-pads strike-pads" role="group" aria-label="Цангийн товчлуур" data-i18n-aria="strikeKitCymbals">
                 <button type="button" data-strike-kit-drum="hat" aria-pressed="false" data-i18n="strikeKitHat">Хаалттай цан</button>
+                <button type="button" data-strike-kit-drum="halfHat" aria-pressed="false" data-i18n="strikeKitHalfHat">Хагас нээлттэй цан</button>
                 <button type="button" data-strike-kit-drum="openHat" aria-pressed="false" data-i18n="strikeKitOpenHat">Нээлттэй цан</button>
                 <button type="button" data-strike-kit-drum="ride" aria-pressed="false" data-i18n="strikeKitRide">Райд</button>
                 <button type="button" data-strike-kit-drum="crash" aria-pressed="false" data-i18n="strikeKitCrash">Крэш</button>
@@ -1531,6 +1532,7 @@
                 <option value="snareStudy">Жижиг бөмбөр · Өргөлт, цохилтын дасгал</option>
                 <option value="snareRudiments">Жижиг бөмбөр · Флам, ролл, сул цохилт</option>
                 <option value="swingHats">Цан · Свинг, дуу дарах дасгал (8 такт)</option>
+                <option value="hatPedal">Цан · Хагас нээж, хаах дасгал (8 такт)</option>
                 <option value="stickingRudiments">Жижиг бөмбөр · Парадидл, гарын ээлж (8 такт)</option>
                 <option value="drumDialogue">Цохивор · Асуулт, хариулт</option>
                 <option value="tomCymbalStudy">Том бөмбөр ба цан · 8 тактын шилжилт</option>

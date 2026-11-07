@@ -620,6 +620,32 @@ test("D2c closed hi-hat chokes the actual open sample, including seek and same-b
   assert.equal(other.context.sources.length, 1, "Pedal-closed hi-hat suppresses simultaneous open strike");
 });
 
+test("D2e half-open hi-hat chokes on the live clock and velocity bands cache distinct timbres", async t => {
+  const part = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n" +
+    "g E F E !ghost!D !accent!D z2 |]");
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score: part, volume: 65 }] });
+  const half = player.playEvents.find(event => event.drum === "halfHat");
+  const open = player.playEvents.find(event => event.drum === "openHat");
+  assert.equal(half.chokeBeat, .5);
+  assert.equal(open.chokeBeat, 1.5);
+  const snare = player.playEvents.filter(event => event.drum === "snare");
+  const ghost = player.bufferSpec(snare[0], context.sampleRate);
+  const accent = player.bufferSpec(snare[1], context.sampleRate);
+  assert.notEqual(ghost.key, accent.key, "Velocity changes cached sample shape");
+  assert.equal(ghost.options.velocity, .4);
+  assert.equal(accent.options.velocity, 1);
+  assert.equal(ghost.frames, accent.frames);
+  await player.play();
+  const first = context.sources[0];
+  assert.equal(first.type, "buffer");
+  assert.ok(Math.abs(first.stoppedAt - (.08 + .25 + playerModel.HAT_CHOKE_SECONDS)) < 1e-9);
+  context.currentTime = .27;
+  player.tick();
+  assert.ok(context.sources.some(source => source !== first && source.startedAt > first.startedAt));
+});
+
 test("D2c ensemble schedules swung offbeats without moving downbeats or touching a pitched track", async t => {
   const part = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nC E D E z4 |]");
   const pitched = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 |]");

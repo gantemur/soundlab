@@ -142,8 +142,8 @@ test("six percussion families share bounded playback/plot samples and distinct f
     "Steel pan produces a pitched Fourier component");
 });
 
-test("D2a tom, ride, crash and rimshot score voices are bounded and sonically distinct", () => {
-  assert.deepEqual(sound.COMPOSE_DRUM_VOICES, ["tom", "ride", "crash", "rimshot"]);
+test("D2a tom, ride, crash and rimshot score voices remain bounded and sonically distinct", () => {
+  assert.deepEqual(sound.COMPOSE_DRUM_VOICES, ["tom", "ride", "crash", "rimshot", "halfhat"]);
   assert.ok(sound.drumReferenceHz("large", 1, "tom") < sound.drumReferenceHz("medium", 1, "tom"));
   assert.ok(sound.drumReferenceHz("medium", 1, "tom") < sound.drumReferenceHz("small", 1, "tom"));
   assert.throws(() => sound.drumReferenceHz("medium", 3, "tom"), RangeError);
@@ -163,6 +163,42 @@ test("D2a tom, ride, crash and rimshot score voices are bounded and sonically di
   }
   assert.equal(new Set(signatures).size, 6, "new drum voices have distinct waveforms");
   assert.throws(() => sound.validate("kick", 220, .3, "medium", { drumVoice: "unmapped" }), RangeError);
+});
+
+test("D2e drum velocity brightens modeled attacks, not merely the playback gain", () => {
+  const rate = 16000;
+  for (const drumVoice of ["snare", "cymbal", "halfhat", "ride", "crash", "rimshot", "woodblock", "tom", "membrane"]) {
+    const size = drumVoice === "membrane" ? "large" : "medium";
+    const make = velocity => sound.makeSamples("kick", 220, .27, rate, size, { drumVoice, velocity });
+    const soft = make(.2), loud = make(1), normal = make(.8), historic =
+      sound.makeSamples("kick", 220, .27, rate, size, { drumVoice });
+    assert.deepEqual(normal, historic, "Normal velocity preserves the previous " + drumVoice + " synthesis");
+    assert.notDeepEqual(soft.slice(100, 200), loud.slice(100, 200), drumVoice + " responds in its waveform");
+    assert.ok(loud.every(value => Number.isFinite(value) && Math.abs(value) <= 1), drumVoice + " peak-bounded");
+    assert.ok(soft.every(value => Number.isFinite(value) && Math.abs(value) <= 1), drumVoice + " soft-bounded");
+    const earlyEnergy = data => data.slice(0, 320).reduce((sum, x) => sum + x * x, 0);
+    if (["snare", "cymbal", "halfhat", "ride", "crash", "rimshot"].includes(drumVoice)) {
+      assert.ok(earlyEnergy(loud) > 1.15 * earlyEnergy(soft), drumVoice + " has a stronger, brighter attack");
+    }
+  }
+  for (const velocity of [-.1, 1.1, NaN, Infinity]) {
+    assert.throws(() => sound.validate("kick", 220, .3, "medium", { velocity }), RangeError);
+  }
+});
+
+test("D2e half-open hi-hat has an intermediate decay and matches its plotted samples", () => {
+  const rate = 16000;
+  const closed = sound.makeSamples("kick", 220, .13, rate, "small", { drumVoice: "cymbal" });
+  const half = sound.makeSamples("kick", 220, .27, rate, "medium", { drumVoice: "halfhat" });
+  const open = sound.makeSamples("kick", 220, .48, rate, "medium", { drumVoice: "cymbal" });
+  const tailEnergy = data => data.slice(Math.round(.35 * rate), Math.round(.4 * rate))
+    .reduce((sum, x) => sum + x * x, 0);
+  assert.ok(tailEnergy(closed) < tailEnergy(half) && tailEnergy(half) < tailEnergy(open));
+  assert.equal(sound.drumReferenceHz("medium", 1, "halfhat"), null);
+  for (const i of [20, 200, 1350, 5220]) {
+    assert.ok(Math.abs(half[i] - sound.plottedSampleAt("kick", i / rate, 220, .27,
+      "medium", { drumVoice: "halfhat" })) < 1e-7);
+  }
 });
 
 test("large membrane adds audible beater/body presence without clipping", () => {

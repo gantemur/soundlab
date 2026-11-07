@@ -495,6 +495,24 @@ test("D2c WAV export shares swung offbeat positions and audible hi-hat choke wit
   }
 });
 
+test("D2e WAV chokes the half-open hat and uses distinct velocity-dependent samples", async () => {
+  const source = percussion("g2 E2 !ghost!D2 !accent!D2 z8 |]");
+  const input = arrangement([track(1, "drums", source)]), frozen = copy(input);
+  const f = fixture();
+  await exporter.render(input, f.deps);
+  const scheduled = f.contexts[0].graph.sources;
+  assert.equal(scheduled.length, 4);
+  close(scheduled[0].at, 0);
+  close(scheduled[0].stop, .25 + players.HAT_CHOKE_SECONDS);
+  assert.ok(scheduled[0].gain.some(record => record[0] === "target" &&
+    Math.abs(record[2] - .25) < 1e-10 && record[3] === .009));
+  const ghost = f.modelCalls.find(recipe => recipe.settings.drumVoice === "snare" && recipe.settings.velocity === .4);
+  const accent = f.modelCalls.find(recipe => recipe.settings.drumVoice === "snare" && recipe.settings.velocity === 1);
+  assert.ok(ghost && accent, "Different stroke strengths synthesize different cached timbre bands");
+  assert.deepEqual(input, frozen, "Export does not rewrite the score or linked project data");
+  cleaned(f.contexts[0]);
+});
+
 test("D2d offline WAV follows live expressive sticking velocity exactly without touching ABC", async () => {
   const abcText = percussion("!R!!accent!D2 !L!D2 !ghost!D2 !flam!!R!D2 !roll!!L!D8 |]");
   const part = track(1, "drums", abcText, { drumTouch: "expressive" });

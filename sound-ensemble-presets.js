@@ -32,6 +32,12 @@
       mn: "Жижиг бөмбөр · Флам, ролл, сул цохилт" },
     { id: "swingHats", category: "drumSolo", en: "Hi-hat · Swing and choking (8 bars)",
       mn: "Цан · Свинг, дуу дарах дасгал (8 такт)" },
+    { id: "hatPedal", category: "drumSolo", en: "Hi-hat · Half-open pedal study (8 bars)",
+      mn: "Цан · Хагас нээж, хаах дасгал (8 такт)",
+      description: Object.freeze({
+        en: "An original kit study contrasting closed, half-open and open hi-hats, with soft strokes and pedal chokes.",
+        mn: "Хаалттай, хагас болон бүрэн нээлттэй цангийн өнгө, сул цохилт, дуу даралтыг харьцуулах шинэ дасгал."
+      }) },
     { id: "stickingRudiments", category: "drumSolo", en: "Snare · Paradiddles and sticking (8 bars)",
       mn: "Жижиг бөмбөр · Парадидл, гарын ээлж (8 такт)" },
     { id: "drumDialogue", category: "drumSolo", en: "Percussion · Call and response",
@@ -487,6 +493,21 @@
             crash: "X... .... .... ...." },
           E: { kick: "X... .... X... ....", snare: ".... X... .... F...", hat: "x.x. x.x. x.x. ....",
             openHat: ".... .... .... X..." }
+        } }]
+    },
+    hatPedal: {
+      tempo: 108,
+      parts: [{ names: { en: "Hi-hat pedal · three openings", mn: "Цан · гурван нээлт" },
+        volume: 63, sequence: "AABCABDE", patterns: {
+          A: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "X.x. x.x. X.x. x.x." },
+          B: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. x.x. x.x. ....",
+            halfHat: ".... .... .... x..." },
+          C: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. .... x.x. ....",
+            halfHat: ".... x... .... x..." },
+          D: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. x.x. .... ....",
+            halfHat: ".... .... x... ....", openHat: ".... .... .... ..X." },
+          E: { kick: "X... .... X... ....", snare: ".... X... ..g. X...", hat: "X.x. x.x. X.x. x.x.",
+            crash: "X... .... .... ...." }
         } }]
     },
     stickingRudiments: {

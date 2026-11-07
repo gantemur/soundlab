@@ -42,7 +42,7 @@
   const DRUM_VOICES = Object.freeze(["membrane", "snare", "cymbal", "steelpan", "chimes", "woodblock"]);
   // D2 score-only voices. Keep the Explore pads' six established choices intact;
   // the Compose drum grid selects these individual kit instruments instead.
-  const COMPOSE_DRUM_VOICES = Object.freeze(["tom", "ride", "crash", "rimshot"]);
+  const COMPOSE_DRUM_VOICES = Object.freeze(["tom", "ride", "crash", "rimshot", "halfhat"]);
   const VALID_DRUM_VOICES = Object.freeze([...DRUM_VOICES, ...COMPOSE_DRUM_VOICES]);
   const TOM_BASES = Object.freeze({ large: 92, medium: 145, small: 205 });
   const STEELPAN_PITCHES = Object.freeze({ large: 261.625565, medium: 329.627557,
@@ -88,6 +88,8 @@
         !Number.isFinite(options.drumTension ?? 1) ||
         (options.drumTension ?? 1) < DRUM_MIN_TENSION ||
         (options.drumTension ?? 1) > DRUM_MAX_TENSION ||
+        !Number.isFinite(options.velocity ?? .8) ||
+        (options.velocity ?? .8) < 0 || (options.velocity ?? .8) > 1 ||
         (options.drumVoice === "chimes" && (!Number.isFinite(options.chimeHz ?? CHIME_PITCHES[kickSize]) ||
           (options.chimeHz ?? CHIME_PITCHES[kickSize]) < 110 ||
           (options.chimeHz ?? CHIME_PITCHES[kickSize]) > 1200)))) {
@@ -142,7 +144,7 @@
         !VALID_DRUM_VOICES.includes(voice)) {
       throw new RangeError("Unknown drum pad or sound family");
     }
-    if (["cymbal", "woodblock", "ride", "crash", "rimshot"].includes(voice)) return null;
+    if (["cymbal", "woodblock", "ride", "crash", "rimshot", "halfhat"].includes(voice)) return null;
     if (voice === "tom") {
       kickFrequency(0, size, tension); // Keep tension validation consistent with other membranes.
       return TOM_BASES[size] * Math.sqrt(tension);
@@ -167,7 +169,15 @@
     return hash(index) * (1 - fraction) + hash(index + 1) * fraction;
   }
 
-  function membraneAt(time, size, tension, decaySec) {
+  // D2e: keep resonating modes mostly unchanged, but brighten the short
+  // impact/rattle/wash at larger strike velocities. At the historic .8 normal
+  // stroke this is exactly 1, preserving older teaching plots and recordings.
+  // Gain is applied separately by the player: velocity here changes timbre.
+  function strikeBrightness(velocity = .8) {
+    return .32 + .68 * Math.pow(velocity / .8, 1.15);
+  }
+
+  function membraneAt(time, size, tension, decaySec, velocity = .8) {
     const base = kickFrequency(0, size, tension);
     let value = 0;
     for (let i = 0; i < DRUM_ZEROS.length; i++) {
@@ -183,19 +193,20 @@
       .22 * Math.exp(-time / .030) * Math.sin(TAU * 350 * time) +
       .21 * Math.exp(-time / .012) * Math.sin(TAU * 980 * time) : 0;
     return (1 - Math.exp(-time / .0015)) *
-      (value * (size === "large" ? 1.13 : 1) / 2.2 + knock + bassBeater);
+      (value * (size === "large" ? 1.13 : 1) / 2.2 +
+        strikeBrightness(velocity) * (knock + bassBeater));
   }
 
-  function snareAt(time, size, tension, decaySec) {
-    const body = membraneAt(time, size, tension, decaySec);
+  function snareAt(time, size, tension, decaySec, velocity = .8) {
+    const body = membraneAt(time, size, tension, decaySec, velocity);
     const rattle = noiseAt(time) * Math.exp(-time / (decaySec * .48));
-    return .48 * body + .53 * (1 - Math.exp(-time / .0012)) * rattle;
+    return .48 * body + .53 * strikeBrightness(velocity) * (1 - Math.exp(-time / .0012)) * rattle;
   }
 
   // A tom has freely decaying Bessel-like modes, a modest downward tension
   // sweep and no snare-wire rattle or bass-drum beater. This is an original
   // illustrative membrane model, not a recorded or calibrated drum sample.
-  function tomAt(time, size, tension, decaySec) {
+  function tomAt(time, size, tension, decaySec, velocity = .8) {
     const base = TOM_BASES[size] * Math.sqrt(tension);
     const bend = { large: .23, medium: .17, small: .13 }[size];
     const sweptTime = time + .022 * bend * (1 - Math.exp(-time / .022));
@@ -206,10 +217,10 @@
         Math.sin(TAU * base * partial * sweptTime + i * .11);
     }
     const contact = .13 * noiseAt(time) * Math.exp(-time / .009);
-    return (1 - Math.exp(-time / .0011)) * (.43 * modes + contact);
+    return (1 - Math.exp(-time / .0011)) * (.43 * modes + strikeBrightness(velocity) * contact);
   }
 
-  function cymbalAt(time, size, decaySec) {
+  function cymbalAt(time, size, decaySec, velocity = .8) {
     const base = { large: 310, medium: 415, small: 630 }[size];
     const factor = { large: 1.65, medium: 1.25, small: .58 }[size];
     const decay = decaySec * factor;
@@ -219,12 +230,23 @@
         Math.exp(-time / (decay * (1 - .045 * index)));
     });
     const fizz = noiseAt(time) * Math.exp(-time / (decay * .72));
-    return (1 - Math.exp(-time / .002)) * (.26 * ringing + .43 * fizz);
+    return (1 - Math.exp(-time / .002)) * (.26 * ringing + .43 * strikeBrightness(velocity) * fizz);
+  }
+
+  // Partly separated plates: a medium-length metallic ring and short sizzle.
+  // Unlike the open hat it does not sustain a long wash; the closed hat may
+  // cut off either cymbal using the same real-time/offline choke envelope.
+  function halfHatAt(time, decaySec, velocity = .8) {
+    const ring = .55 * cymbalAt(time, "medium", decaySec, velocity) +
+      .27 * cymbalAt(time, "small", decaySec * .65, velocity);
+    const sizzle = .13 * strikeBrightness(velocity) * noiseAt(time) *
+      (1 - Math.exp(-time / .001)) * Math.exp(-time / (decaySec * .6));
+    return ring + sizzle;
   }
 
   // Ride separates a clear repeated stick ping from a quieter, long metallic
   // sustain; crash uses a broader turbulent wash and a slower plate decay.
-  function rideAt(time, decaySec) {
+  function rideAt(time, decaySec, velocity = .8) {
     let modes = 0;
     for (let i = 0; i < CYMBAL_MODES.length; i++) {
       modes += CYMBAL_WEIGHTS[i] * Math.exp(-time * (1 + i * .13) / (decaySec * 1.4)) *
@@ -232,24 +254,25 @@
     }
     const ping = .34 * Math.exp(-time / .075) * Math.sin(TAU * 2040 * time);
     const contact = .11 * noiseAt(time) * Math.exp(-time / .02);
-    return (1 - Math.exp(-time / .001)) * (.26 * modes + ping + contact);
+    return (1 - Math.exp(-time / .001)) * (.26 * modes +
+      strikeBrightness(velocity) * (ping + contact));
   }
 
-  function crashAt(time, decaySec) {
+  function crashAt(time, decaySec, velocity = .8) {
     let plates = 0;
     for (let i = 0; i < CYMBAL_MODES.length; i++) {
       plates += CYMBAL_WEIGHTS[i] * Math.exp(-time * (1 + i * .09) / (decaySec * 1.65)) *
         Math.sin(TAU * 360 * CYMBAL_MODES[i] * time + i * .61);
     }
     const wash = noiseAt(time) * Math.exp(-time / (decaySec * 1.35));
-    return (1 - Math.exp(-time / .004)) * (.21 * plates + .38 * wash);
+    return (1 - Math.exp(-time / .004)) * (.21 * plates + .38 * strikeBrightness(velocity) * wash);
   }
 
-  function rimshotAt(time, decaySec) {
-    const body = snareAt(time, "small", 1.4, decaySec);
+  function rimshotAt(time, decaySec, velocity = .8) {
+    const body = snareAt(time, "small", 1.4, decaySec, velocity);
     const contact = noiseAt(time) * Math.exp(-time / .012);
     const rim = Math.sin(TAU * 3450 * time) * Math.exp(-time / .025);
-    return .34 * body + .35 * contact + .27 * rim;
+    return .34 * body + strikeBrightness(velocity) * (.35 * contact + .27 * rim);
   }
 
   function steelpanAt(time, size, decaySec) {
@@ -278,7 +301,7 @@
 
   // A dry struck wooden block: shorter, lower-Q inharmonic body modes plus
   // a brief hard-contact click. Sizes are qualitative timbre choices, not notes.
-  function woodblockAt(time, size, decaySec) {
+  function woodblockAt(time, size, decaySec, velocity = .8) {
     const base = WOOD_BASES[size];
     const bodyDecay = .030 + .080 * decaySec;
     let body = 0;
@@ -287,24 +310,26 @@
         Math.sin(TAU * base * WOOD_MODES[mode] * time + mode * .18);
     }
     const tap = .22 * Math.exp(-time / .005) * noiseAt(time);
-    return (1 - Math.exp(-time / .00065)) * (.42 * body + tap);
+    return (1 - Math.exp(-time / .00065)) * (.42 * body + strikeBrightness(velocity) * tap);
   }
 
   function sampleAt(kind, time, pitchHz, decaySec, kickSize = "medium", options = {}) {
     if (time <= 0) return 0;
     if (kind === "kick") {
       const voice = options.drumVoice ?? "membrane";
-      if (voice === "snare") return snareAt(time, kickSize, options.drumTension ?? 1, decaySec);
-      if (voice === "cymbal") return cymbalAt(time, kickSize, decaySec);
-      if (voice === "tom") return tomAt(time, kickSize, options.drumTension ?? 1, decaySec);
-      if (voice === "ride") return rideAt(time, decaySec);
-      if (voice === "crash") return crashAt(time, decaySec);
-      if (voice === "rimshot") return rimshotAt(time, decaySec);
+      const velocity = options.velocity ?? .8;
+      if (voice === "snare") return snareAt(time, kickSize, options.drumTension ?? 1, decaySec, velocity);
+      if (voice === "cymbal") return cymbalAt(time, kickSize, decaySec, velocity);
+      if (voice === "halfhat") return halfHatAt(time, decaySec, velocity);
+      if (voice === "tom") return tomAt(time, kickSize, options.drumTension ?? 1, decaySec, velocity);
+      if (voice === "ride") return rideAt(time, decaySec, velocity);
+      if (voice === "crash") return crashAt(time, decaySec, velocity);
+      if (voice === "rimshot") return rimshotAt(time, decaySec, velocity);
       if (voice === "steelpan") return steelpanAt(time, kickSize, decaySec);
       if (voice === "chimes") return chimeAt(time, options.chimeHz ?? CHIME_PITCHES[kickSize], decaySec);
-      if (voice === "woodblock") return woodblockAt(time, kickSize, decaySec);
+      if (voice === "woodblock") return woodblockAt(time, kickSize, decaySec, velocity);
       // Circular-membrane eigenfrequencies are Bessel zeros, not integer harmonics.
-      return membraneAt(time, kickSize, options.drumTension ?? 1, decaySec);
+      return membraneAt(time, kickSize, options.drumTension ?? 1, decaySec, velocity);
     }
     if (kind === "pluck") {
       const position = options.position ?? .22;

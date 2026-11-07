@@ -445,11 +445,11 @@
       strikeStrength: "Strength", strikeDecay: "Decay time",
       strikeDrumVoiceTitle: "Percussion family", strikeDrumMembrane: "Bass drum / tom",
       strikeDrumViewTitle: "Drum exploration mode", strikeDrumKit: "Kit", strikeDrumModels: "Models",
-      strikeDrumKitHint: "Tap each pad to hear a kit instrument. Strength and decay below also affect these sounds.",
+      strikeDrumKitHint: "Tap a pad to hear it. Strength also changes timbre; a closed hi-hat damps both half-open and open hats.",
       strikeKitDrums: "Drums", strikeKitCymbals: "Cymbals", strikeKitOther: "Other percussion",
       strikeKitKick: "Bass drum", strikeKitSnare: "Snare", strikeKitRimshot: "Rimshot",
       strikeKitFloorTom: "Floor tom", strikeKitMidTom: "Mid tom", strikeKitHighTom: "High tom",
-      strikeKitHat: "Closed hi-hat", strikeKitOpenHat: "Open hi-hat", strikeKitRide: "Ride", strikeKitCrash: "Crash",
+      strikeKitHat: "Closed hi-hat", strikeKitHalfHat: "Half-open hi-hat", strikeKitOpenHat: "Open hi-hat", strikeKitRide: "Ride", strikeKitCrash: "Crash",
       strikeKitWoodblock: "Woodblock",
       strikeDrumSnare: "Snare", strikeDrumCymbal: "Cymbals", strikeDrumSteelpan: "Steel pan",
       strikeDrumChimes: "Chimes", strikeDrumWoodblock: "Woodblock",
@@ -1043,11 +1043,11 @@
       strikeStrength: "Цохилтын хүч", strikeDecay: "Намдах хугацаа",
       strikeDrumVoiceTitle: "Цохивор хөгжмийн төрөл", strikeDrumMembrane: "Басс бөмбөр / том",
       strikeDrumViewTitle: "Бөмбөр шинжлэх горим", strikeDrumKit: "Иж бүрдэл", strikeDrumModels: "Загварууд",
-      strikeDrumKitHint: "Бөмбөр бүрийг товшиж сонсоорой. Доорх цохилтын хүч, намдах хугацаа эдгээрт бас үйлчилнэ.",
+      strikeDrumKitHint: "Бөмбөр бүрийг товшиж сонсоорой. Цохилтын хүч нь дууны өнгийг бас өөрчилнө; хаалттай цан нээлттэй хоёр төрлийг дарна.",
       strikeKitDrums: "Бөмбөр", strikeKitCymbals: "Цан", strikeKitOther: "Бусад цохивор",
       strikeKitKick: "Их бөмбөр", strikeKitSnare: "Жижиг бөмбөр", strikeKitRimshot: "Хүрээтэй цохилт",
       strikeKitFloorTom: "Суурь том", strikeKitMidTom: "Дунд том", strikeKitHighTom: "Өндөр том",
-      strikeKitHat: "Хаалттай цан", strikeKitOpenHat: "Нээлттэй цан", strikeKitRide: "Райд", strikeKitCrash: "Крэш",
+      strikeKitHat: "Хаалттай цан", strikeKitHalfHat: "Хагас нээлттэй цан", strikeKitOpenHat: "Нээлттэй цан", strikeKitRide: "Райд", strikeKitCrash: "Крэш",
       strikeKitWoodblock: "Модон цохилуур",
       strikeDrumSnare: "Бага бөмбөр", strikeDrumCymbal: "Цан", strikeDrumSteelpan: "Ган бөмбөр",
       strikeDrumChimes: "Хоолойт хонх", strikeDrumWoodblock: "Модон товшуур",
@@ -1561,7 +1561,7 @@
       // Pressing the pedal/closed-hat pad damps any open-hat sample already
       // ringing. Models mode and the other kit pads retain overlapping tails.
       if (recipe.drumKitId === "hat") for (const voice of this.voices) {
-        if (voice.drumKitId === "openHat") this.stopVoice(voice, false);
+        if (voice.drumKitId === "openHat" || voice.drumKitId === "halfHat") this.stopVoice(voice, false);
       }
 
       // All struck instruments can overlap for rhythms, but the number of
@@ -2741,6 +2741,7 @@
         drumTension: drum ? 1 : state.strikeDrumTension,
         ...(pitchedChimes ? { chimeHz: state.strikePitch } : {}),
         ...(marimba || xylophone || mandolin || harp ? { velocity: state.strikeStrength / 100 } : {}),
+        ...(drum ? { velocity: Math.round(state.strikeStrength / 20) / 5 } : {}),
         ...(mandolin ? { articulation: state.strikeMandolinStyle } : {}),
         ...(isPianoStrike() ?
           { velocity: state.strikeStrength / 100, touch: state.strikePianoTouch,
@@ -2753,7 +2754,7 @@
   function strikeDrumSpectrumMaxHz() {
     const drum = activeStrikeDrumRecipe(), voice = drum.voice;
     if (["snare", "rimshot"].includes(voice)) return 5200;
-    if (["cymbal", "ride", "crash"].includes(voice)) return 6000;
+    if (["cymbal", "halfhat", "ride", "crash"].includes(voice)) return 6000;
     if (voice === "steelpan") return 4000;
     if (voice === "chimes") return 8000;
     if (voice === "woodblock") return 5000;
@@ -4738,7 +4739,7 @@
       button.setAttribute("aria-pressed", String(selected));
       button.textContent = text({ kick: "strikeKitKick", snare: "strikeKitSnare", rimshot: "strikeKitRimshot",
         floorTom: "strikeKitFloorTom", midTom: "strikeKitMidTom", highTom: "strikeKitHighTom",
-        hat: "strikeKitHat", openHat: "strikeKitOpenHat", ride: "strikeKitRide",
+        hat: "strikeKitHat", halfHat: "strikeKitHalfHat", openHat: "strikeKitOpenHat", ride: "strikeKitRide",
         crash: "strikeKitCrash", woodblock: "strikeKitWoodblock" }[button.dataset.strikeKitDrum]);
     });
     $("strikeDrumVoice").value = state.strikeDrumVoice;

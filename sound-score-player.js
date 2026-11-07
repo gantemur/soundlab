@@ -51,6 +51,7 @@
     kick: Object.freeze({ voice: "membrane", size: "large", decay: .36 }),
     snare: Object.freeze({ voice: "snare", size: "medium", decay: .24 }),
     hat: Object.freeze({ voice: "cymbal", size: "small", decay: .13 }),
+    halfHat: Object.freeze({ voice: "halfhat", size: "medium", decay: .27 }),
     openHat: Object.freeze({ voice: "cymbal", size: "medium", decay: .48 }),
     woodblock: Object.freeze({ voice: "woodblock", size: "small", decay: .24 }),
     floorTom: Object.freeze({ voice: "tom", size: "large", decay: .49 }),
@@ -456,7 +457,8 @@
       const spec = this.bufferSpec(event, sampleRate);
       if (!spec) return endsAt + .005;
       const bufferEnd = at + spec.frames / sampleRate - offsetSeconds;
-      if (event.type === "drum" && event.drum === "openHat" && Number.isFinite(event.chokeBeat)) {
+      if (event.type === "drum" && (event.drum === "openHat" || event.drum === "halfHat") &&
+          Number.isFinite(event.chokeBeat)) {
         const chokeAt = at - offsetSeconds +
           (event.chokeBeat - event.startBeat) * scoreModel.secondsPerBeat(this.score);
         return Math.min(bufferEnd, chokeAt + HAT_CHOKE_SECONDS);
@@ -640,10 +642,13 @@
         { instrument: this.partSettings[event.partIndex].instrument });
       const recipe = DRUM_RECIPES[event.drum];
       if (!recipe) throw new RangeError("Unknown percussion voice");
-      return { key: ["drum", sampleRate, event.drum].join("|"), sampleRate,
+      // Six bounded timbre bands; amplitude remains the exact score velocity.
+      // This limits cached buffers for rolls, ghost notes and busy kit studies.
+      const velocityBand = Math.round(event.velocity * 5) / 5;
+      return { key: ["drum", sampleRate, event.drum, velocityBand].join("|"), sampleRate,
         frames: Math.ceil(this.transientDuration(recipe.decay) * sampleRate),
         kind: "kick", hz: 220, decay: recipe.decay, size: recipe.size,
-        options: { drumVoice: recipe.voice }, fm: false, damper: false };
+        options: { drumVoice: recipe.voice, velocity: velocityBand }, fm: false, damper: false };
     }
     scheduleNote(event, at, endsAt, offsetSeconds = 0) {
       const part = this.partSettings[event.partIndex];
@@ -657,7 +662,8 @@
     }
     scheduleDrumHit(event, at, offsetSeconds = 0) {
       const context = this.context;
-      const chokeAt = event.drum === "openHat" && Number.isFinite(event.chokeBeat) ?
+      const chokeAt = (event.drum === "openHat" || event.drum === "halfHat") &&
+        Number.isFinite(event.chokeBeat) ?
         at - offsetSeconds + (event.chokeBeat - event.startBeat) * scoreModel.secondsPerBeat(this.score) : null;
       if (chokeAt !== null && (chokeAt + HAT_CHOKE_SECONDS <= at ||
           chokeAt === at && offsetSeconds === 0)) return;

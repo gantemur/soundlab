@@ -59,7 +59,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 18);
+  assert.equal(presets.CATALOG.length, 19);
 });
 
 test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {
@@ -145,6 +145,25 @@ test("D2c swing hi-hat study is bilingual, linked, original and actually demonst
     const another = presets.create("swingHats", language)[0];
     track.patterns.patterns[0].name = "Private edit";
     assert.notEqual(another.patterns.patterns[0].name, "Private edit");
+  }
+});
+
+test("D2e half-open hi-hat pedal study is bilingual, linked, and demonstrates all three hat positions", () => {
+  for (const language of ["en", "mn"]) {
+    const [track] = presets.create("hatPedal", language);
+    assert.equal(track.instrument, "drums");
+    assert.equal(track.textMode, "pattern");
+    assert.equal(drumPatterns.expanded(track.patterns).length, 8);
+    assert.equal(drumPatterns.toABC(track.patterns), track.abc);
+    const parsed = drums.parse(track.abc);
+    assert.equal(parsed.bars.length, 8);
+    assert.equal(parsed.tempoQuarter, 108);
+    const hits = drums.scheduledEvents(parsed);
+    assert.ok(["hat", "halfHat", "openHat", "kick", "snare"].every(id => hits.some(hit => hit.drum === id)));
+    assert.ok(hits.some(hit => hit.drum === "halfHat" && hit.chokeBeat > hit.startBeat));
+    assert.ok(hits.some(hit => hit.drum === "openHat" && hit.chokeBeat > hit.startBeat));
+    assert.ok(hits.some(hit => hit.velocity === drums.VELOCITIES.accent));
+    assert.ok(track.name.includes(language === "en" ? "Hi-hat" : "Цан"));
   }
 });
 

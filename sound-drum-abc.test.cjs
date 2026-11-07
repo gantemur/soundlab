@@ -56,7 +56,7 @@ test("D2a six extended drum notes round-trip through strict ABC and the sixteent
   const edited = drums.toggleGridHit(score, 1, 9, "ride", .55);
   assert.equal(drums.gridOf(drums.parse(edited))[0].cells[9].ride, .55);
   assert.throws(() => drums.parse(source.replace("drummap f 40", "drummap f 37")), /fixed Sound Lab/);
-  assert.throws(() => drums.parse(source.replace("[!accent!A!p!Bcdf]", "[Ag]")), /mapped drum note/);
+  assert.throws(() => drums.parse(source.replace("[!accent!A!p!Bcdf]", "[Ah]")), /mapped drum note/);
 });
 
 test("D2b flams, measured rolls, ghost strokes and accents survive text ⇄ pattern grid", () => {
@@ -201,6 +201,22 @@ test("D2c closed hi-hat marks an earlier open-hat tail for choking, including ac
   assert.equal(swing.find(hit => hit.drum === "openHat" && hit.bar === 1).chokeBeat, 4);
   const free = drums.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nF z7 |]");
   assert.equal(drums.scheduledEvents(free)[0].chokeBeat, undefined);
+});
+
+test("D2e g maps a half-open hi-hat, survives ABC/grid round-trips, and is choked across bars", () => {
+  const source = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n" +
+    "g z7 | E g z6 | [Eg] z7 |]";
+  const parsed = drums.parse(source);
+  const straight = drums.scheduledEvents(parsed);
+  assert.equal(drums.DRUMS.find(drum => drum.id === "halfHat").midi, 44);
+  assert.deepEqual(straight.filter(hit => hit.drum === "halfHat").map(hit => [hit.startBeat, hit.chokeBeat]),
+    [[0, 4], [4.5, 8], [8, 8]]);
+  const swung = drums.scheduledEvents(parsed, "swing");
+  assert.ok(Math.abs(swung.find(hit => hit.drum === "halfHat" && hit.bar === 2).startBeat - (4 + 2 / 3)) < 1e-9);
+  const grid = drums.gridOf(parsed);
+  assert.equal(grid[0].cells[0].halfHat, .8);
+  assert.deepEqual(drums.scheduledEvents(drums.parse(drums.fromGrid(parsed, grid))), straight);
+  assert.match(drums.fromGrid(parsed, grid), /%%MIDI drummap g 44/);
 });
 
 test("D2d sticking marks survive strict ABC, chords, pattern grids and toggles", () => {

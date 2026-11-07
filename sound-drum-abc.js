@@ -1,7 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 Tsogt Gantumur
  * SPDX-License-Identifier: MIT
  * A strict ABC-like percussion part. C D E F G retain the original five voices;
- * A B c d e f add six D2 kit voices. Lowercase notes are percussion identifiers.
+ * A B c d e f g add seven D2 kit voices. Lowercase notes are percussion identifiers.
  * Per-hit dynamics, !flam!/!roll!, !R!/!L! sticking and per-track groove
  * are Sound Lab extensions, not claims of general-purpose ABC compatibility.
  */
@@ -23,7 +23,8 @@
     { id: "highTom", note: "c", midi: 50, en: "High tom", mn: "Өндөр том" },
     { id: "ride", note: "d", midi: 51, en: "Ride cymbal", mn: "Райд цан" },
     { id: "crash", note: "e", midi: 49, en: "Crash cymbal", mn: "Крэш цан" },
-    { id: "rimshot", note: "f", midi: 40, en: "Rimshot", mn: "Хүрээтэй цохилт" }
+    { id: "rimshot", note: "f", midi: 40, en: "Rimshot", mn: "Хүрээтэй цохилт" },
+    { id: "halfHat", note: "g", midi: 44, en: "Half-open hi-hat", mn: "Хагас нээлттэй цан" }
   ]);
   const BY_NOTE = Object.fromEntries(DRUMS.map(drum => [drum.note, drum]));
   const BY_ID = Object.fromEntries(DRUMS.map(drum => [drum.id, drum]));
@@ -149,7 +150,7 @@
         i += decoration[0].length;
       }
       const drum = BY_NOTE[body[i]];
-      if (!drum) throw new DrumABCError("Expected mapped drum note C–G, A, B, or c–f", line, i + 1);
+      if (!drum) throw new DrumABCError("Expected mapped drum note C–G, A, B, or c–g", line, i + 1);
       return { hit: { drum: drum.id, velocity, ...(articulation === "plain" ? {} : { articulation }),
         ...(hand === "auto" ? {} : { hand }) },
         position: i + 1 };
@@ -280,11 +281,11 @@
       } else sounding.push(base);
     }
     sounding.sort((a, b) => a.startBeat - b.startBeat);
-    // The next closed-hat strike cuts short earlier open-hat tails, even across
-    // a bar line. Annotate the open stroke so playback, seeking and WAV export
+    // The next closed-hat strike cuts short earlier open and half-open tails,
+    // even across a bar line. Annotate each stroke so playback, seeking and WAV export
     // all apply the same choke without depending on scheduling order.
     const closed = sounding.filter(hit => hit.drum === "hat").map(hit => hit.startBeat);
-    for (const hit of sounding) if (hit.drum === "openHat") {
+    for (const hit of sounding) if (hit.drum === "openHat" || hit.drum === "halfHat") {
       let low = 0, high = closed.length;
       while (low < high) {
         const mid = Math.floor((low + high) / 2);
