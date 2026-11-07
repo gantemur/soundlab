@@ -130,6 +130,9 @@
       this.temperamentModel = temperamentModel;
       this.language = "mn";
       this.tracks = DEFAULTS.map(track => ({ ...track }));
+      // Preset track names follow the interface language until the owner edits
+      // them. This is UI-only provenance; saved projects keep literal names.
+      this.presetNames = new Map();
       this.selectedId = 1;
       this.nextId = 3;
       this.summary = null;
@@ -244,6 +247,7 @@
       this.resetTimer();
       this.player.stop();
       this.tracks = content.tracks;
+      this.presetNames.clear(); // A saved project's names belong to its author.
       this.selectedId = content.selectedId;
       this.nextId = content.nextId;
       this.gridBar = content.editor.gridBar;
@@ -336,6 +340,17 @@
       this.player.stop();
       this.tracks = choice === "starter" ? DEFAULTS.map(track => ({ ...track })) :
         presets.create(choice, this.language);
+      this.presetNames.clear();
+      if (choice !== "starter") {
+        // Resolve the opposite labels once on load. Regenerating name metadata
+        // never replaces any subsequently edited score, pattern or track.
+        const otherLanguage = this.language === "mn" ? "en" : "mn";
+        const otherNames = new Map(presets.create(choice, otherLanguage).map(track => [track.id, track.name]));
+        for (const track of this.tracks) {
+          this.presetNames.set(track.id, { [this.language]: track.name,
+            [otherLanguage]: otherNames.get(track.id) ?? track.name });
+        }
+      }
       this.selectedId = this.tracks[0].id;
       this.nextId = Math.max(...this.tracks.map(track => track.id)) + 1;
       this.setEditorText();
@@ -416,6 +431,7 @@
     removeTrack(id) {
       if (this.tracks.length <= 1) { this.setStatus(this.t("minTracks"), true); return; }
       this.tracks = this.tracks.filter(track => track.id !== id);
+      this.presetNames.delete(id);
       if (this.selectedId === id) this.selectedId = this.tracks[0].id;
       this.setEditorText();
       this.parse();
@@ -460,7 +476,9 @@
         name.value = track.name;
         name.setAttribute("aria-label", this.t("name") + " " + track.id);
         name.addEventListener("change", () => {
-          track.name = name.value.trim().slice(0, 40) || this.t("track") + " " + track.id;
+          const next = name.value.trim().slice(0, 40) || this.t("track") + " " + track.id;
+          if (next !== track.name) this.presetNames.delete(track.id);
+          track.name = next;
           this.renderTracks(); this.renderTimeline(); this.renderEditorLabel();
         });
         if (track.instrument === "drums") {
@@ -747,6 +765,12 @@
     }
     renderLanguage(language) {
       if (!TEXT[language]) return;
+      if (language !== this.language) {
+        for (const track of this.tracks) {
+          const presetName = this.presetNames.get(track.id);
+          if (presetName && track.name === presetName[this.language]) track.name = presetName[language];
+        }
+      }
       this.language = language;
       this.document.querySelectorAll("[data-ensemble-i18n]").forEach(element => {
         element.textContent = this.t(element.getAttribute("data-ensemble-i18n"));
@@ -760,6 +784,7 @@
         if (option) option.textContent = piece[language];
       }
       this.renderTracks();
+      this.renderTimeline();
       this.renderTransport();
       this.updatePlayhead(this.player.currentBeat);
       this.renderPatternPanel();

@@ -26,6 +26,7 @@ const noiseModel = require("./sound-noise.js");
 const recorderModel = require("./sound-recorder.js");
 const composeModel = require("./sound-compose.js");
 const ensembleModel = require("./sound-ensemble.js");
+const ensemblePresets = require("./sound-ensemble-presets.js");
 const drumABC = require("./sound-drum-abc.js");
 const drumPatterns = require("./sound-drum-patterns.js");
 const projectCodec = require("./sound-project.js");
@@ -83,7 +84,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score-player\.js\?v=s066"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=s067"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s067"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s068"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
@@ -4005,6 +4006,61 @@ test("D1 drum-only compositions open a working reusable pattern grid with no mel
   assert.equal(app.contexts.length, 1);
   assert.ok(app.contexts[0].sources.length > 0, "Drum-only playback schedules audible hits");
   app.fire("ensembleStop", "click");
+});
+
+test("S068 every built-in ensemble preset translates its untouched track and timeline names in both directions", () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  const trackNames = () => app.elements.get("ensembleTrackList").children.map((_, index) =>
+    projectTrackControl(app, index, "ensemble-name").value);
+  const timelineNames = () => app.elements.get("ensembleTimeline").children.map(row => row.children[0].textContent);
+  for (const preset of ensemblePresets.CATALOG.filter(piece => piece.id !== "starter")) {
+    app.elements.get("ensemblePreset").value = preset.id;
+    app.fire("ensembleApplyPreset", "click");
+    const mongolian = ensemblePresets.create(preset.id, "mn").map(track => track.name);
+    const english = ensemblePresets.create(preset.id, "en").map(track => track.name);
+    assert.deepEqual(trackNames(), mongolian, preset.id + " initially in Mongolian");
+    app.fire("langEn", "click");
+    assert.deepEqual(trackNames(), english, preset.id + " names after switching to English");
+    assert.deepEqual(timelineNames(), english, preset.id + " timeline after switching to English");
+    assert.ok(app.elements.get("ensembleEditorTitle").textContent.endsWith(english[0]), preset.id);
+    app.fire("langMn", "click");
+    assert.deepEqual(trackNames(), mongolian, preset.id + " names after switching back");
+    assert.deepEqual(timelineNames(), mongolian, preset.id + " timeline after switching back");
+  }
+  assert.equal(app.contexts.length, 0, "Changing language never starts an arrangement");
+});
+
+test("S068 edited names and restored project names are never silently retranslated", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "drumDialogue";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(projectTrackControl(app, 0, "ensemble-name").value, "Low drums · call");
+  const first = projectTrackControl(app, 0, "ensemble-name");
+  first.value = "My custom low drum";
+  first.events.change();
+  app.fire("langMn", "click");
+  assert.equal(projectTrackControl(app, 0, "ensemble-name").value, "My custom low drum");
+  assert.equal(projectTrackControl(app, 1, "ensemble-name").value, "Өндөр цохилуур · хариулт");
+  assert.ok(app.elements.get("ensembleEditorTitle").textContent.endsWith("My custom low drum"));
+  app.fire("langEn", "click");
+  assert.equal(projectTrackControl(app, 0, "ensemble-name").value, "My custom low drum");
+  assert.equal(projectTrackControl(app, 1, "ensemble-name").value, "High drums · answer");
+  app.fire("langMn", "click");
+  const saved = await saveNativeProject(app);
+  assert.deepEqual(saved.data.content.tracks.map(track => track.name),
+    ["My custom low drum", "Өндөр цохилуур · хариулт"]);
+  app.elements.get("ensemblePreset").value = "guitarStrum";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(await offerNativeProject(app, saved.text), true);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  app.fire("langEn", "click");
+  assert.equal(projectTrackControl(app, 0, "ensemble-name").value, "My custom low drum");
+  assert.equal(projectTrackControl(app, 1, "ensemble-name").value, "Өндөр цохилуур · хариулт",
+    "Opening a saved project preserves its authored literal names");
 });
 
 test("Compose drum part edits the same score through text and optional grid without autoplay", async () => {
