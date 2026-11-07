@@ -179,7 +179,7 @@
     }
   }
   function track(value, path) {
-    const fields = ["id", "name", "instrument", "volume", "mute", "solo", "abc", "guitar", "patterns", "patternBar", "patternId", "textMode", "patternDraft"];
+    const fields = ["id", "name", "instrument", "volume", "mute", "solo", "abc", "guitar", "drumFeel", "patterns", "patternBar", "patternId", "textMode", "patternDraft"];
     record(value, path, fields, ["id", "name", "instrument", "volume", "mute", "solo", "abc"]);
     const result = {
       id: number(value.id, path + ".id", 1, MAX_ID, true),
@@ -190,6 +190,9 @@
       abc: string(value.abc, path + ".abc", MAX_TEXT)
     };
     if (own(value, "guitar")) result.guitar = guitar(value.guitar, path + ".guitar");
+    if (result.instrument === "drums") result.drumFeel = choice(own(value, "drumFeel") ? value.drumFeel :
+      "straight", path + ".drumFeel", Object.keys(drums.FEELS));
+    else if (own(value, "drumFeel")) invalid(path + ".drumFeel", "only drum tracks have rhythmic feel");
     result.patterns = null;
     result.textMode = "full";
     result.patternDraft = null;

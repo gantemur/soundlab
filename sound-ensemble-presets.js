@@ -30,6 +30,8 @@
       mn: "Жижиг бөмбөр · Өргөлт, цохилтын дасгал" },
     { id: "snareRudiments", category: "drumSolo", en: "Snare · Flams, rolls and ghost notes",
       mn: "Жижиг бөмбөр · Флам, ролл, сул цохилт" },
+    { id: "swingHats", category: "drumSolo", en: "Hi-hat · Swing and choking (8 bars)",
+      mn: "Цан · Свинг, дуу дарах дасгал (8 такт)" },
     { id: "drumDialogue", category: "drumSolo", en: "Percussion · Call and response",
       mn: "Цохивор · Асуулт, хариулт" },
     { id: "tomCymbalStudy", category: "drumSolo", en: "Toms and cymbals · Eight-bar fills",
@@ -471,6 +473,20 @@
           E: { snare: "X... f... g.r. R..." }
         } }]
     },
+    swingHats: {
+      tempo: 104,
+      parts: [{ names: { en: "Swing kit · hi-hat", mn: "Свинг иж бүрдэл · цан" }, volume: 64,
+        feel: "swing", sequence: "AABCABDE", patterns: {
+          A: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. x.x. x.x. x.x." },
+          B: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. x.x. x.x. x...",
+            openHat: ".... .... .... ..X." },
+          C: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "X.x. x.x. x.x. x.x." },
+          D: { kick: "X... .... x... ....", snare: ".... X... ..g. R...", hat: "X.x. x.x. .... ....",
+            crash: "X... .... .... ...." },
+          E: { kick: "X... .... X... ....", snare: ".... X... .... F...", hat: "x.x. x.x. x.x. ....",
+            openHat: ".... .... .... X..." }
+        } }]
+    },
     drumDialogue: {
       tempo: 112,
       parts: [
@@ -546,6 +562,7 @@
         .replace(/^X:1$/m, "X:" + (index + 1));
       const patterns = drumPatterns.fromABC(abc);
       return { id: index + 1, name: title, instrument: "drums", volume: part.volume,
+        drumFeel: part.feel || "straight",
         mute: false, solo: false, abc: drumPatterns.toABC(patterns), patterns,
         patternBar: 1, patternId: drumPatterns.atBar(patterns, 1).pattern.id,
         textMode: "pattern", patternDraft: null };

@@ -205,6 +205,29 @@ test("D2b keeps ornamented linked patterns, grid technique and legacy version-1 
   rejected(damaged);
 });
 
+test("D2c stores per-track drum feel in version 1 without rewriting ABC or pattern links", () => {
+  const track = presets.create("swingHats", "en")[0];
+  assert.equal(track.drumFeel, "swing");
+  const before = copy(track);
+  const decoded = codec.decode(codec.encode(arrangement([track]))).content.tracks[0];
+  assert.equal(decoded.drumFeel, "swing");
+  assert.equal(decoded.abc, before.abc);
+  assert.deepEqual(decoded.patterns, before.patterns);
+  const legacy = copy(before);
+  delete legacy.drumFeel;
+  assert.equal(codec.decode(codec.encode(arrangement([legacy]))).content.tracks[0].drumFeel,
+    "straight", "Older saved projects keep their existing timing");
+  for (const feel of ["light", "straight", "swing"]) {
+    const edited = { ...before, drumFeel: feel };
+    assert.equal(codec.decode(codec.encode(arrangement([edited]))).content.tracks[0].drumFeel, feel);
+  }
+  for (const invalidFeel of ["shuffle", "", null, 0]) {
+    rejected(arrangement([{ ...before, drumFeel: invalidFeel }]));
+  }
+  rejected(arrangement([{ ...copy(ensemble.DEFAULTS[0]), drumFeel: "swing" }]));
+  assert.equal(codec.VERSION, 1);
+});
+
 test("linked patterns retain repeats, unused definitions, names and multi-bar grouping", () => {
   const track = drumTrack();
   const grouped = patterns.groupBars(track.patterns, 1, 4);

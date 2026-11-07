@@ -45,6 +45,8 @@
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
   const AHEAD_SECONDS = .23;
   const TICK_MS = 35;
+  const HAT_CHOKE_SECONDS = .06;
+  const HAT_CHOKE_TIME_CONSTANT = .009;
   const DRUM_RECIPES = Object.freeze({
     kick: Object.freeze({ voice: "membrane", size: "large", decay: .36 }),
     snare: Object.freeze({ voice: "snare", size: "medium", decay: .24 }),
@@ -454,6 +456,11 @@
       const spec = this.bufferSpec(event, sampleRate);
       if (!spec) return endsAt + .005;
       const bufferEnd = at + spec.frames / sampleRate - offsetSeconds;
+      if (event.type === "drum" && event.drum === "openHat" && Number.isFinite(event.chokeBeat)) {
+        const chokeAt = at - offsetSeconds +
+          (event.chokeBeat - event.startBeat) * scoreModel.secondsPerBeat(this.score);
+        return Math.min(bufferEnd, chokeAt + HAT_CHOKE_SECONDS);
+      }
       return spec.damper ? Math.min(bufferEnd, endsAt + .19) : bufferEnd;
     }
 
@@ -545,7 +552,7 @@
           score.meter.denominator !== first.meter.denominator) {
         throw new RangeError("All tracks must have the same M: and Q: tempo");
       }
-      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score) :
+      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score, track.drumFeel) :
         scheduledEvents(score, 0, instrument === "guitar" ? track.guitar : DEFAULT_GUITAR);
       events += soundingEvents.length;
       totalBeats = Math.max(totalBeats, score.totalBeats);
@@ -581,7 +588,7 @@
       this.partSettings = tracks.map(t => ({ id: t.id, instrument: t.instrument, volume: t.volume,
         mute: Boolean(t.mute), solo: Boolean(t.solo) }));
       this.playEvents = tracks.flatMap((t, partIndex) => (t.instrument === "drums" ?
-        drumModel.scheduledEvents(t.score) : scheduledEvents(t.score, 0,
+        drumModel.scheduledEvents(t.score, t.drumFeel) : scheduledEvents(t.score, 0,
           t.instrument === "guitar" ? t.guitar : DEFAULT_GUITAR)).map(event => ({
         ...event, partIndex
       }))).sort((a, b) => a.startBeat - b.startBeat || a.partIndex - b.partIndex);
@@ -650,15 +657,29 @@
     }
     scheduleDrumHit(event, at, offsetSeconds = 0) {
       const context = this.context;
+      const chokeAt = event.drum === "openHat" && Number.isFinite(event.chokeBeat) ?
+        at - offsetSeconds + (event.chokeBeat - event.startBeat) * scoreModel.secondsPerBeat(this.score) : null;
+      if (chokeAt !== null && (chokeAt + HAT_CHOKE_SECONDS <= at ||
+          chokeAt === at && offsetSeconds === 0)) return;
       const buffer = this.bufferFor(this.bufferSpec(event, context.sampleRate));
       if (offsetSeconds >= buffer.duration) return;
       const source = context.createBufferSource(), gain = context.createGain();
       source.buffer = buffer;
       source.connect(gain);
       gain.connect(this.buses[event.partIndex]);
-      gain.gain.setValueAtTime(.32 * event.velocity, at);
+      const level = .32 * event.velocity;
+      if (chokeAt === null) gain.gain.setValueAtTime(level, at);
+      else if (chokeAt > at) {
+        gain.gain.setValueAtTime(level, at);
+        gain.gain.setValueAtTime(level, chokeAt);
+        gain.gain.setTargetAtTime(0, chokeAt, HAT_CHOKE_TIME_CONSTANT);
+      } else {
+        gain.gain.setValueAtTime(level * Math.exp((chokeAt - at) / HAT_CHOKE_TIME_CONSTANT), at);
+        gain.gain.setTargetAtTime(0, at, HAT_CHOKE_TIME_CONSTANT);
+      }
       this.addVoice(source, gain);
       source.start(at, offsetSeconds);
+      if (chokeAt !== null) source.stop(Math.max(at + .002, chokeAt + HAT_CHOKE_SECONDS));
     }
     stop(reset = true) {
       super.stop(reset);
@@ -669,7 +690,8 @@
     }
   }
 
-  return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES, AHEAD_SECONDS,
+  return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES,
+    AHEAD_SECONDS, HAT_CHOKE_SECONDS,
     MAX_PARTS, MAX_ENSEMBLE_EVENTS,
     noteFrequency, instrumentRange, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

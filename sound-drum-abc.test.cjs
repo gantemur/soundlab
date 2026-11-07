@@ -156,6 +156,53 @@ test("off-grid triplets remain playable as text, but grid refuses to quantize th
   assert.equal(supported.includes("C/3"), true);
 });
 
+test("D2c (3 notation makes three eighth-note steps in one quarter; no silent grid quantization", () => {
+  const header = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n";
+  const abc = header + "(3[!accent!CE]Dz z6 | (3DFE z6 |]";
+  const parsed = drums.parse(abc);
+  assert.ok(Math.abs(parsed.totalBeats - 8) < 1e-9);
+  assert.ok(parsed.bars.every(bar => Math.abs(bar.durationBeats - 4) < 1e-9));
+  assert.deepEqual(parsed.parts[0].events.slice(0, 4).map(event => event.durationBeats),
+    [1 / 3, 1 / 3, 1 / 3, 3]);
+  assert.deepEqual(drums.scheduledEvents(parsed).filter(hit => hit.bar === 1)
+    .map(({ drum, startBeat }) => [drum, startBeat]),
+    [["kick", 0], ["hat", 0], ["snare", 1 / 3]]);
+  assert.throws(() => drums.gridOf(parsed), /sixteenth-note-aligned events/);
+  assert.equal(parsed.parts[0].events[1].hits[0].drum, "snare");
+  assert.throws(() => drums.parse(header + "(3DE |]"), /three triplet/);
+  assert.throws(() => drums.parse(header + "(3D(3E z6 |]"), /no nested tuplets/);
+  assert.throws(() => drums.parse(header + "(4D E z6 |]"), /Use \(3/);
+});
+
+test("D2c straight, light and 2:1 swing shift offbeats, not the ABC, quarter beats or barlines", () => {
+  const source = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nC E D E z4 | C E D E z4 |]";
+  const parsed = drums.parse(source), unchanged = structuredClone(parsed);
+  const at = feel => drums.scheduledEvents(parsed, feel).map(hit => +hit.startBeat.toFixed(9));
+  assert.deepEqual(at("straight"), [0, .5, 1, 1.5, 4, 4.5, 5, 5.5]);
+  assert.deepEqual(at("light"), [0, .58, 1, 1.58, 4, 4.58, 5, 5.58]);
+  assert.deepEqual(at("swing"), [0, +(2 / 3).toFixed(9), 1, +(5 / 3).toFixed(9),
+    4, +(14 / 3).toFixed(9), 5, +(17 / 3).toFixed(9)]);
+  assert.deepEqual(parsed, unchanged, "Changing feel must not mutate the score or linked patterns");
+  assert.throws(() => drums.scheduledEvents(parsed, "random"), /Unknown drum rhythmic feel/);
+  const roll = drums.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n!roll!E2 z6 |]");
+  const strokes = drums.scheduledEvents(roll, "swing");
+  assert.deepEqual(strokes.map(hit => +hit.startBeat.toFixed(9)),
+    [0, +(.5 * 2 / 3).toFixed(9), +(2 / 3).toFixed(9), +(5 / 6).toFixed(9)]);
+  assert.ok(strokes.every(hit => hit.durationBeats > 0));
+});
+
+test("D2c closed hi-hat marks an earlier open-hat tail for choking, including across a bar", () => {
+  const source = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nF z7 | E F z6 | [EF] z7 |]";
+  const straight = drums.scheduledEvents(drums.parse(source));
+  assert.deepEqual(straight.filter(hit => hit.drum === "openHat").map(hit => [hit.startBeat, hit.chokeBeat]),
+    [[0, 4], [4.5, 8], [8, 8]]);
+  const swing = drums.scheduledEvents(drums.parse(source), "swing");
+  assert.ok(Math.abs(swing.find(hit => hit.drum === "openHat" && hit.bar === 2).startBeat - (4 + 2 / 3)) < 1e-9);
+  assert.equal(swing.find(hit => hit.drum === "openHat" && hit.bar === 1).chokeBeat, 4);
+  const free = drums.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nF z7 |]");
+  assert.equal(drums.scheduledEvents(free)[0].chokeBeat, undefined);
+});
+
 test("a 32-bar drum part fits the full-score bound and waltz preset uses 3 beats", () => {
   const full = drums.parse(drums.groove({ meter: METER, tempoQuarter: 96, totalBeats: 128 }));
   assert.equal(full.bars.length, 32);

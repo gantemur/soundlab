@@ -92,18 +92,18 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s070"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s071"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s070"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s070"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s071"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s070"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s070"/);
-  assert.match(html, /src="sound-project\.js\?v=s070"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s071"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s071"/);
+  assert.match(html, /src="sound-project\.js\?v=s071"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s070"/);
+  assert.match(html, /src="sound-lab\.js\?v=s071"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -124,7 +124,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s070"/);
+  assert.match(html, /href="sound-lab\.css\?v=s071"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -2892,6 +2892,24 @@ test("D2b Strike/Pluck Kit plays the exact eleven Compose recipes while Models p
   assert.equal(app.drumKitButtons.at(-1).getAttribute("aria-pressed"), "true");
 });
 
+test("D2c striking a closed kit hi-hat damps the earlier open hat, without choking other drums", async () => {
+  const app = fakePage();
+  app.fire("modeStrike", "click");
+  app.strikeButtons[1].click();
+  const hit = async id => app.drumKitButtons.find(button => button.dataset.strikeKitDrum === id).click();
+  await hit("openHat");
+  const open = app.contexts[0].sources.at(-1);
+  assert.equal(open.stopped, false);
+  await hit("snare");
+  assert.equal(open.stopped, false, "Snare must not damp the open cymbal");
+  await hit("hat");
+  assert.equal(open.stopped, true, "Pedal-closed pad damps the previously open cymbal");
+  const closed = app.contexts[0].sources.at(-1);
+  assert.equal(closed.stopped, false, "The new closed-hat strike is still audible");
+  app.fire("stopAll", "click");
+  assert.equal(closed.stopped, true);
+});
+
 test("D2b drum grid edits ghost, flam and roll without altering the untouched repeat pattern", () => {
   const app = fakePage();
   app.fire("modeCompose", "click");
@@ -3446,6 +3464,39 @@ test("ensemble guitar controls belong to one track, survive selection/language c
   app.elements.get("ensemblePreset").value = "chopin7";
   app.fire("ensembleApplyPreset", "click");
   assert.equal(guitarControls().mode, undefined, "Piano tracks have no guitar controls");
+});
+
+test("D2c drum feel is a per-track bilingual control, persists through Save/Open and leaves ABC untouched", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "swingHats";
+  app.fire("ensembleApplyPreset", "click");
+  const before = app.elements.get("ensembleText").value;
+  const findFeel = () => projectTrackControl(app, 0, "ensemble-drum-feel");
+  assert.equal(findFeel().value, "swing");
+  assert.match(findFeel().getAttribute("aria-label"), /Rhythmic feel/);
+  let select = findFeel();
+  select.value = "light";
+  select.events.change();
+  assert.equal(findFeel().value, "light");
+  assert.equal(app.elements.get("ensembleText").value, before,
+    "Rhythmic feel changes scheduling, not the written percussion part");
+  app.fire("langMn", "click");
+  assert.equal(findFeel().value, "light");
+  assert.match(findFeel().getAttribute("aria-label"), /Хэмнэлийн мэдрэмж/);
+  const saved = await saveNativeProject(app);
+  assert.equal(saved.data.content.tracks[0].drumFeel, "light");
+  assert.equal(saved.data.content.tracks[0].abc, ensemblePresets.create("swingHats", "en")[0].abc,
+    "The saved song contains every repeated bar, not only the selected pattern editor's ABC");
+  app.elements.get("ensemblePreset").value = "drumKitSolo";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(findFeel().value, "straight", "Other existing examples default to straight timing");
+  assert.equal(await offerNativeProject(app, saved.text), true);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(findFeel().value, "light");
+  assert.equal(app.elements.get("ensembleText").value, before);
+  assert.equal(app.contexts.length, 0, "Translation and file operations must not start audio");
 });
 
 test("the three sourced songs load silently in Solo and Ensemble with editable guitar parts", () => {

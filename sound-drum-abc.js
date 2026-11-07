@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: MIT
  * A strict ABC-like percussion part. C D E F G retain the original five voices;
  * A B c d e f add six D2 kit voices. Lowercase notes are percussion identifiers.
- * Per-hit dynamics and !flam!/!roll! are Sound Lab's strict ABC extensions.
+ * Per-hit dynamics, !flam!/!roll!, and per-track swing are Sound Lab extensions.
  */
 (function (root, factory) {
   const score = typeof module === "object" && module.exports ? require("./sound-score.js") : root.SoundLabScore;
@@ -28,6 +28,9 @@
   const BY_ID = Object.fromEntries(DRUMS.map(drum => [drum.id, drum]));
   const VELOCITIES = Object.freeze({ ghost: .34, p: .55, normal: .8, accent: 1 });
   const ARTICULATIONS = Object.freeze(["plain", "flam", "roll"]);
+  // Playback feel never rewrites ABC or its linked pattern definitions.
+  // Ratios describe where the eighth-note offbeat falls within a quarter beat.
+  const FEELS = Object.freeze({ straight: .5, light: .58, swing: 2 / 3 });
   const FLAM_GAP_SECONDS = .032;
   const ROLL_STROKES = Object.freeze([.68, .82, .74, 1]);
   const MAX_HITS = 512;
@@ -103,7 +106,9 @@
       parts: [{ id: "drums", instrument: "drums", events: [] }] };
     const events = result.parts[0].events;
     let beat = 0, barStart = 0, bar = 1, closed = false, hitsCount = 0;
+    let tripletRemaining = 0;
     const finishBar = (isLast, line) => {
+      if (tripletRemaining) throw new DrumABCError("Finish all three triplet notes before the bar line", line);
       const length = beat - barStart;
       if (bar > scoreModel.MAX_BARS || length < 1e-8 || length > meter.quarterBeats + 1e-7 ||
           (bar !== 1 && !isLast && Math.abs(length - meter.quarterBeats) > 1e-7)) {
@@ -136,6 +141,13 @@
       for (let i = 0; i < body.length;) {
         if (/\s/.test(body[i])) { i++; continue; }
         if (closed) throw new DrumABCError("Nothing may follow |]", line, i + 1);
+        if (body[i] === "(") {
+          if (body.slice(i, i + 2) !== "(3" || tripletRemaining) {
+            throw new DrumABCError("Use (3 before exactly three triplet steps; no nested tuplets", line, i + 1);
+          }
+          tripletRemaining = 3;
+          i += 2; continue;
+        }
         if (body[i] === "|") {
           if (body[i + 1] === ":") throw new DrumABCError("Repeats are not supported", line, i + 1);
           const final = body[i + 1] === "]", width = final || body[i + 1] === "|" ? 2 : 1;
@@ -160,7 +172,8 @@
           hits = [next.hit]; i = next.position;
         }
         const duration = durationOf(body, i); i += duration.length;
-        const durationBeats = unitBeats * duration.factor;
+        const durationBeats = unitBeats * duration.factor * (tripletRemaining ? 2 / 3 : 1);
+        if (tripletRemaining) tripletRemaining--;
         if (durationBeats > 32) throw new DrumABCError("Drum step exceeds 32 quarter beats", line, at + 1);
         events.push({ type: hits.length ? "drum-step" : "rest", startBeat: beat, durationBeats, bar, hits });
         beat += durationBeats;
@@ -170,6 +183,7 @@
         }
       }
     }
+    if (tripletRemaining) throw new DrumABCError("Unfinished (3 triplet: write three notes or rests");
     if (beat > barStart + 1e-8) finishBar(true, lines.length);
     if (!events.length) throw new DrumABCError("Write at least one drum note or rest");
     result.bars[0].pickup = result.bars.length > 1 && result.bars[0].partial;
@@ -207,27 +221,56 @@
     if (hits > MAX_HITS || Math.abs(beat - score.totalBeats) > 1e-7) throw new DrumABCError("Percussion score exceeds hit or timing limits");
     return score;
   }
-  function scheduledEvents(score) {
+  function swungBeat(beat, barStart, ratio) {
+    if (ratio === .5) return beat;
+    const local = beat - barStart;
+    const whole = Math.floor(local + 1e-9), fraction = local - whole;
+    if (Math.abs(fraction) < 1e-9) return barStart + whole;
+    return barStart + whole + (fraction <= .5 ? fraction * 2 * ratio :
+      ratio + (fraction - .5) * 2 * (1 - ratio));
+  }
+  function scheduledEvents(score, feel = "straight") {
     validate(score);
+    if (!Object.hasOwn(FEELS, feel)) throw new DrumABCError("Unknown drum rhythmic feel");
+    const ratio = FEELS[feel];
     const sounding = [];
     for (const event of score.parts[0].events) for (const hit of event.hits) {
-      const base = { type: "drum", startBeat: event.startBeat,
-        durationBeats: event.durationBeats, bar: event.bar, drum: hit.drum, velocity: hit.velocity };
+      const barStart = score.bars[event.bar - 1].startBeat;
+      const warp = beat => swungBeat(beat, barStart, ratio);
+      const start = warp(event.startBeat), end = warp(event.startBeat + event.durationBeats);
+      const base = { type: "drum", startBeat: start,
+        durationBeats: end - start, bar: event.bar, drum: hit.drum, velocity: hit.velocity };
       if (hit.articulation === "flam") {
-        const gap = Math.min(FLAM_GAP_SECONDS * score.tempoQuarter / 60, event.durationBeats * .35);
-        const canLead = event.startBeat >= gap;
-        sounding.push({ ...base, startBeat: canLead ? event.startBeat - gap : event.startBeat,
+        const gap = Math.min(FLAM_GAP_SECONDS * score.tempoQuarter / 60, base.durationBeats * .35);
+        const canLead = start >= barStart + gap;
+        sounding.push({ ...base, startBeat: canLead ? start - gap : start,
           velocity: hit.velocity * .5, stroke: "flam-grace" });
-        sounding.push({ ...base, startBeat: canLead ? event.startBeat : event.startBeat + gap,
+        sounding.push({ ...base, startBeat: canLead ? start : start + gap,
           stroke: "flam-main" });
       } else if (hit.articulation === "roll") {
-        ROLL_STROKES.forEach((strength, index) => sounding.push({ ...base,
-          startBeat: event.startBeat + event.durationBeats * index / ROLL_STROKES.length,
-          durationBeats: event.durationBeats / ROLL_STROKES.length,
-          velocity: hit.velocity * strength, stroke: "roll-" + (index + 1) }));
+        ROLL_STROKES.forEach((strength, index) => {
+          const from = warp(event.startBeat + event.durationBeats * index / ROLL_STROKES.length);
+          const to = warp(event.startBeat + event.durationBeats * (index + 1) / ROLL_STROKES.length);
+          sounding.push({ ...base, startBeat: from, durationBeats: to - from,
+            velocity: hit.velocity * strength, stroke: "roll-" + (index + 1) });
+        });
       } else sounding.push(base);
     }
-    return sounding.sort((a, b) => a.startBeat - b.startBeat);
+    sounding.sort((a, b) => a.startBeat - b.startBeat);
+    // The next closed-hat strike cuts short earlier open-hat tails, even across
+    // a bar line. Annotate the open stroke so playback, seeking and WAV export
+    // all apply the same choke without depending on scheduling order.
+    const closed = sounding.filter(hit => hit.drum === "hat").map(hit => hit.startBeat);
+    for (const hit of sounding) if (hit.drum === "openHat") {
+      let low = 0, high = closed.length;
+      while (low < high) {
+        const mid = Math.floor((low + high) / 2);
+        if (closed[mid] < hit.startBeat - 1e-8) low = mid + 1;
+        else high = mid;
+      }
+      if (low < closed.length) hit.chokeBeat = closed[low];
+    }
+    return sounding;
   }
   function gridOf(score) {
     validate(score);
@@ -344,7 +387,7 @@
     const placeholder = { meter, tempoQuarter, title };
     return fromGrid(placeholder, bars).replace(/^X:1$/m, "X:" + id);
   }
-  return Object.freeze({ DRUMS, VELOCITIES, ARTICULATIONS, FLAM_GAP_SECONDS, ROLL_STROKES,
+  return Object.freeze({ DRUMS, VELOCITIES, ARTICULATIONS, FEELS, FLAM_GAP_SECONDS, ROLL_STROKES,
     MAX_HITS, DrumABCError, parse, validate,
     scheduledEvents, gridOf, fromGrid, toggleGridHit, groove });
 });

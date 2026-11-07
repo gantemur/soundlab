@@ -474,6 +474,27 @@ test("ensemble scheduling preserves strums, instrument gains, track volumes, per
   assert.equal(alone.contexts[0].graph.sources.length, 6);
 });
 
+test("D2c WAV export shares swung offbeat positions and audible hi-hat choke with live playback", async () => {
+  const abc = percussion("F2 E2 z12 |]");
+  for (const [feel, closedBeat] of [["straight", .5], ["light", .58], ["swing", 2 / 3]]) {
+    const part = track(1, "drums", abc, { drumFeel: feel });
+    const input = arrangement([part]), frozen = copy(input);
+    const f = fixture();
+    const output = await exporter.render(input, f.deps);
+    const strokes = f.contexts[0].graph.sources;
+    assert.equal(strokes.length, 2);
+    close(strokes[0].at, 0);
+    close(strokes[1].at, closedBeat * .5);
+    close(strokes[0].stop, closedBeat * .5 + players.HAT_CHOKE_SECONDS);
+    assert.ok(strokes[0].gain.some(record => record[0] === "target" &&
+      Math.abs(record[2] - closedBeat * .5) < 1e-10 && record[3] === .009));
+    assert.ok(output.duration > strokes[0].stop);
+    assert.equal(input.content.tracks[0].abc, frozen.content.tracks[0].abc);
+    assert.deepEqual(input, frozen, "Export does not alter ABC or feel");
+    cleaned(f.contexts[0]);
+  }
+});
+
 test("peak protection attenuates only above 0.98 and never boosts quieter or silent exports", async () => {
   for (const [samples, peak, gain] of [[Float32Array.of(2, -1, .5), 2, .49],
     [Float32Array.of(.25, -.125, 0), .25, 1], [Float32Array.of(0, 0, 0), 0, 1]]) {

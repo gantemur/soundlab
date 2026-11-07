@@ -59,7 +59,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 16);
+  assert.equal(presets.CATALOG.length, 17);
 });
 
 test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {
@@ -121,6 +121,30 @@ test("D2b original snare rudiment demonstrates flams, rolls, ghosts and accents 
     assert.ok(steps.some(hit => hit.velocity === drums.VELOCITIES.accent));
     assert.ok(drums.scheduledEvents(score).length > steps.length, "Decorations produce actual extra attacks");
     assert.deepEqual(drums.gridOf(drums.parse(drumPatterns.toABC(track.patterns))), drums.gridOf(score));
+  }
+});
+
+test("D2c swing hi-hat study is bilingual, linked, original and actually demonstrates choking", () => {
+  for (const language of ["en", "mn"]) {
+    const [track] = presets.create("swingHats", language);
+    assert.equal(track.instrument, "drums");
+    assert.equal(track.drumFeel, "swing");
+    assert.equal(track.textMode, "pattern");
+    assert.equal(drumPatterns.expanded(track.patterns).length, 8);
+    assert.equal(drumPatterns.toABC(track.patterns), track.abc);
+    const parsed = drums.parse(track.abc);
+    assert.equal(parsed.bars.length, 8);
+    assert.equal(parsed.tempoQuarter, 104);
+    const straight = drums.scheduledEvents(parsed);
+    const swung = drums.scheduledEvents(parsed, track.drumFeel);
+    assert.ok(swung.some(hit => hit.drum === "openHat" && hit.chokeBeat > hit.startBeat));
+    assert.ok(swung.some(hit => hit.drum === "hat"));
+    assert.ok(swung.some(hit => hit.drum === "snare"));
+    assert.ok(swung.some((hit, i) => straight[i] && Math.abs(straight[i].startBeat - hit.startBeat) > .05));
+    assert.ok(track.name.includes(language === "en" ? "Swing" : "Свинг"));
+    const another = presets.create("swingHats", language)[0];
+    track.patterns.patterns[0].name = "Private edit";
+    assert.notEqual(another.patterns.patterns[0].name, "Private edit");
   }
 });
 

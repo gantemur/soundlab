@@ -1558,6 +1558,12 @@
       source.connect(gain);
       gain.connect(this.contextOwner.output);
 
+      // Pressing the pedal/closed-hat pad damps any open-hat sample already
+      // ringing. Models mode and the other kit pads retain overlapping tails.
+      if (recipe.drumKitId === "hat") for (const voice of this.voices) {
+        if (voice.drumKitId === "openHat") this.stopVoice(voice, false);
+      }
+
       // All struck instruments can overlap for rhythms, but the number of
       // simultaneously sounding voices and summed peak gain remain bounded.
       while (this.voices.size >= 4) {
@@ -1565,7 +1571,7 @@
         this.stopVoice(oldest, true);
         this.voices.delete(oldest);
       }
-      const voice = { source, gain, stopping: false };
+      const voice = { source, gain, drumKitId: recipe.drumKitId || null, stopping: false };
       this.voices.add(voice);
       source.onended = () => {
         source.disconnect();
@@ -2728,6 +2734,7 @@
     return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : xylophone ? "xylophone" : mandolin ? "mandolin" : harp ? "harp" :
       state.strikeKind, pitchHz: state.strikePitch,
       decaySec: state.strikeDecay, kickSize: drum?.size || state.strikeDrumSize,
+      ...(drum && state.strikeDrumView === "kit" ? { drumKitId: state.strikeDrumKit } : {}),
       options: {
         position: state.strikePluckPosition,
         drumVoice: pitchedChimes ? "chimes" : drum?.voice || state.strikeDrumVoice,

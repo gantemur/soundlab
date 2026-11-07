@@ -587,6 +587,59 @@ test("a four-part ensemble resumes only its still-sounding held, marimba and dru
   assert.equal(context.sources.length, count);
 });
 
+test("D2c closed hi-hat chokes the actual open sample, including seek and same-beat collisions", async t => {
+  const part = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nF E z6 |]");
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score: part, volume: 60 }] });
+  assert.equal(player.playEvents[0].drum, "openHat");
+  assert.equal(player.playEvents[0].chokeBeat, .5);
+  await player.play();
+  const open = context.sources[0];
+  assert.equal(open.type, "buffer");
+  assert.ok(Math.abs(open.stoppedAt - (.08 + .25 + playerModel.HAT_CHOKE_SECONDS)) < 1e-9);
+  const openEnvelope = context.gains.find(gain => gain === open.target);
+  assert.ok(openEnvelope.gain.records.some(record => record[0] === "target" &&
+    Math.abs(record[2] - .33) < 1e-9 && record[3] === .009));
+  context.currentTime = .2;
+  player.tick();
+  assert.equal(context.sources.length, 2, "The closed hi-hat still sounds as its own strike");
+  context.currentTime = .45;
+  player.pause();
+  assert.equal(player.status, "paused");
+  context.currentTime = 10;
+  const count = context.sources.length;
+  await player.play();
+  assert.equal(context.sources.length, count + 1, "Only the closed-hat tail resumes after the choke");
+  assert.ok(context.sources.at(-1).offset > .1);
+  const simultaneous = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n[EF] z7 |]");
+  const other = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => other.player.stop());
+  other.player.configure({ tracks: [{ id: 1, instrument: "drums", score: simultaneous, volume: 50 }] });
+  await other.player.play();
+  assert.equal(other.context.sources.length, 1, "Pedal-closed hi-hat suppresses simultaneous open strike");
+});
+
+test("D2c ensemble schedules swung offbeats without moving downbeats or touching a pitched track", async t => {
+  const part = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nC E D E z4 |]");
+  const pitched = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 |]");
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.configure({ tracks: [
+    { id: 1, instrument: "drums", score: part, volume: 50, drumFeel: "swing" },
+    { id: 2, instrument: "sine", score: pitched, volume: 50 }
+  ] });
+  assert.deepEqual(player.playEvents.filter(event => event.partIndex === 0)
+    .map(event => +event.startBeat.toFixed(9)),
+    [0, +(2 / 3).toFixed(9), 1, +(5 / 3).toFixed(9)]);
+  assert.equal(player.playEvents.find(event => event.partIndex === 1).startBeat, 0);
+  await player.play();
+  for (const time of [.25, .45, .65, .85]) { context.currentTime = time; player.tick(); }
+  const drum = context.sources.filter(source => source.type === "buffer");
+  assert.deepEqual(drum.map(source => +source.startedAt.toFixed(9)),
+    [.08, +(.08 + 1 / 3).toFixed(9), .58, +(.08 + 5 / 6).toFixed(9)]);
+});
+
 test("resuming after all tails expired stops cleanly instead of looping from bar one", async t => {
   for (const instrument of ["flute", "morin", "marimba", "sine"]) {
     const { player, context } = audioFixture();
@@ -908,7 +961,9 @@ test("each drum has a shared full-tail specification independent of its written 
     const spec = player.bufferSpec(event, context.sampleRate), buffer = player.bufferFor(spec);
     assert.equal(spec.frames, Math.ceil(seconds[event.drum] * context.sampleRate));
     assert.equal(buffer.getChannelData(0).length, spec.frames);
-    assert.equal(player.voiceEndTime(event, 2, 2.01, context.sampleRate), 2 + buffer.duration);
+    assert.equal(player.voiceEndTime(event, 2, 2.01, context.sampleRate),
+      event.drum === "openHat" ? 2 + playerModel.HAT_CHOKE_SECONDS : 2 + buffer.duration,
+      "The full open-hat sample exists, but a simultaneous closed hat cuts its audible tail");
   }
   assert.equal(calls.length, 0);
 });

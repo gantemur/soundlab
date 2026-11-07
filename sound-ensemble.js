@@ -43,6 +43,8 @@
        track: "Track", name: "Name", choose: "Edit", editHint: "Select to edit, not to solo. Use Solo to hear only this track.",
        remove: "Remove", mute: "Mute", unmute: "Unmute",
       solo: "Solo", unsolo: "Unsolo", volume: "Volume", instrument: "Instrument",
+      drumFeel: "Rhythmic feel", feelStraight: "Straight", feelLight: "Light swing (58:42)",
+      feelSwing: "Swing (2:1)", feelHint: "Drum attacks move within each quarter beat; the ABC score and linked patterns stay unchanged. A closed hi-hat damps an open one.",
       guitarTechnique: "Guitar technique", guitarPluck: "Pluck together",
       guitarDown: "↓ Downstroke", guitarUp: "↑ Upstroke", guitarAlternate: "↓↑ Alternating strokes",
       guitarSpacing: "Between notes", milliseconds: "ms",
@@ -51,7 +53,7 @@
       inspect: "Notes in each track; the gold line marks the current beat.",
       help: "Edit one track at a time; the other tracks remain in place. Different keys are allowed, but every track needs the same M: and Q:.",
       limits: "Up to 4 tracks, 1,024 note/drum events combined and 90 seconds. Multi-voice ABC import is not yet supported.",
-      drumHelp: "Drum ABC: C–G original kit; A floor tom, B mid tom, c high tom, d ride, e crash, f rimshot. [CE] plays simultaneous hits. !ghost!, !p!, !accent! change strength; !flam! adds a soft grace hit, !roll! plays four strokes over the written duration. Each hit may use one dynamic and one technique.",
+      drumHelp: "Drum ABC: C–G original kit; A floor tom, B mid tom, c high tom, d ride, e crash, f rimshot. [CE] plays simultaneous hits. !ghost!, !p!, !accent! change strength; !flam! adds a soft grace hit, !roll! plays four strokes. (3 before three notes/rests makes a triplet; edit triplets in ABC text, not the 16th grid. Closed hi-hat chokes open hi-hat.",
       grid: "Drum grid · optional editor", gridHint: "A cell toggles a hit in the selected bar. Choose a strength and a technique (single, flam, or four-stroke roll). F/R labels identify techniques; text and grid share one score.",
       gridBar: "Bar", gridStep: "Spacing", gridStrength: "Hit strength", gridGhost: "Ghost", gridSoft: "Soft", gridNormal: "Normal", gridAccent: "Accent",
       gridArticulation: "Technique", gridPlain: "Single", gridFlam: "Flam", gridRoll: "4 strokes",
@@ -83,6 +85,8 @@
        track: "Хөгжим", name: "Нэр", choose: "Засах", editHint: "Засах хөгжмөө сонгоно. Дангаар сонсох бол «Ганцаар».",
        remove: "Хасах", mute: "Дуугүй", unmute: "Дуутай",
       solo: "Ганцаар", unsolo: "Хамт", volume: "Чанга", instrument: "Зэмсэг",
+      drumFeel: "Хэмнэлийн мэдрэмж", feelStraight: "Тэгш", feelLight: "Зөөлөн свинг (58:42)",
+      feelSwing: "Свинг (2:1)", feelHint: "Бөмбөрийн завсрын цохилтын хугацаа өөрчлөгдөнө; ABC ба холбоотой загвар хэвээр. Хаалттай цан нээлттэй цангийн дуунг дарна.",
       guitarTechnique: "Гитар тоглох арга", guitarPluck: "Зэрэг татах",
       guitarDown: "↓ Доош цохих", guitarUp: "↑ Дээш цохих", guitarAlternate: "↓↑ Ээлжлэн цохих",
       guitarSpacing: "Нот хоорондын зай", milliseconds: "мсек",
@@ -91,7 +95,7 @@
       inspect: "Мөр бүрийн нотууд; шар зураас нь тоглож буй цохилт.",
       help: "Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. Хөг өөр байж болно, харин M: хэмжээ ба Q: хурд ижил байх ёстой.",
       limits: "4 хүртэл мөр, нийт 1024 нот/цохилт, 90 секунд. Олон хоолойтой ABC-г дараа нэмж болно.",
-      drumHelp: "Бөмбөрийн ABC: C–G үндсэн тав, A суурь том, B дунд том, c өндөр том, d райд, e крэш, f хүрээтэй цохилт. [CE] зэрэг цохилт. !ghost!, !p!, !accent! нь хүчийг; !flam! нь урьтал сул цохилт, !roll! нь нотын хугацаанд багтсан 4 цохилтыг заана. Нэг нотод нэг хүч, нэг арга хэрэглэнэ.",
+      drumHelp: "Бөмбөрийн ABC: C–G үндсэн тав, A суурь том, B дунд том, c өндөр том, d райд, e крэш, f хүрээтэй цохилт. [CE] зэрэг цохилт. !ghost!, !p!, !accent! нь хүчийг; !flam! нь урьтал сул цохилт, !roll! нь 4 цохилтыг заана. (3 нь дараагийн 3 нот/паузын триоль; тороор бус, ABC эхээр засна. Хаалттай цан нээлттэй цанг дарна.",
       grid: "Бөмбөрийн тор · хүсвэл нээх", gridHint: "Нүдийг дарж цохилт нэмэх/хасахдаа хүч болон аргыг сонгоно. F нь флам, R нь 4 цохилт; ABC ба тор нэг нотыг илэрхийлнэ.",
       gridBar: "Такт", gridStep: "Алхам", gridStrength: "Цохилтын хүч", gridGhost: "Маш зөөлөн", gridSoft: "Зөөлөн", gridNormal: "Энгийн", gridAccent: "Хүчтэй",
       gridArticulation: "Цохих арга", gridPlain: "Дан", gridFlam: "Флам", gridRoll: "4 цохилт",
@@ -488,6 +492,7 @@
         });
         if (track.instrument === "drums") {
           this.make("span", "ensemble-drum-kind", "♩ " + this.t("drums"), row);
+          this.renderDrumFeelControls(track, row);
         } else {
           const instrument = this.make("select", "ensemble-instrument", undefined, row);
           instrument.setAttribute("aria-label", this.t("instrument") + " " + track.id);
@@ -531,6 +536,23 @@
       this.$("ensembleAdd").disabled = this.tracks.length >= playerModel.MAX_PARTS;
       this.$("ensembleAddDrums").disabled = this.tracks.length >= playerModel.MAX_PARTS;
       this.renderEditorLabel();
+    }
+    renderDrumFeelControls(track, row) {
+      const controls = this.make("div", "ensemble-feel", undefined, row);
+      const label = this.make("label", "field-title", this.t("drumFeel"), controls);
+      const select = this.make("select", "ensemble-drum-feel", undefined, controls);
+      select.id = "ensembleDrumFeel-" + track.id;
+      label.htmlFor = select.id;
+      select.setAttribute("aria-label", this.t("drumFeel") + " · " + track.name);
+      for (const [value, caption] of [["straight", "feelStraight"], ["light", "feelLight"], ["swing", "feelSwing"]]) {
+        this.make("option", "", this.t(caption), select).value = value;
+      }
+      select.value = track.drumFeel || "straight";
+      select.addEventListener("change", () => {
+        track.drumFeel = select.value;
+        this.parse({ updateTracks: false });
+      });
+      if (track.id === this.selectedId) this.make("p", "field-help", this.t("feelHint"), controls);
     }
     renderGuitarControls(track, row) {
       const settings = { mode: "pluck", spacingMs: 20, ...track.guitar };
@@ -587,7 +609,7 @@
         try {
           const isDrum = track.instrument === "drums";
           const parsed = isDrum ? drums.parse(track.abc) : abc.parse(track.abc);
-          const events = isDrum ? drums.scheduledEvents(parsed) : playerModel.scheduledEvents(parsed, 0,
+          const events = isDrum ? drums.scheduledEvents(parsed, track.drumFeel) : playerModel.scheduledEvents(parsed, 0,
             track.instrument === "guitar" ? track.guitar : undefined);
           for (const event of events) {
             const note = this.make("span", isDrum ? "ensemble-note ensemble-drum-hit" : "ensemble-note", undefined, lane);
