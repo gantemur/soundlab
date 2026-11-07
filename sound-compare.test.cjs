@@ -121,12 +121,26 @@ function fixture() {
     load, setAnalysis(value) { analysis = value; } };
 }
 
-test("C1 provides separate A/B pickers, source buttons, cursors and bilingual labels", () => {
+test("C1 uses peer Analysis sub-tabs, nested Single source views and plot-side listening controls", () => {
   const f = fixture();
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(ids.length, new Set(ids).size);
-  assert.match(html, /id="analysisViewSpectrum"[\s\S]*id="analysisViewSpectro"[\s\S]*id="analysisViewCompare"/);
+  assert.match(html, /id="analysisKindModes"[\s\S]*id="analysisKindSingle"[\s\S]*id="analysisKindCompare"[\s\S]*id="analysisViewModes"[\s\S]*id="analysisViewSpectrum"[\s\S]*id="analysisViewSpectro"/);
+  assert.match(html, /id="compareKindModes"[\s\S]*id="compareKindSingle"[\s\S]*id="compareKindCompare"/);
+  assert.doesNotMatch(html, /id="analysisViewCompare"|id="compareNavSpectrum"|id="compareNavSpectro"/);
   assert.match(html, /id="analysisCompareWorkspace" hidden/);
+  const singleLeft = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisOfflineVisuals"'));
+  assert.doesNotMatch(singleLeft, /id="analysisPlay"|id="analysisVolume"/);
+  assert.match(html.slice(html.indexOf('id="analysisWaveTitle"'), html.indexOf('id="analysisWaveCanvas"')),
+    /id="analysisPlay"[\s\S]*id="analysisVolume"/);
+  const compareLeft = html.slice(html.indexOf('id="analysisCompareWorkspace"'), html.indexOf('class="visuals compare-visuals"'));
+  assert.doesNotMatch(compareLeft, /id="compare[AB]Play"|id="compare[AB]Volume"/);
+  for (const key of ["A", "B"]) {
+    const plot = html.slice(html.indexOf(`id="compare${key}VisualTitle"`),
+      html.indexOf(`id="compare${key}Wave"`));
+    assert.match(plot, new RegExp(`id="compare${key}Play"[\\s\\S]*id="compare${key}Volume"`));
+  }
+  assert.match(compareLeft, /id="compareVolume"[^>]*value="100"/);
   assert.match(html, /id="compareAClass"[\s\S]*id="compareAExample"[\s\S]*id="compareAOpen"[\s\S]*id="compareAMic"/);
   assert.match(html, /id="compareBClass"[\s\S]*id="compareBExample"[\s\S]*id="compareBOpen"[\s\S]*id="compareBMic"/);
   assert.deepEqual(f.controller.slots.A.pcm, null);
@@ -134,6 +148,9 @@ test("C1 provides separate A/B pickers, source buttons, cursors and bilingual la
   assert.equal(f.owner.readyCalls, 0);
   f.controller.renderLanguage("en");
   assert.equal(f.get("compareTitle").textContent, "Compare two sounds");
+  assert.equal(f.get("compareKindSingle").textContent, "Single source");
+  assert.equal(f.get("compareKindCompare").textContent, "Compare");
+  assert.equal(f.get("compareVolumeValue").textContent, "100%");
   assert.equal(f.get("compareAMic").textContent, "Microphone…");
   f.get("compareAMic").click(); f.get("compareBMic").click();
   assert.deepEqual(f.microphones, ["A", "B"]);
@@ -174,18 +191,31 @@ test("C1 independent listening is exclusive; controls do not modify source sampl
   assert.equal(await f.controller.play("A"), true);
   assert.equal(f.controller.playingKey, "A");
   assert.equal(f.buffers[0].sampleRate, 16000);
+  assert.deepEqual(f.gains[0].gain.events.at(-1), ["ramp", .2, .008]);
+  f.get("compareAVolume").value = "35"; f.get("compareAVolume").dispatch("input");
+  assert.equal(f.controller.slots.A.volume, .35);
+  assert.deepEqual(f.gains[0].gain.events.at(-1), ["target", .35, 0, .01]);
+  f.get("compareBVolume").value = "50"; f.get("compareBVolume").dispatch("input");
+  assert.equal(f.controller.slots.B.volume, .5);
+  assert.equal(f.gains[0].gain.events.at(-1)[1], .35, "B volume cannot change A listening");
   assert.equal(await f.controller.play("B"), true);
   assert.equal(f.controller.playingKey, "B");
   assert.equal(f.nodes[0].stops, 1);
   assert.equal(f.buffers[1].sampleRate, 32000);
+  assert.deepEqual(f.gains[1].gain.events.at(-1), ["ramp", .5, .008]);
   f.get("compareVolume").value = "12"; f.get("compareVolume").dispatch("input");
   assert.equal(f.controller.volume, .12);
-  assert.ok(f.gains[1].gain.events.some(event => event[0] === "target"));
+  assert.deepEqual(f.gains[1].gain.events.at(-1), ["target", .06, 0, .01]);
+  assert.equal(f.get("compareAVolumeValue").textContent, "35%");
+  assert.equal(f.get("compareBVolumeValue").textContent, "50%");
+  assert.equal(f.get("compareVolumeValue").textContent, "12%");
   f.get("compareBPlay").click();
   assert.equal(f.controller.playingKey, null);
   assert.equal(f.nodes[1].stops, 1);
   assert.equal(f.owner.readyCalls, 2);
   assert.equal(a.channels[0][1], sine(16000)[1]);
+  assert.ok(f.controller.slots.A.index.peak > .39);
+  assert.ok(f.controller.slots.B.index.peak > .39);
   f.get("compareACursor").value = "0.06"; f.get("compareACursor").dispatch("input");
   assert.equal(f.controller.slots.A.cursor, .06);
   assert.notEqual(f.controller.slots.B.cursor, .06);

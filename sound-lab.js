@@ -2617,10 +2617,8 @@
     $("analysisMicWorkspace").hidden = !active || !micOpen;
     const isCompare = analysisScreen === "compare";
     for (const [id, selected] of [
-      ["analysisViewCompare", isCompare], ["compareNavCompare", isCompare],
-      ["analysisViewSpectrum", !isCompare && analysis?.analysisView === "spectrum"],
-      ["analysisViewSpectro", !isCompare && analysis?.analysisView === "spectrogram"],
-      ["compareNavSpectrum", false], ["compareNavSpectro", false]
+      ["analysisKindSingle", !isCompare], ["analysisKindCompare", isCompare],
+      ["compareKindSingle", !isCompare], ["compareKindCompare", isCompare]
     ]) {
       $(id).classList.toggle("selected", Boolean(selected));
       $(id).setAttribute("aria-pressed", String(Boolean(selected)));
@@ -7722,9 +7720,10 @@
   $("modeTuning").addEventListener("click", () => selectMode("tuning"));
   $("modeCompose").addEventListener("click", () => selectMode("compose"));
   $("modeAnalysis").addEventListener("click", () => selectMode("analysis"));
-  $("analysisViewCompare").addEventListener("click", () => switchAnalysisScreen("compare"));
-  $("compareNavSpectrum").addEventListener("click", () => switchAnalysisScreen("spectrum"));
-  $("compareNavSpectro").addEventListener("click", () => switchAnalysisScreen("spectrogram"));
+  $("analysisKindSingle").addEventListener("click", () => switchAnalysisScreen("single"));
+  $("analysisKindCompare").addEventListener("click", () => switchAnalysisScreen("compare"));
+  $("compareKindSingle").addEventListener("click", () => switchAnalysisScreen("single"));
+  $("compareKindCompare").addEventListener("click", () => switchAnalysisScreen("compare"));
   document.querySelectorAll("[data-compose-subtab]").forEach(button =>
     button.addEventListener("click", () => selectComposeSubtab(button.dataset.composeSubtab, true)));
   const sustainPad = $("sustainHoldButton");

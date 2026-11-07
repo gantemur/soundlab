@@ -23,6 +23,8 @@
     en: {
       title: "Compare two sounds", intro: "Choose A and B independently; compare waveforms, spectra and listening.",
       spectrumTab: "Spectrum", spectrogramTab: "Spectrogram", compareTab: "Compare",
+      kindSingle: "Single source", kindCompare: "Compare", masterVolume: "Master listening volume",
+      volumeHint: "A/B volume is multiplied by the master level; neither changes the measured samples or spectra.",
       sourceA: "Sound A", sourceB: "Sound B", classLabel: "Class", exampleLabel: "Example",
       open: "Open WAV…", mic: "Microphone…", fromAnalysis: "Use current Analysis sound",
       playA: "▶ Play A", playB: "▶ Play B", stopA: "Ⅱ Stop A", stopB: "Ⅱ Stop B",
@@ -54,6 +56,8 @@
     mn: {
       title: "Хоёр авиаг харьцуулах", intro: "A ба B авиаг тусад нь сонгож, долгион, спектр болон сонсголыг харьцуулаарай.",
       spectrumTab: "Спектр", spectrogramTab: "Спектрограмм", compareTab: "Харьцуулах",
+      kindSingle: "Нэг авиа", kindCompare: "Харьцуулах", masterVolume: "Нийт сонсох дууны хэмжээ",
+      volumeHint: "A/B-ийн хэмжээ нийт хэмжээтэй үржигдэнэ; эх сорьц, спектрийн хэмжилт өөрчлөгдөхгүй.",
       sourceA: "Эх авиа A", sourceB: "Эх авиа B", classLabel: "Бүлэг", exampleLabel: "Жишээ",
       open: "WAV нээх…", mic: "Микрофон…", fromAnalysis: "Шинжлэх хэсгийн авиаг авах",
       playA: "▶ A тоглуулах", playB: "▶ B тоглуулах", stopA: "Ⅱ A зогсоох", stopB: "Ⅱ B зогсоох",
@@ -93,9 +97,9 @@
       this.document = document; this.window = window; this.contextOwner = contextOwner;
       this.getAnalysis = getAnalysis; this.onMic = onMic; this.models = models;
       this.active = false; this.initialized = false; this.language = "mn";
-      this.fftSize = 4096; this.axis = "log"; this.maxHz = 5000; this.volume = .2;
+      this.fftSize = 4096; this.axis = "log"; this.maxHz = 5000; this.volume = 1;
       this.slots = Object.fromEntries(["A", "B"].map(key => [key, {
-        pcm: null, source: null, index: null, channel: 0, cursor: .25,
+        pcm: null, source: null, index: null, channel: 0, cursor: .25, volume: .2,
         classId: examples.CATALOGUE.find(entry => entry.id === DEFAULTS[key]).classId,
         exampleId: DEFAULTS[key], ticket: 0, busy: false, status: "ready", error: false, audioBuffer: null
       }]));
@@ -118,6 +122,12 @@
         this.$(`compare${key}Mic`).addEventListener("click", () => this.onMic(key));
         this.$(`compare${key}FromAnalysis`).addEventListener("click", () => { void this.useAnalysis(key); });
         this.$(`compare${key}Play`).addEventListener("click", () => { void this.play(key); });
+        this.$(`compare${key}Volume`).addEventListener("input", event => {
+          const s = this.slots[key];
+          s.volume = clamp(Number(event.target.value) || 0, 0, 100) / 100;
+          this.put(`compare${key}VolumeValue`, Math.round(s.volume * 100) + "%");
+          if (this.voice && this.playingKey === key) this.updateListeningGain();
+        });
         this.$(`compare${key}Channel`).addEventListener("change", event => {
           const s = this.slots[key];
           if (!s.pcm) return;
@@ -141,7 +151,7 @@
       }
       this.$("compareVolume").addEventListener("input", event => {
         this.volume = clamp(Number(event.target.value) || 0, 0, 100) / 100;
-        if (this.voice) this.voice.gain.gain.setTargetAtTime(this.volume, this.contextOwner.context.currentTime, .01);
+        if (this.voice) this.updateListeningGain();
         this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
       });
       for (const id of ["compareFFT", "compareAxis", "compareMaxHz"]) this.$(id).addEventListener("change", () => {
@@ -248,6 +258,7 @@
       this.$(`compare${key}Play`).disabled = !pcm || s.busy;
       this.$(`compare${key}Play`).setAttribute("aria-pressed", String(playing));
       this.put(`compare${key}Play`, this.text(playing ? `stop${key}` : `play${key}`));
+      this.put(`compare${key}VolumeValue`, Math.round(s.volume * 100) + "%");
       this.put(`compare${key}Status`, this.text(s.status));
       this.$(`compare${key}Status`).classList.toggle("error", s.error);
       this.$(`compare${key}Channel`).disabled = s.busy;
@@ -355,6 +366,13 @@
       this.drawSlot(key);
     }
 
+    listeningGain(key) { return this.volume * this.slots[key].volume; }
+    updateListeningGain() {
+      if (!this.voice || !this.playingKey) return;
+      this.voice.gain.gain.setTargetAtTime(this.listeningGain(this.playingKey),
+        this.contextOwner.context.currentTime, .01);
+    }
+
     stopPlayback() {
       this.playbackTicket++;
       const voice = this.voice;
@@ -402,7 +420,7 @@
         }
         const node = context.createBufferSource(), gain = context.createGain();
         node.buffer = buffer; gain.gain.setValueAtTime(0, context.currentTime);
-        gain.gain.linearRampToValueAtTime(this.volume, context.currentTime + .008);
+        gain.gain.linearRampToValueAtTime(this.listeningGain(key), context.currentTime + .008);
         node.connect(gain); gain.connect(this.contextOwner.output);
         this.voice = { node, gain }; this.startingKey = null; this.playingKey = key;
         s.status = "playing";

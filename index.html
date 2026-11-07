@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s078">
+  <link rel="stylesheet" href="sound-lab.css?v=s079">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -49,10 +49,10 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
-  <script src="sound-analysis.js?v=s077" defer></script>
+  <script src="sound-analysis.js?v=s079" defer></script>
   <script src="sound-microphone.js?v=s078" defer></script>
-  <script src="sound-compare.js?v=s078" defer></script>
-  <script src="sound-lab.js?v=s078" defer></script>
+  <script src="sound-compare.js?v=s079" defer></script>
+  <script src="sound-lab.js?v=s079" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -1715,6 +1715,14 @@
           <h2 id="analysisTitle" data-analysis-i18n="title">Дуу шинжлэх</h2>
           <p class="description" data-analysis-i18n="intro">Жишээ сонгох эсвэл WAV файл нээж, долгион ба давтамжийн бүрэлдэхүүнийг шинжлээрэй.</p>
         </div>
+        <div class="experiment-switch analysis-experiment-switch analysis-kind-switch" role="group" id="analysisKindModes" aria-label="Шинжилгээний хэсэг">
+          <button id="analysisKindSingle" type="button" class="selected" aria-pressed="true" data-analysis-i18n="kindSingle">Нэг авиа</button>
+          <button id="analysisKindCompare" type="button" aria-pressed="false" data-analysis-i18n="kindCompare">Харьцуулах</button>
+        </div>
+        <div class="experiment-switch analysis-experiment-switch analysis-inner-switch" role="group" id="analysisViewModes" aria-label="Нэг авианы шинжилгээний харагдац">
+          <button id="analysisViewSpectrum" type="button" class="selected" aria-pressed="true" data-analysis-i18n="viewSpectrum">Спектр</button>
+          <button id="analysisViewSpectro" type="button" aria-pressed="false" data-analysis-i18n="viewSpectro">Спектрограмм</button>
+        </div>
         <label class="analysis-field"><span data-analysis-i18n="classLabel">Бүлэг</span><select id="analysisClass"></select></label>
         <label class="analysis-field"><span data-analysis-i18n="exampleLabel">Жишээ</span><select id="analysisExample"></select></label>
         <div class="analysis-source-actions">
@@ -1731,18 +1739,6 @@
             <a id="analysisRecordingSource" href="#" target="_blank" rel="noopener noreferrer"></a> ·
             <a id="analysisRecordingLicense" href="#" target="_blank" rel="noopener noreferrer"></a>
           </p>
-        </div>
-        <div class="analysis-play-actions">
-          <button id="analysisPlay" type="button" class="analysis-primary">▶ Тоглуулах</button>
-          <button id="analysisPlaySelection" type="button" class="analysis-secondary" data-analysis-i18n="playSelection">Хэсгийг тоглуулах</button>
-        </div>
-        <p id="analysisPlaybackStatus" class="field-help" aria-live="off"></p>
-        <label class="analysis-field"><span><span data-analysis-i18n="volume">Сонсох дууны хэмжээ</span> <output id="analysisVolumeValue">20%</output></span><input id="analysisVolume" type="range" min="0" max="100" step="1" value="20"></label>
-        <p id="analysisListeningHint" class="field-help"></p>
-        <div class="experiment-switch analysis-experiment-switch" role="group" id="analysisViewModes" aria-label="Шинжилгээний харагдац">
-          <button id="analysisViewSpectrum" type="button" class="selected" aria-pressed="true" data-analysis-i18n="viewSpectrum">Спектр</button>
-          <button id="analysisViewSpectro" type="button" aria-pressed="false" data-analysis-i18n="viewSpectro">Спектрограмм</button>
-          <button id="analysisViewCompare" type="button" aria-pressed="false" data-compare-i18n="compareTab">Харьцуулах</button>
         </div>
         <div class="experiment-switch analysis-experiment-switch" role="group" id="analysisSpectrumModes">
           <button id="analysisAtCursor" type="button" aria-pressed="true" class="selected" data-analysis-i18n="atCursor">Курсор дээр</button>
@@ -1772,6 +1768,15 @@
           <div class="chart-heading">
             <div><h2 id="analysisWaveTitle" data-analysis-i18n="waveform">Долгионы хэлбэр</h2><p data-analysis-i18n="waveHelp">Дарж курсор байрлуулна. Дээд талын A/B бариулаар хэсэг сонгоно.</p></div>
           </div>
+          <div class="analysis-listening-toolbar">
+            <div class="analysis-play-actions">
+              <button id="analysisPlay" type="button" class="analysis-primary">▶ Тоглуулах</button>
+              <button id="analysisPlaySelection" type="button" class="analysis-secondary" data-analysis-i18n="playSelection">Хэсгийг тоглуулах</button>
+            </div>
+            <label class="analysis-field analysis-listening-volume"><span><span data-analysis-i18n="volume">Сонсох дууны хэмжээ</span> <output id="analysisVolumeValue">20%</output></span><input id="analysisVolume" type="range" min="0" max="100" step="1" value="20"></label>
+          </div>
+          <p id="analysisPlaybackStatus" class="field-help analysis-playback-message" aria-live="off"></p>
+          <p id="analysisListeningHint" class="field-help analysis-playback-hint"></p>
           <div class="plot-tools analysis-plot-tools">
             <button id="analysisZoomIn" type="button" data-analysis-i18n="zoomIn">+ Томруулах</button>
             <button id="analysisZoomOut" type="button" data-analysis-i18n="zoomOut">− Багасгах</button>
@@ -1832,10 +1837,9 @@
           <h2 id="compareTitle" data-compare-i18n="title">Хоёр авиаг харьцуулах</h2>
           <p class="description" data-compare-i18n="intro">A ба B авиаг тусад нь сонгоод, долгион болон спектрийг харьцуулна.</p>
         </div>
-        <div class="experiment-switch analysis-experiment-switch" role="group" id="compareViewModes" aria-label="Шинжилгээний харагдац">
-          <button id="compareNavSpectrum" type="button" aria-pressed="false" data-compare-i18n="spectrumTab">Спектр</button>
-          <button id="compareNavSpectro" type="button" aria-pressed="false" data-compare-i18n="spectrogramTab">Спектрограмм</button>
-          <button id="compareNavCompare" type="button" class="selected" aria-pressed="true" data-compare-i18n="compareTab">Харьцуулах</button>
+        <div class="experiment-switch analysis-experiment-switch analysis-kind-switch" role="group" id="compareKindModes" aria-label="Шинжилгээний хэсэг">
+          <button id="compareKindSingle" type="button" aria-pressed="false" data-compare-i18n="kindSingle">Нэг авиа</button>
+          <button id="compareKindCompare" type="button" class="selected" aria-pressed="true" data-compare-i18n="kindCompare">Харьцуулах</button>
         </div>
         <div class="compare-source-card" id="compareAControls">
           <h3><span class="compare-letter">A</span> <span data-compare-i18n="sourceA">Эх авиа A</span></h3>
@@ -1853,9 +1857,6 @@
             <p id="compareADescription" class="field-help"></p>
             <p id="compareARecordingCredit" class="field-help" hidden><a id="compareARecordingSource" href="#" target="_blank" rel="noopener noreferrer"></a> · <a id="compareARecordingLicense" href="#" target="_blank" rel="noopener noreferrer"></a></p>
           </div>
-          <label id="compareAChannelField" class="analysis-field" hidden><span data-compare-i18n="channel">Шинжлэх суваг</span><select id="compareAChannel"></select></label>
-          <button type="button" id="compareAPlay" class="analysis-primary" data-compare-i18n="playA">▶ A тоглуулах</button>
-          <p id="compareAStatus" class="analysis-status" role="status" aria-live="polite"></p>
         </div>
         <div class="compare-source-card" id="compareBControls">
           <h3><span class="compare-letter">B</span> <span data-compare-i18n="sourceB">Эх авиа B</span></h3>
@@ -1873,13 +1874,11 @@
             <p id="compareBDescription" class="field-help"></p>
             <p id="compareBRecordingCredit" class="field-help" hidden><a id="compareBRecordingSource" href="#" target="_blank" rel="noopener noreferrer"></a> · <a id="compareBRecordingLicense" href="#" target="_blank" rel="noopener noreferrer"></a></p>
           </div>
-          <label id="compareBChannelField" class="analysis-field" hidden><span data-compare-i18n="channel">Шинжлэх суваг</span><select id="compareBChannel"></select></label>
-          <button type="button" id="compareBPlay" class="analysis-primary" data-compare-i18n="playB">▶ B тоглуулах</button>
-          <p id="compareBStatus" class="analysis-status" role="status" aria-live="polite"></p>
         </div>
-        <label class="analysis-field"><span><span data-compare-i18n="volume">Сонсох дууны хэмжээ</span> <output id="compareVolumeValue">20%</output></span>
-          <input id="compareVolume" type="range" min="0" max="100" value="20"></label>
         <details class="analysis-settings"><summary data-compare-i18n="settings">Харьцуулах тохиргоо</summary>
+          <label class="analysis-field"><span><span data-compare-i18n="masterVolume">Нийт сонсох дууны хэмжээ</span> <output id="compareVolumeValue">100%</output></span>
+            <input id="compareVolume" type="range" min="0" max="100" value="100"></label>
+          <p class="field-help" data-compare-i18n="volumeHint">A/B-ийн сонсох хэмжээ нийт хэмжээтэй үржигдэнэ; шинжилгээнд нөлөөлөхгүй.</p>
           <label class="analysis-field"><span data-compare-i18n="fftSize">FFT цонхны урт · сорьц</span><select id="compareFFT"><option>1024</option><option selected>4096</option><option>16384</option></select></label>
           <label class="analysis-field"><span data-compare-i18n="axis">Давтамжийн тэнхлэг</span><select id="compareAxis"><option value="linear" data-compare-i18n="linear">Шугаман</option><option value="log" selected data-compare-i18n="log">Логарифмын</option></select></label>
           <label class="analysis-field"><span data-compare-i18n="maxHz">Дээд давтамж</span><select id="compareMaxHz"><option value="2000">2,000 Гц</option><option value="5000" selected>5,000 Гц</option><option value="10000">10,000 Гц</option><option value="all" data-compare-i18n="nyquist">Бүх давтамж</option></select></label>
@@ -1889,6 +1888,12 @@
       <div class="visuals compare-visuals">
         <section class="panel chart-panel compare-plot-panel" aria-labelledby="compareAVisualTitle">
           <div class="chart-heading"><div><h2 id="compareAVisualTitle"><span class="compare-letter">A</span> <span data-compare-i18n="visualTitle">Долгион ба спектр</span></h2><p id="compareAMeasure"></p></div></div>
+          <div class="compare-listening-toolbar">
+            <button type="button" id="compareAPlay" class="analysis-primary" data-compare-i18n="playA">▶ A тоглуулах</button>
+            <label class="analysis-field compare-listening-volume"><span>A · <span data-compare-i18n="volume">Сонсох дууны хэмжээ</span> <output id="compareAVolumeValue">20%</output></span><input id="compareAVolume" type="range" min="0" max="100" step="1" value="20"></label>
+          </div>
+          <p id="compareAStatus" class="analysis-status compare-playback-status" role="status" aria-live="polite"></p>
+          <label id="compareAChannelField" class="analysis-field compare-plot-channel" hidden><span data-compare-i18n="channel">Шинжлэх суваг</span><select id="compareAChannel"></select></label>
           <canvas id="compareAWave" width="580" height="200" role="img" tabindex="0" aria-describedby="compareACursorInfo"></canvas>
           <div class="compare-cursor-row"><label for="compareACursor" data-compare-i18n="cursor">Шинжлэх хугацаа · сек</label>
             <input id="compareACursor" type="range" min="0" max="1" step="any" value="0.25"></div>
@@ -1898,6 +1903,12 @@
         </section>
         <section class="panel chart-panel compare-plot-panel" aria-labelledby="compareBVisualTitle">
           <div class="chart-heading"><div><h2 id="compareBVisualTitle"><span class="compare-letter">B</span> <span data-compare-i18n="visualTitle">Долгион ба спектр</span></h2><p id="compareBMeasure"></p></div></div>
+          <div class="compare-listening-toolbar">
+            <button type="button" id="compareBPlay" class="analysis-primary" data-compare-i18n="playB">▶ B тоглуулах</button>
+            <label class="analysis-field compare-listening-volume"><span>B · <span data-compare-i18n="volume">Сонсох дууны хэмжээ</span> <output id="compareBVolumeValue">20%</output></span><input id="compareBVolume" type="range" min="0" max="100" step="1" value="20"></label>
+          </div>
+          <p id="compareBStatus" class="analysis-status compare-playback-status" role="status" aria-live="polite"></p>
+          <label id="compareBChannelField" class="analysis-field compare-plot-channel" hidden><span data-compare-i18n="channel">Шинжлэх суваг</span><select id="compareBChannel"></select></label>
           <canvas id="compareBWave" width="580" height="200" role="img" tabindex="0" aria-describedby="compareBCursorInfo"></canvas>
           <div class="compare-cursor-row"><label for="compareBCursor" data-compare-i18n="cursor">Шинжлэх хугацаа · сек</label>
             <input id="compareBCursor" type="range" min="0" max="1" step="any" value="0.25"></div>

@@ -103,8 +103,8 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s078"/);
-  assert.match(html, /src="sound-compare\.js\?v=s078"/);
+  assert.match(html, /src="sound-lab\.js\?v=s079"/);
+  assert.match(html, /src="sound-compare\.js\?v=s079"/);
   assert.ok(html.indexOf('src="sound-compare.js') < html.indexOf('src="sound-lab.js'));
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
@@ -113,7 +113,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   }
   for (const module of ["analysis-spectrogram", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=' +
-      (module === "analysis" ? "s077" : "s065") + '"'));
+      (module === "analysis" ? "s079" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
   assert.match(html, /src="sound-microphone\.js\?v=s078"/);
@@ -129,7 +129,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s078"/);
+  assert.match(html, /href="sound-lab\.css\?v=s079"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -257,7 +257,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="harmonicChallenge"[^>]*hidden/);
   assert.match(html, /id="noiseChallenge"[^>]*hidden/);
   assert.doesNotMatch(html, /id="mixExperimentSwitch"/);
-  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 14);
+  assert.equal([...html.matchAll(/class="experiment-switch /g)].length, 15);
   assert.equal([...html.matchAll(/data-mix-kind="/g)].length, 4);
   assert.equal([...html.matchAll(/data-tuning-kind="/g)].length, 25);
   for (const kind of ["waves", "harmonics"]) {
@@ -354,7 +354,7 @@ test("firetruck Play/Stop icon forwards taps to its enclosing button", () => {
 });
 
 function fakePage(search = "", supportWorklets = true, analysisController = null, deferStops = false,
-  microphoneController = null) {
+  microphoneController = null, compareController = null) {
   const contexts = [];
   const offlineContexts = [];
   const exportRequests = [];
@@ -775,6 +775,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   const offlineExport = window.SoundLabExport;
   if (analysisController) window.SoundLabAnalysis = { Controller: analysisController };
   if (microphoneController) window.SoundLabMicrophone = { Controller: microphoneController };
+  if (compareController) window.SoundLabCompare = { Controller: compareController };
   window.SoundLabExport = { ...offlineExport, render(snapshot, dependencies) {
     exportRequests.push(JSON.parse(JSON.stringify(snapshot)));
     return offlineExport.render(snapshot, dependencies);
@@ -851,6 +852,43 @@ test("Analysis integrates with navigation, language, resize and the shared Stop 
   assert.equal(app.elements.get("analysisWorkspace").hidden, true);
   assert.equal(app.contexts.length, 0, "Mode changes and language never open live audio");
   assert.equal(typeof calls.owner.readyContext, "function");
+});
+
+test("S079 Analysis kind tabs switch at peer level and remember Single source inner view", () => {
+  const a = { views: [], stopPlayback: 0, draws: 0 }, b = { active: [], draws: 0, stops: 0 };
+  class AnalysisFixture {
+    setActive() {}
+    renderLanguage() {}
+    isPlaying() { return false; }
+    stop() {}
+    stopPlayback() { a.stopPlayback++; }
+    setView(view) { a.views.push(view); }
+    draw() { a.draws++; }
+  }
+  class CompareFixture {
+    setActive(value) { b.active.push(value); }
+    renderLanguage() {}
+    stop() { b.stops++; }
+    draw() { b.draws++; }
+  }
+  const app = fakePage("?lang=en", true, AnalysisFixture, false, null, CompareFixture);
+  app.fire("modeAnalysis", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(app.elements.get("analysisKindSingle").getAttribute("aria-pressed"), "true");
+  app.fire("analysisKindCompare", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, true);
+  assert.equal(app.elements.get("analysisCompareWorkspace").hidden, false);
+  assert.equal(app.elements.get("compareKindCompare").getAttribute("aria-pressed"), "true");
+  assert.equal(b.active.at(-1), true);
+  assert.ok(a.stopPlayback > 0, "Comparison must stop single-source playback");
+  assert.ok(b.draws > 0);
+  app.fire("compareKindSingle", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(app.elements.get("analysisCompareWorkspace").hidden, true);
+  assert.equal(app.elements.get("analysisKindSingle").getAttribute("aria-pressed"), "true");
+  assert.equal(b.active.at(-1), false);
+  assert.deepEqual(a.views, [], "Returning to Single source keeps its Spectrum/Spectrogram setting");
+  assert.equal(app.contexts.length, 0, "Changing analysis sub-tabs never autoplays");
 });
 
 test("M2 mic controller stays lazy and participates in navigation, language and global Stop", () => {
