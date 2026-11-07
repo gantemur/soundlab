@@ -15,9 +15,9 @@ const immediate = async () => {};
 const close = (actual, expected, tolerance = 1e-7) =>
   assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} is not close to ${expected}`);
 
-test("the catalogue contains exactly the agreed seven original examples with frozen bilingual metadata", () => {
-  assert.deepEqual(examples.CLASSES.map(item => item.id), ["reference", "instruments"]);
-  assert.deepEqual(examples.CATALOGUE.map(item => item.id), [
+test("the catalogue retains its seven original examples and adds eleven credited recordings", () => {
+  assert.deepEqual(examples.CLASSES.map(item => item.id), ["reference", "instruments", "nature", "wildlife", "objects", "footsteps", "mechanical"]);
+  assert.deepEqual(examples.CATALOGUE.filter(item => item.kind !== "recorded").map(item => item.id), [
     "reference-sine-440", "reference-beats-440-444", "reference-chirp", "reference-white-noise",
     "model-guitar-a3", "model-flute-a4", "model-chime-c5"
   ]);
@@ -29,8 +29,13 @@ test("the catalogue contains exactly the agreed seven original examples with fro
   for (const item of examples.CATALOGUE) {
     assert.ok(item.description.mn && item.description.en);
     assert.ok(Object.isFrozen(item.description));
-    assert.ok(item.duration > 0 && item.duration <= 4);
-    assert.equal(item.kind, item.classId === "reference" ? "generated" : "modeled");
+    assert.ok(item.duration > 0 && item.duration <= 10);
+    if (item.kind !== "recorded") {
+      assert.equal(item.kind, item.classId === "reference" ? "generated" : "modeled");
+    } else {
+      assert.ok(item.credit && item.credit.license && item.credit.sourceUrl);
+      assert.match(item.path, /^assets\/analysis\/[-a-z0-9]+\.wav$/);
+    }
   }
   const flute = examples.CATALOGUE.find(item => item.id === "model-flute-a4");
   assert.match(flute.description.en, /Compose\/offline flute/);
@@ -228,17 +233,21 @@ test("reference preparation never constructs audio or uses randomness/network, a
   t.after(() => { Math.random = oldRandom; });
   let contexts = 0;
   const OfflineAudioContext = function () { contexts++; throw new Error("reference needs no renderer"); };
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error("reference needs no network"); };
+  t.after(() => { globalThis.fetch = oldFetch; });
   for (const entry of examples.CATALOGUE.filter(item => item.kind === "generated")) {
     await examples.create(entry.id, { OfflineAudioContext, yieldTask: immediate });
   }
   assert.equal(contexts, 0);
   const source = fs.readFileSync(path.join(__dirname, "sound-analysis-examples.js"), "utf8");
-  assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|getUserMedia|decodeAudioData|AudioContext)\s*\(/);
+  assert.doesNotMatch(source, /\b(?:XMLHttpRequest|getUserMedia|decodeAudioData|AudioContext)\s*\(/);
+  assert.match(source, /fetch\(path, \{ credentials: "same-origin" \}\)/);
   assert.doesNotMatch(source, /\.play\s*\(|createObjectURL|localStorage|setInterval/);
 });
 
 test("unknown examples, unsupported offline rendering and render failures fail visibly", async () => {
-  for (const id of ["", null, "__proto__", "constructor", "nature-rain"]) {
+  for (const id of ["", null, "__proto__", "constructor", "recording-does-not-exist"]) {
     await assert.rejects(examples.create(id), error => error.code === "invalid");
   }
   await assert.rejects(examples.create("reference-sine-440", { onProgress: null }), error => error.code === "invalid");
