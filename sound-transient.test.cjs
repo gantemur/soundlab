@@ -142,6 +142,29 @@ test("six percussion families share bounded playback/plot samples and distinct f
     "Steel pan produces a pitched Fourier component");
 });
 
+test("D2a tom, ride, crash and rimshot score voices are bounded and sonically distinct", () => {
+  assert.deepEqual(sound.COMPOSE_DRUM_VOICES, ["tom", "ride", "crash", "rimshot"]);
+  assert.ok(sound.drumReferenceHz("large", 1, "tom") < sound.drumReferenceHz("medium", 1, "tom"));
+  assert.ok(sound.drumReferenceHz("medium", 1, "tom") < sound.drumReferenceHz("small", 1, "tom"));
+  assert.throws(() => sound.drumReferenceHz("medium", 3, "tom"), RangeError);
+  assert.equal(sound.drumReferenceHz("medium", 1, "ride"), null);
+  const recipes = [
+    ["tom", "large", .49], ["tom", "medium", .38], ["tom", "small", .31],
+    ["ride", "medium", .68], ["crash", "large", .75], ["rimshot", "small", .20]
+  ];
+  const signatures = [];
+  for (const [drumVoice, size, decay] of recipes) {
+    const options = { drumVoice };
+    const samples = sound.makeSamples("kick", 220, decay, 16000, size, options);
+    assert.ok(samples.every(sample => Number.isFinite(sample) && Math.abs(sample) <= 1), drumVoice);
+    assert.ok(Math.abs(samples.at(-1)) < 1e-3, drumVoice + " has a silent tail");
+    assert.ok(samples.slice(50, 2000).some(sample => Math.abs(sample) > .03), drumVoice + " is audible");
+    signatures.push([samples[170], samples[557], samples[1321], samples[4312]].join("|"));
+  }
+  assert.equal(new Set(signatures).size, 6, "new drum voices have distinct waveforms");
+  assert.throws(() => sound.validate("kick", 220, .3, "medium", { drumVoice: "unmapped" }), RangeError);
+});
+
 test("large membrane adds audible beater/body presence without clipping", () => {
   const energyAbove300Hz = size => {
     const spec = spectrum.spectrumAt(sound, { kind: "kick", pitchHz: 220,

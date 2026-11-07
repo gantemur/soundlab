@@ -53,7 +53,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-marimba\.js\?v=s059"/);
   assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
   assert.match(html, /src="sound-harp\.js\?v=s066"/);
-  assert.match(html, /src="sound-transient\.js\?v=s066"/);
+  assert.match(html, /src="sound-transient\.js\?v=s069"/);
   assert.match(html, /src="sound-clarinet\.js\?v=s061"/);
   assert.match(html, /src="sound-sustain\.js\?v=s061"/);
   assert.match(html, /src="sound-held-voice\.js\?v=s061"/);
@@ -79,12 +79,13 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s053"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s069"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s066"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s069"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s069"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s067"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s068"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s069"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s069"/);
   assert.match(html, /src="sound-project\.js\?v=s055"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
@@ -3990,7 +3991,7 @@ test("D1 drum-only compositions open a working reusable pattern grid with no mel
     assert.equal(app.elements.get("ensembleTimeline").children.length, count, choice);
     assert.equal(app.elements.get("ensemblePatternPanel").hidden, false, choice);
     assert.equal(app.elements.get("ensembleDrumGrid").hidden, false, choice);
-    assert.equal(app.elements.get("ensembleGridCells").children.length, 5, choice);
+    assert.equal(app.elements.get("ensembleGridCells").children.length, drumABC.DRUMS.length, choice);
     assert.equal(app.elements.get("ensemblePlayPause").disabled, false, choice);
     assert.match(app.elements.get("ensembleText").value, /%%MIDI channel 10/, choice);
     assert.equal(app.contexts.length, 0, "Preset loading must not autoplay");
@@ -4030,6 +4031,29 @@ test("S068 every built-in ensemble preset translates its untouched track and tim
     assert.deepEqual(timelineNames(), mongolian, preset.id + " timeline after switching back");
   }
   assert.equal(app.contexts.length, 0, "Changing language never starts an arrangement");
+});
+
+test("D2a new tom/cymbal arrangement offers all editable drum lanes and linked repeat edits", () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "tomCymbalStudy";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(app.elements.get("ensembleTrackList").children.length, 1);
+  assert.equal(app.elements.get("ensembleGridCells").children.length, 11);
+  assert.equal(app.elements.get("ensembleDrumGrid").hidden, false);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.match(app.elements.get("ensembleText").value, /%%MIDI drummap A 41/);
+  assert.equal(app.contexts.length, 0, "Drum preset must not autoplay");
+  const rows = app.elements.get("ensembleGridCells").children;
+  assert.equal(rows[5].children[0].textContent, "Суурь том");
+  rows[5].children[1].children[1].click(); // New floor-tom hit in linked pattern A.
+  const pattern = drumABC.parse(app.elements.get("ensembleText").value);
+  assert.equal(drumABC.gridOf(pattern)[0].cells[1].floorTom, .8);
+  app.fire("langEn", "click");
+  assert.equal(projectTrackControl(app, 0, "ensemble-name").value, "Kit · tom fills");
+  assert.equal(app.elements.get("ensembleGridCells").children[5].children[0].textContent, "Floor tom");
+  assert.equal(app.contexts.length, 0, "Changing languages must not play a drum sound");
 });
 
 test("S068 edited names and restored project names are never silently retranslated", async () => {
@@ -4077,7 +4101,7 @@ test("Compose drum part edits the same score through text and optional grid with
   assert.equal(app.elements.get("ensemblePatternArrangement").children.length, 1);
   assert.equal(app.elements.get("ensemblePatternBar").children.length, 4);
   assert.equal(app.elements.get("ensembleDrumGrid").hidden, false);
-  assert.equal(app.elements.get("ensembleGridCells").children.length, 5);
+  assert.equal(app.elements.get("ensembleGridCells").children.length, drumABC.DRUMS.length);
   assert.equal(app.elements.get("ensembleGridBar").children.length, 1, "Pattern grid edits one reusable bar");
   assert.equal(app.contexts.length, 0);
   const first = drumABC.parse(app.elements.get("ensembleText").value);

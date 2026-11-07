@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 Tsogt Gantumur
  * SPDX-License-Identifier: MIT
- * A strict ABC-like percussion part. C D E F G map to five fixed MIDI drum voices.
+ * A strict ABC-like percussion part. C D E F G retain the original five voices;
+ * A B c d e f add six D2 kit voices. Lowercase notes are percussion identifiers.
  * !p! and !accent! inside a chord are Sound Lab's per-hit dynamics extension.
  */
 (function (root, factory) {
@@ -15,7 +16,13 @@
     { id: "snare", note: "D", midi: 38, en: "Snare", mn: "Жижиг бөмбөр" },
     { id: "hat", note: "E", midi: 42, en: "Closed hi-hat", mn: "Хаалттай цан" },
     { id: "openHat", note: "F", midi: 46, en: "Open hi-hat", mn: "Нээлттэй цан" },
-    { id: "woodblock", note: "G", midi: 76, en: "Woodblock", mn: "Модон цохилуур" }
+    { id: "woodblock", note: "G", midi: 76, en: "Woodblock", mn: "Модон цохилуур" },
+    { id: "floorTom", note: "A", midi: 41, en: "Floor tom", mn: "Суурь том" },
+    { id: "midTom", note: "B", midi: 47, en: "Mid tom", mn: "Дунд том" },
+    { id: "highTom", note: "c", midi: 50, en: "High tom", mn: "Өндөр том" },
+    { id: "ride", note: "d", midi: 51, en: "Ride cymbal", mn: "Райд цан" },
+    { id: "crash", note: "e", midi: 49, en: "Crash cymbal", mn: "Крэш цан" },
+    { id: "rimshot", note: "f", midi: 40, en: "Rimshot", mn: "Хүрээтэй цохилт" }
   ]);
   const BY_NOTE = Object.fromEntries(DRUMS.map(drum => [drum.note, drum]));
   const BY_ID = Object.fromEntries(DRUMS.map(drum => [drum.id, drum]));
@@ -63,8 +70,8 @@
       if (trimmed.startsWith("%%")) {
         if (keyFound && musicStarted) throw new DrumABCError("Percussion directives belong before the notes", n + 1);
         if (trimmed === "%%MIDI channel 10") { if (channel) throw new DrumABCError("Repeated MIDI channel", n + 1); channel = true; return; }
-        const mapping = /^%%MIDI drummap ([CDEFG]) (\d+)$/.exec(trimmed);
-        if (!mapping || +mapping[2] !== BY_NOTE[mapping[1]].midi || mapped.has(mapping[1])) {
+        const mapping = /^%%MIDI drummap ([A-Ga-g]) (\d+)$/.exec(trimmed);
+        if (!mapping || !BY_NOTE[mapping[1]] || +mapping[2] !== BY_NOTE[mapping[1]].midi || mapped.has(mapping[1])) {
           throw new DrumABCError("Only fixed Sound Lab MIDI drum maps are supported", n + 1);
         }
         mapped.add(mapping[1]); return;
@@ -113,7 +120,7 @@
         i += decoration[0].length;
       }
       const drum = BY_NOTE[body[i]];
-      if (!drum) throw new DrumABCError("Expected C(kick), D(snare), E(hat), F(open hat), or G(woodblock)", line, i + 1);
+      if (!drum) throw new DrumABCError("Expected mapped drum note C–G, A, B, or c–f", line, i + 1);
       return { hit: { drum: drum.id, velocity }, position: i + 1 };
     };
     for (const { body, line } of bodyLines) {

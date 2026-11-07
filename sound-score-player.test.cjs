@@ -913,6 +913,30 @@ test("each drum has a shared full-tail specification independent of its written 
   assert.equal(calls.length, 0);
 });
 
+test("D2a extended kit events use distinct timed buffers in the shared player", () => {
+  const score = drumABC.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C clef=perc\n[ABcdef] z3 |]");
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  player.transientModel = transient;
+  player.strictBufferFrames = true;
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score, volume: 65 }] });
+  player.context = context;
+  const kinds = { floorTom: "tom", midTom: "tom", highTom: "tom",
+    ride: "ride", crash: "crash", rimshot: "rimshot" };
+  const specs = player.playEvents.map(event => ({ drum: event.drum,
+    spec: player.bufferSpec(event, context.sampleRate) }));
+  assert.equal(specs.length, 6);
+  for (const { drum, spec } of specs) {
+    assert.equal(spec.options.drumVoice, kinds[drum]);
+    assert.ok(spec.frames > context.sampleRate * .5);
+    assert.ok(spec.frames <= context.sampleRate * 3,
+      "New kit decays respect the 93-second export limit after a 90-second score");
+    assert.ok(player.bufferFor(spec).getChannelData(0).every(Number.isFinite));
+    assert.equal(player.voiceEndTime({ type: "drum", drum, partIndex: 0 }, 1, 1.1, context.sampleRate),
+      1 + player.bufferFor(spec).duration);
+  }
+  assert.equal(new Set(specs.map(item => item.spec.key)).size, 6);
+});
+
 test("the default live cache remains FIFO 24 while an offline cache reuses more than 24 pitches", () => {
   for (const limit of [24, 1024]) {
     const { player, context, recipes } = audioFixture();

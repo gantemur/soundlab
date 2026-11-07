@@ -50,7 +50,13 @@
     snare: Object.freeze({ voice: "snare", size: "medium", decay: .24 }),
     hat: Object.freeze({ voice: "cymbal", size: "small", decay: .13 }),
     openHat: Object.freeze({ voice: "cymbal", size: "medium", decay: .48 }),
-    woodblock: Object.freeze({ voice: "woodblock", size: "small", decay: .24 })
+    woodblock: Object.freeze({ voice: "woodblock", size: "small", decay: .24 }),
+    floorTom: Object.freeze({ voice: "tom", size: "large", decay: .49 }),
+    midTom: Object.freeze({ voice: "tom", size: "medium", decay: .38 }),
+    highTom: Object.freeze({ voice: "tom", size: "small", decay: .31 }),
+    ride: Object.freeze({ voice: "ride", size: "medium", decay: .68 }),
+    crash: Object.freeze({ voice: "crash", size: "large", decay: .75 }),
+    rimshot: Object.freeze({ voice: "rimshot", size: "small", decay: .20 })
   });
 
   function noteFrequency(event, tuning, temperamentModel) {

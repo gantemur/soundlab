@@ -600,8 +600,8 @@ test("I3 four-track ensemble survives project round-trip and exports separate in
   cleaned(f.contexts[0]);
 });
 
-test("D1 drum-only kit, snare study and two-part dialogue render playable WAV files", async () => {
-  for (const id of ["drumKitSolo", "snareStudy", "drumDialogue"]) {
+test("D1/D2 drum-only kit, snare, dialogue and tom/cymbal study render playable WAV files", async () => {
+  for (const id of ["drumKitSolo", "snareStudy", "drumDialogue", "tomCymbalStudy"]) {
     const snapshot = arrangement(presets.create(id, "mn"));
     const restored = projects.decode(projects.encode({ format: projects.FORMAT,
       version: projects.VERSION, title: id, ...snapshot }));
@@ -613,6 +613,10 @@ test("D1 drum-only kit, snare study and two-part dialogue render playable WAV fi
     assert.ok(f.modelCalls.length > 0, "Percussion voices have prepared drum buffers");
     assert.ok(f.modelCalls.every(call => call.kind === "kick" && call.settings.drumVoice),
       "Drum-only scores request percussion recipes, not pitched instruments");
+    if (id === "tomCymbalStudy") {
+      const soundKinds = new Set(f.modelCalls.map(call => call.settings.drumVoice));
+      for (const voice of ["tom", "ride", "crash", "rimshot"]) assert.ok(soundKinds.has(voice));
+    }
     cleaned(f.contexts[0]);
   }
 });

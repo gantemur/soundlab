@@ -30,6 +30,8 @@
       mn: "Жижиг бөмбөр · Өргөлт, цохилтын дасгал" },
     { id: "drumDialogue", category: "drumSolo", en: "Percussion · Call and response",
       mn: "Цохивор · Асуулт, хариулт" },
+    { id: "tomCymbalStudy", category: "drumSolo", en: "Toms and cymbals · Eight-bar fills",
+      mn: "Том бөмбөр ба цан · 8 тактын шилжилт" },
     { id: "minuet", en: "Petzold · Minuet in G (32 bars)", mn: "Петцольд · Соль мажор менуэт (32 такт)" },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -428,7 +430,7 @@
     }));
   }
 
-  // D1: original, entirely percussion-based scores. Each pattern is one 4/4
+  // D1/D2: original, entirely percussion-based scores. Each pattern is one 4/4
   // bar with four groups of four sixteenth-note cells. x = normal, o = soft,
   // X = accent, . = rest. Repeated pattern letters become editable, linked
   // patterns in the existing drum grid; no special playback format is added.
@@ -477,6 +479,27 @@
             E: { snare: ".... X... x.x. X...", hat: "x.x. x.x. .... ....", openHat: ".... .... .... X..." }
           } }
       ]
+    },
+    tomCymbalStudy: {
+      tempo: 104,
+      parts: [{ names: { en: "Kit · tom fills", mn: "Иж бүрдэл · томын шилжилт" }, volume: 66,
+        sequence: "AABACBDE", patterns: {
+          A: { kick: "X... .... x... ....", snare: ".... X... .... X...",
+            ride: "x.x. x.x. x.x. x.x." },
+          B: { kick: "X... .... x... ....", rimshot: ".... X... .... ....",
+            snare: ".... .... .... X...", ride: "x.x. x.x. x.x. ....",
+            highTom: ".... .... .... ..ox" },
+          C: { kick: "X... .... .... ....", crash: "X... .... .... ....",
+            floorTom: ".... X... .... ....", midTom: ".... .... X... ...x",
+            highTom: ".... .... .... xXx." },
+          D: { kick: "X... .... .... ....", floorTom: "X... .... .... X...",
+            midTom: ".... X... .... .x..", highTom: ".... .... X... ..x.",
+            ride: "x... x... x... ....", rimshot: ".... .... .... ...X" },
+          E: { kick: "X... .... X... ....", crash: "X... .... .... X...",
+            snare: ".... X... .... ....", floorTom: ".... .... .... xX..",
+            midTom: ".... .... ..xx ....", highTom: ".... .... xx.. ....",
+            rimshot: ".... .... .... ...X" }
+        } }]
     }
   });
 

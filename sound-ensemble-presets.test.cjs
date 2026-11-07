@@ -59,7 +59,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 14);
+  assert.equal(presets.CATALOG.length, 15);
 });
 
 test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {
@@ -104,6 +104,23 @@ test("D1 kit and snare have dynamic variation; percussion dialogue really altern
   assert.ok(dialogue[0].every(hit => hit.bar !== 3 && hit.bar !== 4));
   assert.ok(dialogue[1].every(hit => hit.bar !== 1 && hit.bar !== 2));
   assert.ok(dialogue.every(part => part.some(hit => hit.bar === 6) && part.some(hit => hit.bar === 8)));
+});
+
+test("D2a tom/cymbal study uses all six new voices, varied strength and linked fill bars", () => {
+  for (const language of ["mn", "en"]) {
+    const [part] = presets.create("tomCymbalStudy", language);
+    const hits = drums.scheduledEvents(drums.parse(part.abc));
+    const newVoices = ["floorTom", "midTom", "highTom", "ride", "crash", "rimshot"];
+    for (const id of newVoices) assert.ok(hits.some(hit => hit.drum === id), language + " " + id);
+    assert.ok([.55, .8, 1].every(velocity => hits.some(hit => hit.velocity === velocity)));
+    const { prepared, summary } = ensemble.parseTracks([part], "equal", temperament);
+    assert.equal(prepared[0].score.bars.length, 8);
+    assert.equal(summary.totalBeats, 32);
+    assert.equal(summary.tempoQuarter, 104);
+    assert.equal(part.patterns.patterns.length, 5);
+    assert.equal(part.patterns.sequence.length, 8);
+    assert.equal(part.patterns.sequence[0].id, part.patterns.sequence[1].id);
+  }
 });
 
 test("Greensleeves, Daisy Bell and La Paloma align sourced melodies with strummed accompaniment", () => {

@@ -37,6 +37,28 @@ test("per-hit strength survives text ⇄ grid, including different strengths in 
   assert.equal(drums.gridOf(drums.parse(removed))[0].cells[0].hat, .55);
 });
 
+test("D2a six extended drum notes round-trip through strict ABC and the sixteenth grid", () => {
+  const header = ["X:2", "T:Extended kit", "M:4/4", "L:1/16", "Q:1/4=104", "K:C clef=perc",
+    "%%MIDI channel 10", ...drums.DRUMS.map(drum => `%%MIDI drummap ${drum.note} ${drum.midi}`)];
+  const source = [...header, "[!accent!A!p!Bcdf]4 e4 z8 |]"].join("\n");
+  const score = drums.parse(source);
+  const onsets = drums.scheduledEvents(score);
+  assert.deepEqual(new Set(onsets.map(hit => hit.drum)),
+    new Set(["floorTom", "midTom", "highTom", "ride", "rimshot", "crash"]));
+  assert.equal(onsets.find(hit => hit.drum === "floorTom").velocity, 1);
+  assert.equal(onsets.find(hit => hit.drum === "midTom").velocity, .55);
+  assert.equal(onsets.find(hit => hit.drum === "crash").startBeat, 1);
+  const grid = drums.gridOf(score);
+  assert.equal(grid[0].cells[0].highTom, .8);
+  assert.equal(grid[0].cells[4].crash, .8);
+  const exported = drums.fromGrid(score, grid);
+  assert.deepEqual(drums.scheduledEvents(drums.parse(exported)), onsets);
+  const edited = drums.toggleGridHit(score, 1, 9, "ride", .55);
+  assert.equal(drums.gridOf(drums.parse(edited))[0].cells[9].ride, .55);
+  assert.throws(() => drums.parse(source.replace("drummap f 40", "drummap f 37")), /fixed Sound Lab/);
+  assert.throws(() => drums.parse(source.replace("[!accent!A!p!Bcdf]", "[Ag]")), /mapped drum note/);
+});
+
 test("sixteenth and eighth note grids share all onsets, including simultaneous hits", () => {
   const source = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n[!p!C!accent!F] E z [DE] z2 C2 |]";
   const parsed = drums.parse(source);

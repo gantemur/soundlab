@@ -40,6 +40,11 @@
   const KICK_SIZES = Object.freeze({ large: 0.72, medium: 1, small: 1.4 });
   // The three pads choose either drum sizes or pitched struck resonators.
   const DRUM_VOICES = Object.freeze(["membrane", "snare", "cymbal", "steelpan", "chimes", "woodblock"]);
+  // D2 score-only voices. Keep the Explore pads' six established choices intact;
+  // the Compose drum grid selects these individual kit instruments instead.
+  const COMPOSE_DRUM_VOICES = Object.freeze(["tom", "ride", "crash", "rimshot"]);
+  const VALID_DRUM_VOICES = Object.freeze([...DRUM_VOICES, ...COMPOSE_DRUM_VOICES]);
+  const TOM_BASES = Object.freeze({ large: 92, medium: 145, small: 205 });
   const STEELPAN_PITCHES = Object.freeze({ large: 261.625565, medium: 329.627557,
     small: 391.995436 });
   const CYMBAL_MODES = Object.freeze([1, 1.42, 1.87, 2.31, 2.92, 3.55, 4.23, 5.04, 6.17]);
@@ -79,7 +84,7 @@
     if (kind === "harp") harp.validate(pitchHz, decaySec,
       options.velocity ?? harp.DEFAULT_VELOCITY, options.sampleRate ?? 48000);
     if (kind === "kick" && (!Object.hasOwn(KICK_SIZES, kickSize) ||
-        !DRUM_VOICES.includes(options.drumVoice ?? "membrane") ||
+        !VALID_DRUM_VOICES.includes(options.drumVoice ?? "membrane") ||
         !Number.isFinite(options.drumTension ?? 1) ||
         (options.drumTension ?? 1) < DRUM_MIN_TENSION ||
         (options.drumTension ?? 1) > DRUM_MAX_TENSION ||
@@ -133,10 +138,15 @@
   }
 
   function drumReferenceHz(size = "medium", tension = 1, voice = "membrane") {
-    if (!Object.hasOwn(KICK_SIZES, size) || !DRUM_VOICES.includes(voice)) {
+    if (!Object.hasOwn(KICK_SIZES, size) ||
+        !VALID_DRUM_VOICES.includes(voice)) {
       throw new RangeError("Unknown drum pad or sound family");
     }
-    if (["cymbal", "woodblock"].includes(voice)) return null;
+    if (["cymbal", "woodblock", "ride", "crash", "rimshot"].includes(voice)) return null;
+    if (voice === "tom") {
+      kickFrequency(0, size, tension); // Keep tension validation consistent with other membranes.
+      return TOM_BASES[size] * Math.sqrt(tension);
+    }
     if (voice === "steelpan") return STEELPAN_PITCHES[size];
     if (voice === "chimes") return CHIME_PITCHES[size];
     return kickFrequency(0, size, tension);
@@ -182,6 +192,23 @@
     return .48 * body + .53 * (1 - Math.exp(-time / .0012)) * rattle;
   }
 
+  // A tom has freely decaying Bessel-like modes, a modest downward tension
+  // sweep and no snare-wire rattle or bass-drum beater. This is an original
+  // illustrative membrane model, not a recorded or calibrated drum sample.
+  function tomAt(time, size, tension, decaySec) {
+    const base = TOM_BASES[size] * Math.sqrt(tension);
+    const bend = { large: .23, medium: .17, small: .13 }[size];
+    const sweptTime = time + .022 * bend * (1 - Math.exp(-time / .022));
+    let modes = 0;
+    for (let i = 0; i < DRUM_ZEROS.length; i++) {
+      const partial = DRUM_ZEROS[i] / DRUM_ZEROS[0];
+      modes += DRUM_WEIGHTS[i] * Math.exp(-time * (1 + i * .28) / decaySec) *
+        Math.sin(TAU * base * partial * sweptTime + i * .11);
+    }
+    const contact = .13 * noiseAt(time) * Math.exp(-time / .009);
+    return (1 - Math.exp(-time / .0011)) * (.43 * modes + contact);
+  }
+
   function cymbalAt(time, size, decaySec) {
     const base = { large: 310, medium: 415, small: 630 }[size];
     const factor = { large: 1.65, medium: 1.25, small: .58 }[size];
@@ -193,6 +220,36 @@
     });
     const fizz = noiseAt(time) * Math.exp(-time / (decay * .72));
     return (1 - Math.exp(-time / .002)) * (.26 * ringing + .43 * fizz);
+  }
+
+  // Ride separates a clear repeated stick ping from a quieter, long metallic
+  // sustain; crash uses a broader turbulent wash and a slower plate decay.
+  function rideAt(time, decaySec) {
+    let modes = 0;
+    for (let i = 0; i < CYMBAL_MODES.length; i++) {
+      modes += CYMBAL_WEIGHTS[i] * Math.exp(-time * (1 + i * .13) / (decaySec * 1.4)) *
+        Math.sin(TAU * 610 * CYMBAL_MODES[i] * time + i * .31);
+    }
+    const ping = .34 * Math.exp(-time / .075) * Math.sin(TAU * 2040 * time);
+    const contact = .11 * noiseAt(time) * Math.exp(-time / .02);
+    return (1 - Math.exp(-time / .001)) * (.26 * modes + ping + contact);
+  }
+
+  function crashAt(time, decaySec) {
+    let plates = 0;
+    for (let i = 0; i < CYMBAL_MODES.length; i++) {
+      plates += CYMBAL_WEIGHTS[i] * Math.exp(-time * (1 + i * .09) / (decaySec * 1.65)) *
+        Math.sin(TAU * 360 * CYMBAL_MODES[i] * time + i * .61);
+    }
+    const wash = noiseAt(time) * Math.exp(-time / (decaySec * 1.35));
+    return (1 - Math.exp(-time / .004)) * (.21 * plates + .38 * wash);
+  }
+
+  function rimshotAt(time, decaySec) {
+    const body = snareAt(time, "small", 1.4, decaySec);
+    const contact = noiseAt(time) * Math.exp(-time / .012);
+    const rim = Math.sin(TAU * 3450 * time) * Math.exp(-time / .025);
+    return .34 * body + .35 * contact + .27 * rim;
   }
 
   function steelpanAt(time, size, decaySec) {
@@ -239,6 +296,10 @@
       const voice = options.drumVoice ?? "membrane";
       if (voice === "snare") return snareAt(time, kickSize, options.drumTension ?? 1, decaySec);
       if (voice === "cymbal") return cymbalAt(time, kickSize, decaySec);
+      if (voice === "tom") return tomAt(time, kickSize, options.drumTension ?? 1, decaySec);
+      if (voice === "ride") return rideAt(time, decaySec);
+      if (voice === "crash") return crashAt(time, decaySec);
+      if (voice === "rimshot") return rimshotAt(time, decaySec);
       if (voice === "steelpan") return steelpanAt(time, kickSize, decaySec);
       if (voice === "chimes") return chimeAt(time, options.chimeHz ?? CHIME_PITCHES[kickSize], decaySec);
       if (voice === "woodblock") return woodblockAt(time, kickSize, decaySec);
@@ -314,7 +375,7 @@
   }
 
   return Object.freeze({
-    KINDS, KICK_SIZES, DRUM_VOICES, DRUM_MIN_TENSION, DRUM_MAX_TENSION,
+    KINDS, KICK_SIZES, DRUM_VOICES, COMPOSE_DRUM_VOICES, DRUM_MIN_TENSION, DRUM_MAX_TENSION,
     STEELPAN_PITCHES, CHIME_PITCHES, STRUM_CHORDS: strings.CHORDS, STRUM_PATTERNS: strings.STRUM_PATTERNS,
     MIN_PITCH_HZ, MAX_PITCH_HZ, MIN_DECAY, MAX_DECAY,
     PIANO_STIFFNESS: piano.STIFFNESS, PIANO_TOUCHES: piano.TOUCHES,
