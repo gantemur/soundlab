@@ -219,6 +219,34 @@ test("D2e g maps a half-open hi-hat, survives ABC/grid round-trips, and is choke
   assert.match(drums.fromGrid(parsed, grid), /%%MIDI drummap g 44/);
 });
 
+test("D2f half-closure damps an existing open hat before the later closed choke", () => {
+  const source = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n" +
+    "F z7 | g z7 | E z7 |]";
+  const score = drums.parse(source), original = JSON.stringify(score);
+  const hits = drums.scheduledEvents(score);
+  assert.deepEqual(hits[0].pedalChanges,
+    [{ beat: 4, openness: .5 }, { beat: 8, openness: 0 }]);
+  assert.equal(hits[0].chokeBeat, 8);
+  assert.deepEqual(hits[1].pedalChanges, [{ beat: 8, openness: 0 }]);
+  assert.equal(hits[1].chokeBeat, 8);
+  assert.equal(hits[2].pedalChanges, undefined);
+  assert.equal(JSON.stringify(score), original, "Pedal events do not modify the score");
+  const [partial, full] = [.5, 0].map(drums.hatPedalRelease);
+  assert.equal(full.timeConstant, .009);
+  assert.equal(full.seconds, .06);
+  assert.ok(partial.timeConstant > full.timeConstant && partial.timeConstant < .1);
+  assert.ok(partial.seconds > .4 && partial.seconds < .5);
+  assert.equal(drums.hatPedalRelease(1), null);
+  assert.throws(() => drums.hatPedalRelease(1.2), /between 0 and 1/);
+  // A simultaneous half-open hit immediately determines the pedal position.
+  const chord = drums.scheduledEvents(drums.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n[Fg] z7 |]"));
+  assert.equal(chord.find(hit => hit.drum === "openHat").pedalChanges[0].beat, 0);
+  const reopened = drums.scheduledEvents(drums.parse("M:4/4\nL:1/16\nQ:1/4=120\nK:C clef=perc\nF g F E z12 |]"));
+  assert.deepEqual(reopened[0].pedalChanges,
+    [{ beat: .25, openness: .5 }, { beat: .5, openness: 1 }, { beat: .75, openness: 0 }]);
+  assert.equal(reopened[0].chokeBeat, .75);
+});
+
 test("D2d sticking marks survive strict ABC, chords, pattern grids and toggles", () => {
   const source = "M:4/4\nL:1/16\nQ:1/4=100\nK:C clef=perc\n" +
     "[!R!!accent!!flam!D!L!!ghost!E]4 !roll!!L!D4 !R!D4 z4 |]";

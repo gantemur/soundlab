@@ -162,6 +162,9 @@ test("D2e half-open hi-hat pedal study is bilingual, linked, and demonstrates al
     assert.ok(["hat", "halfHat", "openHat", "kick", "snare"].every(id => hits.some(hit => hit.drum === id)));
     assert.ok(hits.some(hit => hit.drum === "halfHat" && hit.chokeBeat > hit.startBeat));
     assert.ok(hits.some(hit => hit.drum === "openHat" && hit.chokeBeat > hit.startBeat));
+    assert.ok(hits.some(hit => hit.drum === "openHat" &&
+      hit.pedalChanges?.some(change => change.openness === .5 && change.beat > hit.startBeat)),
+    "D2f practice must demonstrate an audible open-to-half closure before the next closed hat");
     assert.ok(hits.some(hit => hit.velocity === drums.VELOCITIES.accent));
     assert.ok(track.name.includes(language === "en" ? "Hi-hat" : "Цан"));
   }

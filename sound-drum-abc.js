@@ -35,6 +35,17 @@
   // Playback feel never rewrites ABC or its linked pattern definitions.
   // Ratios describe where the eighth-note offbeat falls within a quarter beat.
   const FEELS = Object.freeze({ straight: .5, light: .58, swing: 2 / 3 });
+  // Hi-hat pedal openness is 0 (shut) to 1 (fully open). This simple damping
+  // envelope is shared by the live Kit pedal and scheduled Compose/WAV tails.
+  const HAT_PEDAL_POSITIONS = Object.freeze({ hat: 0, halfHat: .5, openHat: 1 });
+  function hatPedalRelease(openness) {
+    if (!Number.isFinite(openness) || openness < 0 || openness > 1) {
+      throw new DrumABCError("Hi-hat pedal openness must be between 0 and 1");
+    }
+    if (openness === 1) return null;
+    const timeConstant = .009 + .24 * openness * openness;
+    return { timeConstant, seconds: Math.max(.06, 6 * timeConstant) };
+  }
   const FLAM_GAP_SECONDS = .032;
   const ROLL_STROKES = Object.freeze([.68, .82, .74, 1]);
   const MAX_HITS = 512;
@@ -281,18 +292,23 @@
       } else sounding.push(base);
     }
     sounding.sort((a, b) => a.startBeat - b.startBeat);
-    // The next closed-hat strike cuts short earlier open and half-open tails,
-    // even across a bar line. Annotate each stroke so playback, seeking and WAV export
-    // all apply the same choke without depending on scheduling order.
-    const closed = sounding.filter(hit => hit.drum === "hat").map(hit => hit.startBeat);
-    for (const hit of sounding) if (hit.drum === "openHat" || hit.drum === "halfHat") {
-      let low = 0, high = closed.length;
-      while (low < high) {
-        const mid = Math.floor((low + high) / 2);
-        if (closed[mid] < hit.startBeat - 1e-8) low = mid + 1;
-        else high = mid;
+    // A later pedal position can soften, choke, or reopen an existing tail.
+    // Reopening stops further damping without restoring energy already lost.
+    // The bounded list is derived after swing/flam timing, so seeking and WAV
+    // use identical transitions without modifying the underlying ABC score.
+    const hats = sounding.filter(hit => Object.hasOwn(HAT_PEDAL_POSITIONS, hit.drum));
+    for (const hit of hats) if (hit.drum !== "hat") {
+      let openness = HAT_PEDAL_POSITIONS[hit.drum];
+      const changes = [];
+      for (const next of hats) {
+        if (next === hit || next.startBeat < hit.startBeat - 1e-8) continue;
+        const nextOpenness = HAT_PEDAL_POSITIONS[next.drum];
+        if (nextOpenness === openness) continue;
+        changes.push({ beat: next.startBeat, openness: nextOpenness });
+        openness = nextOpenness;
+        if (openness === 0 && hit.chokeBeat === undefined) hit.chokeBeat = next.startBeat;
       }
-      if (low < closed.length) hit.chokeBeat = closed[low];
+      if (changes.length) hit.pedalChanges = changes;
     }
     return sounding;
   }
@@ -423,6 +439,7 @@
     return fromGrid(placeholder, bars).replace(/^X:1$/m, "X:" + id);
   }
   return Object.freeze({ DRUMS, VELOCITIES, ARTICULATIONS, HANDS, FEELS, TOUCHES,
+    HAT_PEDAL_POSITIONS, hatPedalRelease,
     FLAM_GAP_SECONDS, ROLL_STROKES,
     MAX_HITS, DrumABCError, parse, validate,
     scheduledEvents, gridOf, fromGrid, toggleGridHit, groove });

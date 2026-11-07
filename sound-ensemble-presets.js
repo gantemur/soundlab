@@ -35,8 +35,8 @@
     { id: "hatPedal", category: "drumSolo", en: "Hi-hat · Half-open pedal study (8 bars)",
       mn: "Цан · Хагас нээж, хаах дасгал (8 такт)",
       description: Object.freeze({
-        en: "An original kit study contrasting closed, half-open and open hi-hats, with soft strokes and pedal chokes.",
-        mn: "Хаалттай, хагас болон бүрэн нээлттэй цангийн өнгө, сул цохилт, дуу даралтыг харьцуулах шинэ дасгал."
+        en: "An original kit study contrasting closed, half-open and open hi-hats, including an open-to-half pedal motion on a ringing cymbal.",
+        mn: "Хаалттай, хагас болон бүрэн нээлттэй цангийн өнгө, дуугарч буй цанг хагас хаах, бүрэн дарахыг харьцуулах шинэ дасгал."
       }) },
     { id: "stickingRudiments", category: "drumSolo", en: "Snare · Paradiddles and sticking (8 bars)",
       mn: "Жижиг бөмбөр · Парадидл, гарын ээлж (8 такт)" },
@@ -505,7 +505,7 @@
           C: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. .... x.x. ....",
             halfHat: ".... x... .... x..." },
           D: { kick: "X... .... x... ....", snare: ".... X... .... X...", hat: "x.x. x.x. .... ....",
-            halfHat: ".... .... x... ....", openHat: ".... .... .... ..X." },
+            openHat: ".... .... ..X. ....", halfHat: ".... .... .... x..." },
           E: { kick: "X... .... X... ....", snare: ".... X... ..g. X...", hat: "X.x. x.x. X.x. x.x.",
             crash: "X... .... .... ...." }
         } }]

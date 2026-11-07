@@ -45,8 +45,7 @@
   const DEFAULT_GUITAR = Object.freeze({ mode: "pluck", spacingMs: 20 });
   const AHEAD_SECONDS = .23;
   const TICK_MS = 35;
-  const HAT_CHOKE_SECONDS = .06;
-  const HAT_CHOKE_TIME_CONSTANT = .009;
+  const HAT_CHOKE_SECONDS = drumModel.hatPedalRelease(0).seconds;
   const DRUM_RECIPES = Object.freeze({
     kick: Object.freeze({ voice: "membrane", size: "large", decay: .36 }),
     snare: Object.freeze({ voice: "snare", size: "medium", decay: .24 }),
@@ -61,6 +60,46 @@
     crash: Object.freeze({ voice: "crash", size: "large", decay: .75 }),
     rimshot: Object.freeze({ voice: "rimshot", size: "small", decay: .20 })
   });
+
+  function hatPedalPlan(event, at, offsetSeconds, secondsPerBeat) {
+    if (event.type !== "drum" || !Object.hasOwn(drumModel.HAT_PEDAL_POSITIONS, event.drum)) return [];
+    // Keep compatibility with events created before the pedalChanges field.
+    const changes = event.pedalChanges || (Number.isFinite(event.chokeBeat) ?
+      [{ beat: event.chokeBeat, openness: 0 }] : []);
+    const onset = at - offsetSeconds;
+    return changes.map(change => ({
+      at: onset + (change.beat - event.startBeat) * secondsPerBeat,
+      ...(drumModel.hatPedalRelease(change.openness) || { timeConstant: null, seconds: null }),
+      openness: change.openness
+    }));
+  }
+
+  // Value of a piecewise exponential pedal envelope at an arbitrary instant.
+  // This is also used to resume a still-ringing cymbal after Pause/Seek.
+  function hatPedalGainAt(plan, time, level) {
+    let previous = null, gain = level;
+    for (const release of plan) {
+      if (release.at > time + 1e-9) break;
+      if (previous?.timeConstant) gain *= Math.exp(-(release.at - previous.at) / previous.timeConstant);
+      previous = release;
+    }
+    if (previous?.timeConstant) gain *= Math.exp(-(time - previous.at) / previous.timeConstant);
+    return gain;
+  }
+
+  function hatPedalEndAt(plan, bufferEnd) {
+    let end = bufferEnd;
+    for (let i = 0; i < plan.length; i++) {
+      const release = plan[i];
+      if (!release.timeConstant) continue;
+      const terminal = release.at + release.seconds;
+      // Reopening/adjusting the pedal before six time constants interrupts
+      // the prior envelope, while reopening after that cannot revive a tail.
+      if (i + 1 < plan.length && plan[i + 1].at < terminal) continue;
+      end = Math.min(end, terminal);
+    }
+    return end;
+  }
 
   function noteFrequency(event, tuning, temperamentModel) {
     return scoreModel.frequency(event.pitch, tuning, 440, temperamentModel);
@@ -457,11 +496,9 @@
       const spec = this.bufferSpec(event, sampleRate);
       if (!spec) return endsAt + .005;
       const bufferEnd = at + spec.frames / sampleRate - offsetSeconds;
-      if (event.type === "drum" && (event.drum === "openHat" || event.drum === "halfHat") &&
-          Number.isFinite(event.chokeBeat)) {
-        const chokeAt = at - offsetSeconds +
-          (event.chokeBeat - event.startBeat) * scoreModel.secondsPerBeat(this.score);
-        return Math.min(bufferEnd, chokeAt + HAT_CHOKE_SECONDS);
+      if (event.type === "drum" && (event.drum === "openHat" || event.drum === "halfHat")) {
+        return hatPedalEndAt(hatPedalPlan(event, at, offsetSeconds,
+          scoreModel.secondsPerBeat(this.score)), bufferEnd);
       }
       return spec.damper ? Math.min(bufferEnd, endsAt + .19) : bufferEnd;
     }
@@ -662,11 +699,11 @@
     }
     scheduleDrumHit(event, at, offsetSeconds = 0) {
       const context = this.context;
-      const chokeAt = (event.drum === "openHat" || event.drum === "halfHat") &&
-        Number.isFinite(event.chokeBeat) ?
-        at - offsetSeconds + (event.chokeBeat - event.startBeat) * scoreModel.secondsPerBeat(this.score) : null;
-      if (chokeAt !== null && (chokeAt + HAT_CHOKE_SECONDS <= at ||
-          chokeAt === at && offsetSeconds === 0)) return;
+      const plan = hatPedalPlan(event, at, offsetSeconds, scoreModel.secondsPerBeat(this.score));
+      const first = plan[0];
+      if (first && (hatPedalEndAt(plan, Infinity) <= at ||
+          first.at === at && offsetSeconds === 0 &&
+          first.openness < drumModel.HAT_PEDAL_POSITIONS[event.drum])) return;
       const buffer = this.bufferFor(this.bufferSpec(event, context.sampleRate));
       if (offsetSeconds >= buffer.duration) return;
       const source = context.createBufferSource(), gain = context.createGain();
@@ -674,18 +711,18 @@
       source.connect(gain);
       gain.connect(this.buses[event.partIndex]);
       const level = .32 * event.velocity;
-      if (chokeAt === null) gain.gain.setValueAtTime(level, at);
-      else if (chokeAt > at) {
-        gain.gain.setValueAtTime(level, at);
-        gain.gain.setValueAtTime(level, chokeAt);
-        gain.gain.setTargetAtTime(0, chokeAt, HAT_CHOKE_TIME_CONSTANT);
-      } else {
-        gain.gain.setValueAtTime(level * Math.exp((chokeAt - at) / HAT_CHOKE_TIME_CONSTANT), at);
-        gain.gain.setTargetAtTime(0, at, HAT_CHOKE_TIME_CONSTANT);
+      gain.gain.setValueAtTime(hatPedalGainAt(plan, at, level), at);
+      const active = [...plan].reverse().find(release => release.at <= at);
+      if (active?.timeConstant) gain.gain.setTargetAtTime(0, at, active.timeConstant);
+      for (const release of plan) if (release.at > at) {
+        gain.gain.setValueAtTime(hatPedalGainAt(plan, release.at, level), release.at);
+        if (release.timeConstant) gain.gain.setTargetAtTime(0, release.at, release.timeConstant);
       }
       this.addVoice(source, gain);
       source.start(at, offsetSeconds);
-      if (chokeAt !== null) source.stop(Math.max(at + .002, chokeAt + HAT_CHOKE_SECONDS));
+      const bufferEnd = at + buffer.duration - offsetSeconds;
+      const stopAt = hatPedalEndAt(plan, bufferEnd);
+      if (stopAt < bufferEnd) source.stop(Math.max(at + .002, stopAt));
     }
     stop(reset = true) {
       super.stop(reset);

@@ -513,6 +513,34 @@ test("D2e WAV chokes the half-open hat and uses distinct velocity-dependent samp
   cleaned(f.contexts[0]);
 });
 
+test("D2f WAV export uses the same two-stage hi-hat pedal envelope as live playback", async () => {
+  const source = percussion("F2 g2 E2 z10 |]");
+  const input = arrangement([track(1, "drums", source)]), original = copy(input);
+  const f = fixture();
+  await exporter.render(input, f.deps);
+  const [open, half, closed] = f.contexts[0].graph.sources;
+  assert.equal(f.contexts[0].graph.sources.length, 3);
+  close(open.stop, .5 + players.HAT_CHOKE_SECONDS);
+  close(half.stop, .5 + players.HAT_CHOKE_SECONDS);
+  assert.equal(closed.stop, undefined, "The fresh closed-hat strike remains audible");
+  assert.ok(open.gain.some(record => record[0] === "target" &&
+    Math.abs(record[2] - .25) < 1e-10 && record[3] === drumABC.hatPedalRelease(.5).timeConstant));
+  const preClose = open.gain.find(record => record[0] === "set" && Math.abs(record[2] - .5) < 1e-10);
+  assert.ok(preClose && preClose[1] > 0 && preClose[1] < .32 * .8);
+  assert.ok(open.gain.some(record => record[0] === "target" && Math.abs(record[2] - .5) < 1e-10 && record[3] === .009));
+  assert.deepEqual(input, original, "Export must not alter the author's ABC or project");
+  cleaned(f.contexts[0]);
+
+  const reopened = fixture();
+  await exporter.render(arrangement([track(1, "drums", percussion("F g F E z12 |]"))]), reopened.deps);
+  const first = reopened.contexts[0].graph.sources[0];
+  close(first.stop, .375 + players.HAT_CHOKE_SECONDS);
+  const reopenedAt = first.gain.find(record => record[0] === "set" && Math.abs(record[2] - .25) < 1e-10);
+  assert.ok(reopenedAt && reopenedAt[1] > 0 && reopenedAt[1] < .32 * .8);
+  assert.equal(first.gain.some(record => record[0] === "target" && Math.abs(record[2] - .25) < 1e-10), false);
+  cleaned(reopened.contexts[0]);
+});
+
 test("D2d offline WAV follows live expressive sticking velocity exactly without touching ABC", async () => {
   const abcText = percussion("!R!!accent!D2 !L!D2 !ghost!D2 !flam!!R!D2 !roll!!L!D8 |]");
   const part = track(1, "drums", abcText, { drumTouch: "expressive" });

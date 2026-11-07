@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s072">
+  <link rel="stylesheet" href="sound-lab.css?v=s074">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -35,12 +35,12 @@
   <script src="sound-recorder.js?v=s057" defer></script>
   <script src="sound-score.js?v=s051" defer></script>
   <script src="sound-abc.js?v=s051" defer></script>
-  <script src="sound-drum-abc.js?v=s073" defer></script>
+  <script src="sound-drum-abc.js?v=s074" defer></script>
   <script src="sound-drum-patterns.js?v=s072" defer></script>
-  <script src="sound-score-player.js?v=s073" defer></script>
+  <script src="sound-score-player.js?v=s074" defer></script>
   <script src="sound-compose.js?v=s066" defer></script>
-  <script src="sound-ensemble-presets.js?v=s073" defer></script>
-  <script src="sound-ensemble.js?v=s073" defer></script>
+  <script src="sound-ensemble-presets.js?v=s074" defer></script>
+  <script src="sound-ensemble.js?v=s074" defer></script>
   <script src="sound-project.js?v=s072" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s059" defer></script>
@@ -50,7 +50,7 @@
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
   <script src="sound-analysis.js?v=s066" defer></script>
-  <script src="sound-lab.js?v=s073" defer></script>
+  <script src="sound-lab.js?v=s074" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -339,7 +339,7 @@
             <button type="button" data-strike-drum-view="models" aria-pressed="false" data-i18n="strikeDrumModels">Загварууд</button>
           </div>
           <div id="strikeDrumKitGroup">
-            <p class="field-help" data-i18n="strikeDrumKitHint">Бөмбөр бүрийг товшиж сонсоорой. Цохилтын хүч нь дууны өнгийг бас өөрчилнө; хаалттай цан нээлттэй хоёр төрлийг дарна.</p>
+            <p class="field-help" data-i18n="strikeDrumKitHint">Цохилуурыг товшиж сонсоорой. Цохилтын хүч нь дууны өнгийг өөрчилнө; цан дуугарч байхад дөрөөгөөр намдааж болно.</p>
             <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitDrums">Бөмбөр</span>
               <div class="strike-kit-pads strike-pads" role="group" aria-label="Бөмбөрийн товчлуур" data-i18n-aria="strikeKitDrums">
                 <button type="button" data-strike-kit-drum="kick" class="selected" aria-pressed="true" data-i18n="strikeKitKick">Их бөмбөр</button>
@@ -357,6 +357,12 @@
                 <button type="button" data-strike-kit-drum="openHat" aria-pressed="false" data-i18n="strikeKitOpenHat">Нээлттэй цан</button>
                 <button type="button" data-strike-kit-drum="ride" aria-pressed="false" data-i18n="strikeKitRide">Райд</button>
                 <button type="button" data-strike-kit-drum="crash" aria-pressed="false" data-i18n="strikeKitCrash">Крэш</button>
+              </div>
+              <div class="strike-hat-pedal">
+                <div class="field-title"><label for="strikeHatPedal" data-i18n="strikeHatPedal">Хай-хэт дөрөө</label><output id="strikeHatPedalValue">100%</output></div>
+                <input id="strikeHatPedal" type="range" min="0" max="100" step="1" value="100" aria-describedby="strikeHatPedalHint">
+                <div class="scale-row"><span data-i18n="strikeHatClosed">Хаалттай</span><span data-i18n="strikeHatHalf">Хагас</span><span data-i18n="strikeHatOpen">Нээлттэй</span></div>
+                <p id="strikeHatPedalHint" class="field-help" data-i18n="strikeHatPedalHint">Нээлттэй цанг товшоод намдахаас өмнө дөрөөг зүүн тийш хөдөлгө. Дөрөө өөрөө цохилт үүсгэхгүй.</p>
               </div>
             </div>
             <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitOther">Бусад</span>
@@ -1631,7 +1637,7 @@
             </section>
             <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-labelledby="ensembleEditorTitle" aria-describedby="ensembleHelp"></textarea>
             <p class="field-help" id="ensembleHelp" data-ensemble-i18n="help">Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. M: хэмжээ ба Q: хурд ижил байх ёстой.</p>
-            <p class="field-help" id="ensembleDrumHint" data-ensemble-i18n="drumHelp" hidden>C–G үндсэн таван зэмсэг; A суурь том, B дунд том, c өндөр том, d райд, e крэш, f хүрээтэй цохилт.</p>
+            <p class="field-help" id="ensembleDrumHint" data-ensemble-i18n="drumHelp" hidden>C–G үндсэн таван зэмсэг; A–g бусад цохилуур. Хагас нээлттэй цан өмнөх нээлттэй цанг аажмаар намдаана.</p>
             <label class="compose-file-button" for="ensembleLoad" data-ensemble-i18n="import">.abc / .txt файл нээх</label>
             <input id="ensembleLoad" class="sr-only" type="file" accept=".abc,.txt,text/plain" aria-label="Import ABC for selected part">
             <p class="field-help" data-ensemble-i18n="limits">4 хүртэл мөр, нийт 1024 нот/цохилт, 90 секунд.</p>

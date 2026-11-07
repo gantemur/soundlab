@@ -646,6 +646,64 @@ test("D2e half-open hi-hat chokes on the live clock and velocity bands cache dis
   assert.ok(context.sources.some(source => source !== first && source.startedAt > first.startedAt));
 });
 
+test("D2f Compose models a half-close then full-close on the same ringing hi-hat", async t => {
+  const part = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nF g E z5 |]");
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score: part, volume: 65 }] });
+  const open = player.playEvents[0];
+  assert.deepEqual(open.pedalChanges,
+    [{ beat: .5, openness: .5 }, { beat: 1, openness: 0 }]);
+  await player.play();
+  const first = context.sources[0];
+  const partialAt = .08 + .25, closedAt = .08 + .5;
+  assert.ok(Math.abs(first.stoppedAt - (closedAt + playerModel.HAT_CHOKE_SECONDS)) < 1e-10);
+  const gain = first.target.gain.records;
+  assert.ok(gain.some(record => record[0] === "target" &&
+    Math.abs(record[2] - partialAt) < 1e-10 && record[3] === drumABC.hatPedalRelease(.5).timeConstant));
+  const intermediate = gain.find(record => record[0] === "set" && Math.abs(record[2] - closedAt) < 1e-10);
+  assert.ok(intermediate && intermediate[1] > 0 && intermediate[1] < .32 * .8,
+    "The fully closed pedal continues from the already partly damped amplitude");
+  assert.ok(gain.some(record => record[0] === "target" &&
+    Math.abs(record[2] - closedAt) < 1e-10 && record[3] === .009));
+  context.currentTime = .43;
+  player.pause();
+  context.currentTime = 10;
+  const count = context.sources.length;
+  await player.play();
+  const resumed = context.sources.slice(count).find(source => source.offset > .25 && source.offset < .5);
+  assert.ok(resumed, "Seek chases a still-ringing, partly damped hi-hat");
+  assert.ok(resumed.target.gain.records[0][1] > 0 &&
+    resumed.target.gain.records[0][1] < .32 * .8);
+  assert.ok(resumed.target.gain.records.some(record => record[0] === "target" && record[3] === .009));
+});
+
+test("D2f reopening relaxes damping without restoring lost gain or shortening the old tail", async t => {
+  const part = drumABC.parse("M:4/4\nL:1/16\nQ:1/4=120\nK:C clef=perc\nF g F E z12 |]");
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score: part, volume: 65 }] });
+  await player.play();
+  const first = context.sources[0];
+  const reopeningAt = .08 + .25, closedAt = .08 + .375;
+  assert.ok(Math.abs(first.stoppedAt - (closedAt + playerModel.HAT_CHOKE_SECONDS)) < 1e-10,
+    "An early reopening cancels the partial release's previous end cap");
+  const gain = first.target.gain.records;
+  const reopened = gain.find(record => record[0] === "set" && Math.abs(record[2] - reopeningAt) < 1e-10);
+  assert.ok(reopened && reopened[1] > 0 && reopened[1] < .32 * .8);
+  assert.equal(gain.some(record => record[0] === "target" &&
+    Math.abs(record[2] - reopeningAt) < 1e-10), false,
+  "Opening holds the attenuated gain rather than continuing the half-closed release");
+  context.currentTime = .36;
+  player.pause();
+  context.currentTime = 10;
+  const count = context.sources.length;
+  await player.play();
+  const chased = context.sources.slice(count).find(source => source.offset > .25 && source.offset < .375);
+  assert.ok(chased, "Pause/Resume retains the reopened, still-ringing tail");
+  assert.ok(chased.target.gain.records[0][1] > 0 && chased.target.gain.records[0][1] < .32 * .8);
+});
+
 test("D2c ensemble schedules swung offbeats without moving downbeats or touching a pitched track", async t => {
   const part = drumABC.parse("M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\nC E D E z4 |]");
   const pitched = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4 |]");

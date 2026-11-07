@@ -3,6 +3,7 @@
   "use strict";
   const model = window.SoundLabModel;
   const transientModel = window.SoundLabTransientModel;
+  const drumModel = window.SoundLabDrumABC;
   const sustainModel = window.SoundLabSustain;
   const heldVoiceModel = window.SoundLabHeldVoice;
   const i3HeldModel = window.SoundLabI3Held;
@@ -445,8 +446,10 @@
       strikeStrength: "Strength", strikeDecay: "Decay time",
       strikeDrumVoiceTitle: "Percussion family", strikeDrumMembrane: "Bass drum / tom",
       strikeDrumViewTitle: "Drum exploration mode", strikeDrumKit: "Kit", strikeDrumModels: "Models",
-      strikeDrumKitHint: "Tap a pad to hear it. Strength also changes timbre; a closed hi-hat damps both half-open and open hats.",
+      strikeDrumKitHint: "Tap a pad to hear it. Strength changes timbre; the hi-hat pedal can damp a cymbal while it rings.",
       strikeKitDrums: "Drums", strikeKitCymbals: "Cymbals", strikeKitOther: "Other percussion",
+      strikeHatPedal: "Hi-hat pedal", strikeHatClosed: "Closed", strikeHatHalf: "Half-open", strikeHatOpen: "Open",
+      strikeHatPedalHint: "Strike the open hi-hat, then move the pedal left while it is ringing. Moving the pedal does not strike again.",
       strikeKitKick: "Bass drum", strikeKitSnare: "Snare", strikeKitRimshot: "Rimshot",
       strikeKitFloorTom: "Floor tom", strikeKitMidTom: "Mid tom", strikeKitHighTom: "High tom",
       strikeKitHat: "Closed hi-hat", strikeKitHalfHat: "Half-open hi-hat", strikeKitOpenHat: "Open hi-hat", strikeKitRide: "Ride", strikeKitCrash: "Crash",
@@ -1043,8 +1046,10 @@
       strikeStrength: "Цохилтын хүч", strikeDecay: "Намдах хугацаа",
       strikeDrumVoiceTitle: "Цохивор хөгжмийн төрөл", strikeDrumMembrane: "Басс бөмбөр / том",
       strikeDrumViewTitle: "Бөмбөр шинжлэх горим", strikeDrumKit: "Иж бүрдэл", strikeDrumModels: "Загварууд",
-      strikeDrumKitHint: "Бөмбөр бүрийг товшиж сонсоорой. Цохилтын хүч нь дууны өнгийг бас өөрчилнө; хаалттай цан нээлттэй хоёр төрлийг дарна.",
+      strikeDrumKitHint: "Цохилуурыг товшиж сонсоорой. Цохилтын хүч нь дууны өнгийг өөрчилнө; цан дуугарч байхад дөрөөгөөр намдааж болно.",
       strikeKitDrums: "Бөмбөр", strikeKitCymbals: "Цан", strikeKitOther: "Бусад цохивор",
+      strikeHatPedal: "Хай-хэт дөрөө", strikeHatClosed: "Хаалттай", strikeHatHalf: "Хагас", strikeHatOpen: "Нээлттэй",
+      strikeHatPedalHint: "Нээлттэй цанг товшоод дуу нь намдахаас өмнө дөрөөг зүүн тийш хөдөлгө. Дөрөө өөрөө цохилт үүсгэхгүй.",
       strikeKitKick: "Их бөмбөр", strikeKitSnare: "Жижиг бөмбөр", strikeKitRimshot: "Хүрээтэй цохилт",
       strikeKitFloorTom: "Суурь том", strikeKitMidTom: "Дунд том", strikeKitHighTom: "Өндөр том",
       strikeKitHat: "Хаалттай цан", strikeKitHalfHat: "Хагас нээлттэй цан", strikeKitOpenHat: "Нээлттэй цан", strikeKitRide: "Райд", strikeKitCrash: "Крэш",
@@ -1249,6 +1254,7 @@
     strikeDrumVoice: "membrane",
       strikeDrumView: "kit",
       strikeDrumKit: "kick",
+    strikeHatPedal: 100,
     strikeDrumTension: 1,
     strikeGuitarPlay: "single",
     strikeChord: "em",
@@ -1531,6 +1537,38 @@
       for (const voice of this.voices) this.stopVoice(voice, immediate);
     }
 
+    setHatPedal(openness) {
+      const context = this.contextOwner.context;
+      if (!context) return;
+      const now = context.currentTime;
+      const release = drumModel.hatPedalRelease(openness);
+      for (const voice of this.voices) {
+        // More-open positions relax or cancel damping, but never restore gain
+        // already lost. A fully ended sample cannot be revived.
+        if (voice.stopping || voice.hatPosition === null || openness === voice.hatPosition) continue;
+        voice.hatPosition = openness;
+        const previous = voice.hatTimeConstant;
+        const level = previous === null ? voice.hatAmplitude :
+          voice.hatAmplitude * Math.exp(-Math.max(0, now - voice.hatChangeAt) / previous);
+        const param = voice.gain.gain;
+        param.cancelScheduledValues(now);
+        param.setValueAtTime(level, now);
+        if (release) param.setTargetAtTime(0, now, release.timeConstant);
+        voice.hatAmplitude = level;
+        voice.hatChangeAt = now;
+        voice.hatTimeConstant = release ? release.timeConstant : null;
+        const naturalEnd = voice.hatStartAt + voice.source.buffer.duration;
+        const stopAt = release ? Math.min(naturalEnd, now + release.seconds) : naturalEnd;
+        // SourceNode.stop may be rescheduled until the source has actually
+        // ended. Reopening lets a surviving tail decay naturally again.
+        if (stopAt < naturalEnd || voice.hatStopAt < naturalEnd) {
+          try { voice.source.stop(stopAt); }
+          catch (_) { /* The sample may have ended between pedal movements. */ }
+        }
+        voice.hatStopAt = stopAt;
+      }
+    }
+
     async trigger(recipe, strength) {
       const ticket = this.generation;
       const context = await this.contextOwner.readyContext();
@@ -1554,15 +1592,10 @@
       // The acoustic piano samples have much less RMS energy than the FM
       // piano. Correct perceived balance, with a ceiling for overlapping hits.
       const pianoBoost = recipe.kind === "piano" && recipe.options?.pianoVoice !== "electric" ? 2.35 : 1;
-      gain.gain.setValueAtTime(Math.min(.37, maxGain.transient * strength / 100 * pianoBoost), now);
+      const level = Math.min(.37, maxGain.transient * strength / 100 * pianoBoost);
+      gain.gain.setValueAtTime(level, now);
       source.connect(gain);
       gain.connect(this.contextOwner.output);
-
-      // Pressing the pedal/closed-hat pad damps any open-hat sample already
-      // ringing. Models mode and the other kit pads retain overlapping tails.
-      if (recipe.drumKitId === "hat") for (const voice of this.voices) {
-        if (voice.drumKitId === "openHat" || voice.drumKitId === "halfHat") this.stopVoice(voice, false);
-      }
 
       // All struck instruments can overlap for rhythms, but the number of
       // simultaneously sounding voices and summed peak gain remain bounded.
@@ -1571,7 +1604,11 @@
         this.stopVoice(oldest, true);
         this.voices.delete(oldest);
       }
-      const voice = { source, gain, drumKitId: recipe.drumKitId || null, stopping: false };
+      const hatPosition = Object.hasOwn(drumModel.HAT_PEDAL_POSITIONS, recipe.drumKitId) ?
+        drumModel.HAT_PEDAL_POSITIONS[recipe.drumKitId] : null;
+      const voice = { source, gain, drumKitId: recipe.drumKitId || null, stopping: false,
+        hatPosition, hatAmplitude: level, hatChangeAt: now, hatStartAt: now,
+        hatTimeConstant: null, hatStopAt: Infinity };
       this.voices.add(voice);
       source.onended = () => {
         source.disconnect();
@@ -1579,6 +1616,7 @@
         this.voices.delete(voice);
       };
       source.start(now);
+      if (hatPosition !== null) this.setHatPedal(state.strikeHatPedal / 100);
       return { context, startedAt: now, duration: buffer.length / context.sampleRate };
     }
   }
@@ -4742,6 +4780,8 @@
         hat: "strikeKitHat", halfHat: "strikeKitHalfHat", openHat: "strikeKitOpenHat", ride: "strikeKitRide",
         crash: "strikeKitCrash", woodblock: "strikeKitWoodblock" }[button.dataset.strikeKitDrum]);
     });
+    $("strikeHatPedal").value = String(state.strikeHatPedal);
+    $("strikeHatPedalValue").textContent = state.strikeHatPedal + "%";
     $("strikeDrumVoice").value = state.strikeDrumVoice;
     $("strikeDrumTensionGroup").hidden = !["membrane", "snare"].includes(state.strikeDrumVoice);
     $("strikeDrumTension").value = String(Math.round(state.strikeDrumTension * 100));
@@ -5191,6 +5231,7 @@
     state.strikeDrumVoice = "membrane";
     state.strikeDrumView = "kit";
     state.strikeDrumKit = "kick";
+    state.strikeHatPedal = 100;
     state.strikeDrumTension = 1;
     state.strikeGuitarPlay = "single";
     state.strikeChord = "em";
@@ -7264,9 +7305,20 @@
       if (state.strikeKind !== "kick" || state.strikeDrumView !== "kit") return;
       const changed = state.strikeDrumKit !== button.dataset.strikeKitDrum;
       state.strikeDrumKit = button.dataset.strikeKitDrum;
+      if (Object.hasOwn(drumModel.HAT_PEDAL_POSITIONS, state.strikeDrumKit)) {
+        state.strikeHatPedal = 100 * drumModel.HAT_PEDAL_POSITIONS[state.strikeDrumKit];
+        transientAudio.setHatPedal(state.strikeHatPedal / 100);
+      }
       if (changed) state.strikeDecay = activeStrikeDrumRecipe().decay;
       return triggerStrike("kick", changed);
     });
+  });
+  $("strikeHatPedal").addEventListener("input", event => {
+    const openness = Number(event.target.value);
+    if (!Number.isFinite(openness) || openness < 0 || openness > 100) return;
+    state.strikeHatPedal = openness;
+    transientAudio.setHatPedal(openness / 100);
+    $("strikeHatPedalValue").textContent = openness + "%";
   });
   document.querySelectorAll("[data-spectrum-view]").forEach(button => {
     button.addEventListener("click", () => {

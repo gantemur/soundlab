@@ -92,18 +92,18 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s073"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s074"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s072"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s073"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s074"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s073"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s073"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s074"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s074"/);
   assert.match(html, /src="sound-project\.js\?v=s072"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s073"/);
+  assert.match(html, /src="sound-lab\.js\?v=s074"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -124,7 +124,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s072"/);
+  assert.match(html, /href="sound-lab\.css\?v=s074"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -348,7 +348,7 @@ test("firetruck Play/Stop icon forwards taps to its enclosing button", () => {
   assert.match(css, /\.siren-button\s*>\s*span\s*\{\s*pointer-events:\s*none;/);
 });
 
-function fakePage(search = "", supportWorklets = true, analysisController = null) {
+function fakePage(search = "", supportWorklets = true, analysisController = null, deferStops = false) {
   const contexts = [];
   const offlineContexts = [];
   const exportRequests = [];
@@ -666,13 +666,15 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
       return filter;
     }
     createBufferSource() {
+      const context = this;
       const source = {
         buffer: null, started: false, stopped: false,
         connect() {}, disconnect() {},
         start(at, offset = 0) { this.started = true; this.startedAt = at; this.offset = offset; },
-        stop() {
+        stop(at) {
           this.stopped = true;
-          if (this.onended) this.onended();
+          this.stoppedAt = at;
+          if (this.onended && (!deferStops || !Number.isFinite(at) || at <= context.currentTime)) this.onended();
         }
       };
       this.sources.push(source);
@@ -681,11 +683,11 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
     createGain() {
       const gain = {
         gain: {
-          value: 0,
-          setValueAtTime(value) { this.value = value; },
-          linearRampToValueAtTime(value) { this.value = value; },
-          setTargetAtTime(value) { this.value = value; },
-          cancelScheduledValues() {}
+          value: 0, records: [],
+          setValueAtTime(value, at) { this.value = value; this.records.push(["set", value, at]); },
+          linearRampToValueAtTime(value, at) { this.value = value; this.records.push(["ramp", value, at]); },
+          setTargetAtTime(value, at, tau) { this.value = value; this.records.push(["target", value, at, tau]); },
+          cancelScheduledValues(at) { this.records.push(["cancel", at]); }
         },
         connect() {},
         disconnect() {}
@@ -2916,6 +2918,59 @@ test("D2c striking a closed kit hi-hat damps the earlier open hat, without choki
   assert.equal(half.stopped, true, "Closed pad damps the half-open hi-hat too");
   app.fire("stopAll", "click");
   assert.equal(closed.stopped, true);
+});
+
+test("D2f live Kit pedal changes a ringing cymbal without creating another strike", async () => {
+  const app = fakePage("", true, null, true);
+  app.fire("modeStrike", "click");
+  app.strikeButtons[1].click();
+  const hit = id => app.drumKitButtons.find(button => button.dataset.strikeKitDrum === id).click();
+  await hit("openHat");
+  const context = app.contexts[0], first = context.sources.at(-1);
+  const firstGain = context.gains.at(-1).gain;
+  assert.equal(app.elements.get("strikeHatPedalValue").textContent, "100%");
+  const count = context.sources.length;
+  app.tick(.08);
+  app.elements.get("strikeHatPedal").value = "75";
+  app.fire("strikeHatPedal", "input");
+  assert.equal(context.sources.length, count, "Moving the pedal must not synthesize another hit");
+  assert.equal(app.elements.get("strikeHatPedalValue").textContent, "75%");
+  assert.ok(firstGain.records.some(record => record[0] === "target" &&
+    record[3] === drumABC.hatPedalRelease(.75).timeConstant));
+  assert.equal(first.stopped, true, "Live pedal schedules a finite end for the damped tail");
+  app.tick(.02);
+  app.elements.get("strikeHatPedal").value = "50";
+  app.fire("strikeHatPedal", "input");
+  assert.ok(Math.abs(first.stoppedAt - (context.currentTime + drumABC.hatPedalRelease(.5).seconds)) < 1e-9);
+  app.tick(.02);
+  app.elements.get("strikeHatPedal").value = "100";
+  app.fire("strikeHatPedal", "input");
+  assert.ok(Math.abs(first.stoppedAt - (first.startedAt + first.buffer.duration)) < 1e-9,
+    "Reopening extends the surviving sample to natural decay");
+  const held = firstGain.records.at(-1);
+  assert.equal(held[0], "set", "Reopening cancels the extra release without creating new energy");
+  assert.ok(held[1] > 0 && held[1] < .21 * .78);
+  app.tick(.03);
+  app.elements.get("strikeHatPedal").value = "0";
+  app.fire("strikeHatPedal", "input");
+  assert.ok(Math.abs(first.stoppedAt - (context.currentTime + .06)) < 1e-9);
+  assert.equal(context.sources.length, count);
+
+  await hit("openHat");
+  const secondGain = context.gains.at(-1).gain;
+  await hit("halfHat");
+  assert.equal(app.elements.get("strikeHatPedal").value, "50");
+  assert.ok(secondGain.records.some(record => record[0] === "target" &&
+    record[3] === drumABC.hatPedalRelease(.5).timeConstant),
+  "Striking a half-open hat also partly damps the previous open one");
+  const halfGain = context.gains.at(-1).gain;
+  await hit("hat");
+  assert.equal(app.elements.get("strikeHatPedal").value, "0");
+  assert.ok(halfGain.records.some(record => record[0] === "target" && record[3] === .009));
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("strikeHatPedal").value, "0", "Language does not reset the foot position");
+  app.fire("strikeReset", "click");
+  assert.equal(app.elements.get("strikeHatPedal").value, "100");
 });
 
 test("D2e Strike/Pluck strength changes drum waveform shape as well as live gain", async () => {

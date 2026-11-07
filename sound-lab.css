@@ -143,6 +143,11 @@ h1, h2, p { margin-top: 0; }
 .strike-kit-pads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .strike-kit-pads button { min-height: 42px; padding: 6px 3px; line-height: 1.25; font-size: 11px; }
 .strike-kit-pads button.selected { padding: 5px 2px; }
+.strike-hat-pedal { margin-top: 9px; padding: 9px 10px; background: #f3faf9;
+  border: 1px solid #c9e4dd; border-radius: 10px; }
+.strike-hat-pedal .field-title { margin: 0 0 5px; }
+.strike-hat-pedal .scale-row { margin-top: 3px; }
+.strike-hat-pedal .field-help { margin-top: 5px; }
 #strikeDrumModelsGroup > label { margin-top: 8px; }
 .strike-more-chords { margin-top: 7px; border: 1px solid #d2e2ef; border-radius: 9px;
   background: #f5f9ff; padding: 8px 10px; }
