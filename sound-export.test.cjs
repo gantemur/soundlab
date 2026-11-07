@@ -600,8 +600,8 @@ test("I3 four-track ensemble survives project round-trip and exports separate in
   cleaned(f.contexts[0]);
 });
 
-test("D1/D2 drum-only kit, snare, dialogue and tom/cymbal study render playable WAV files", async () => {
-  for (const id of ["drumKitSolo", "snareStudy", "drumDialogue", "tomCymbalStudy"]) {
+test("D1/D2 kit, snare, dialogue, tom/cymbal and ornamented snare studies render playable WAV files", async () => {
+  for (const id of ["drumKitSolo", "snareStudy", "snareRudiments", "drumDialogue", "tomCymbalStudy"]) {
     const snapshot = arrangement(presets.create(id, "mn"));
     const restored = projects.decode(projects.encode({ format: projects.FORMAT,
       version: projects.VERSION, title: id, ...snapshot }));
@@ -616,6 +616,19 @@ test("D1/D2 drum-only kit, snare, dialogue and tom/cymbal study render playable 
     if (id === "tomCymbalStudy") {
       const soundKinds = new Set(f.modelCalls.map(call => call.settings.drumVoice));
       for (const voice of ["tom", "ride", "crash", "rimshot"]) assert.ok(soundKinds.has(voice));
+    }
+    if (id === "snareRudiments") {
+      const part = drumABC.parse(restored.content.tracks[0].abc);
+      const strokes = drumABC.scheduledEvents(part);
+      assert.equal(f.contexts[0].graph.sources.length, strokes.length,
+        "WAV contains each grace/roll stroke, not one sound per notated hit");
+      const secondsPerBeat = 60 / part.tempoQuarter;
+      f.contexts[0].graph.sources.forEach((source, i) => {
+        close(source.at, strokes[i].startBeat * secondsPerBeat);
+        close(source.gain.find(item => item[0] === "set")[1], .32 * strokes[i].velocity);
+      });
+      assert.ok(strokes.some(stroke => stroke.stroke === "flam-grace"));
+      assert.ok(strokes.some(stroke => stroke.stroke === "roll-4"));
     }
     cleaned(f.contexts[0]);
   }

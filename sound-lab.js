@@ -444,6 +444,13 @@
       strikePitchInputAria: "Note frequency in hertz",
       strikeStrength: "Strength", strikeDecay: "Decay time",
       strikeDrumVoiceTitle: "Percussion family", strikeDrumMembrane: "Bass drum / tom",
+      strikeDrumViewTitle: "Drum exploration mode", strikeDrumKit: "Kit", strikeDrumModels: "Models",
+      strikeDrumKitHint: "Tap each pad to hear a kit instrument. Strength and decay below also affect these sounds.",
+      strikeKitDrums: "Drums", strikeKitCymbals: "Cymbals", strikeKitOther: "Other percussion",
+      strikeKitKick: "Bass drum", strikeKitSnare: "Snare", strikeKitRimshot: "Rimshot",
+      strikeKitFloorTom: "Floor tom", strikeKitMidTom: "Mid tom", strikeKitHighTom: "High tom",
+      strikeKitHat: "Closed hi-hat", strikeKitOpenHat: "Open hi-hat", strikeKitRide: "Ride", strikeKitCrash: "Crash",
+      strikeKitWoodblock: "Woodblock",
       strikeDrumSnare: "Snare", strikeDrumCymbal: "Cymbals", strikeDrumSteelpan: "Steel pan",
       strikeDrumChimes: "Chimes", strikeDrumWoodblock: "Woodblock",
       strikeDrumSize: "Hit a drum", strikeLarge: "Large", strikeMedium: "Medium", strikeSmall: "Small",
@@ -1035,6 +1042,13 @@
       strikePitchInputAria: "Нотын давтамжийг герцээр оруулах",
       strikeStrength: "Цохилтын хүч", strikeDecay: "Намдах хугацаа",
       strikeDrumVoiceTitle: "Цохивор хөгжмийн төрөл", strikeDrumMembrane: "Басс бөмбөр / том",
+      strikeDrumViewTitle: "Бөмбөр шинжлэх горим", strikeDrumKit: "Иж бүрдэл", strikeDrumModels: "Загварууд",
+      strikeDrumKitHint: "Бөмбөр бүрийг товшиж сонсоорой. Доорх цохилтын хүч, намдах хугацаа эдгээрт бас үйлчилнэ.",
+      strikeKitDrums: "Бөмбөр", strikeKitCymbals: "Цан", strikeKitOther: "Бусад цохивор",
+      strikeKitKick: "Их бөмбөр", strikeKitSnare: "Жижиг бөмбөр", strikeKitRimshot: "Хүрээтэй цохилт",
+      strikeKitFloorTom: "Суурь том", strikeKitMidTom: "Дунд том", strikeKitHighTom: "Өндөр том",
+      strikeKitHat: "Хаалттай цан", strikeKitOpenHat: "Нээлттэй цан", strikeKitRide: "Райд", strikeKitCrash: "Крэш",
+      strikeKitWoodblock: "Модон цохилуур",
       strikeDrumSnare: "Бага бөмбөр", strikeDrumCymbal: "Цан", strikeDrumSteelpan: "Ган бөмбөр",
       strikeDrumChimes: "Хоолойт хонх", strikeDrumWoodblock: "Модон товшуур",
       strikeDrumSize: "Бөмбөр цохих", strikeLarge: "Том", strikeMedium: "Дунд", strikeSmall: "Жижиг",
@@ -1233,6 +1247,8 @@
     strikeSnap: false,
     strikeDrumSize: "medium",
     strikeDrumVoice: "membrane",
+      strikeDrumView: "kit",
+      strikeDrumKit: "kick",
     strikeDrumTension: 1,
     strikeGuitarPlay: "single",
     strikeChord: "em",
@@ -2697,19 +2713,25 @@
     }[state.strikePianoVoice];
   }
 
+  function activeStrikeDrumRecipe() {
+    return state.strikeDrumView === "kit" ? window.SoundLabScorePlayer.DRUM_RECIPES[state.strikeDrumKit] :
+      { voice: state.strikeDrumVoice, size: state.strikeDrumSize };
+  }
+
   function strikeRecipe() {
     const pitchedChimes = state.strikeKind === "piano" && state.strikePianoVoice === "chimes";
     const marimba = state.strikeKind === "piano" && state.strikePianoVoice === "marimba";
     const xylophone = state.strikeKind === "piano" && state.strikePianoVoice === "xylophone";
     const mandolin = isMandolinStrike();
     const harp = state.strikeKind === "piano" && state.strikePianoVoice === "harp";
+    const drum = state.strikeKind === "kick" ? activeStrikeDrumRecipe() : null;
     return { kind: pitchedChimes ? "kick" : marimba ? "marimba" : xylophone ? "xylophone" : mandolin ? "mandolin" : harp ? "harp" :
       state.strikeKind, pitchHz: state.strikePitch,
-      decaySec: state.strikeDecay, kickSize: state.strikeDrumSize,
+      decaySec: state.strikeDecay, kickSize: drum?.size || state.strikeDrumSize,
       options: {
         position: state.strikePluckPosition,
-        drumVoice: pitchedChimes ? "chimes" : state.strikeDrumVoice,
-        drumTension: state.strikeDrumTension,
+        drumVoice: pitchedChimes ? "chimes" : drum?.voice || state.strikeDrumVoice,
+        drumTension: drum ? 1 : state.strikeDrumTension,
         ...(pitchedChimes ? { chimeHz: state.strikePitch } : {}),
         ...(marimba || xylophone || mandolin || harp ? { velocity: state.strikeStrength / 100 } : {}),
         ...(mandolin ? { articulation: state.strikeMandolinStyle } : {}),
@@ -2722,13 +2744,15 @@
   }
 
   function strikeDrumSpectrumMaxHz() {
-    if (state.strikeDrumVoice === "snare") return 5200;
-    if (state.strikeDrumVoice === "cymbal") return 6000;
-    if (state.strikeDrumVoice === "steelpan") return 4000;
-    if (state.strikeDrumVoice === "chimes") return 8000;
-    if (state.strikeDrumVoice === "woodblock") return 5000;
+    const drum = activeStrikeDrumRecipe(), voice = drum.voice;
+    if (["snare", "rimshot"].includes(voice)) return 5200;
+    if (["cymbal", "ride", "crash"].includes(voice)) return 6000;
+    if (voice === "steelpan") return 4000;
+    if (voice === "chimes") return 8000;
+    if (voice === "woodblock") return 5000;
+    if (voice === "tom") return 2500;
     return Math.max(600, transientModel.kickFrequency(0,
-      state.strikeDrumSize, state.strikeDrumTension) * 4);
+      drum.size, state.strikeDrumView === "kit" ? 1 : state.strikeDrumTension) * 4);
   }
 
   function strikeSpectrumMaxHz() {
@@ -2781,7 +2805,7 @@
     const voiceHints = { snare: "strikeSnareSpectrumHint", cymbal: "strikeCymbalSpectrumHint",
       steelpan: "strikePanSpectrumHint", chimes: "strikeChimesSpectrumHint",
       woodblock: "strikeWoodSpectrumHint" };
-    const hint = state.strikeKind === "kick" ? voiceHints[state.strikeDrumVoice] :
+    const hint = state.strikeKind === "kick" ? voiceHints[activeStrikeDrumRecipe().voice] :
       state.strikeKind === "piano" && state.strikePianoVoice === "chimes" ? "strikeChimesSpectrumHint" :
       state.strikeKind === "piano" && state.strikePianoVoice === "marimba" ? "strikeMarimbaSpectrumHint" :
       state.strikeKind === "piano" && state.strikePianoVoice === "xylophone" ? "strikeXylophoneSpectrumHint" :
@@ -4684,13 +4708,32 @@
     $("strikePianoHint").textContent = text({ acoustic: "strikePianoTouchHint", electric: "strikePianoElectricHint",
       chimes: "strikePitchedChimesHint", marimba: "strikeMarimbaHint", xylophone: "strikeXylophoneHint",
       mandolin: "strikeMandolinHint", harp: "strikeHarpHint" }[state.strikePianoVoice]);
-    $("strikeButton").hidden = state.strikeKind !== "kick" && (state.strikeKind !== "piano" || isPianoStrike() || isMandolinStrike());
+    $("strikeButton").hidden = (state.strikeKind === "kick" && state.strikeDrumView === "kit") ||
+      state.strikeKind !== "kick" && (state.strikeKind !== "piano" || isPianoStrike() || isMandolinStrike());
     $("strikeChordGroup").hidden = state.strikeKind !== "pluck";
     $("strikeGuitarPattern").value = state.strikeGuitarPattern;
     $("strikePluckPositionGroup").hidden = state.strikeKind !== "pluck";
     $("strikePluckPosition").value = String(Math.round(100 * state.strikePluckPosition));
     $("strikePluckPositionValue").textContent = Math.round(100 * state.strikePluckPosition) + "%";
     $("strikeDrumSizeGroup").hidden = state.strikeKind !== "kick";
+    $("strikeDrumKitGroup").hidden = state.strikeDrumView !== "kit";
+    $("strikeDrumModelsGroup").hidden = state.strikeDrumView !== "models";
+    document.querySelectorAll("[data-strike-drum-view]").forEach(button => {
+      const selected = button.dataset.strikeDrumView === state.strikeDrumView;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+      button.textContent = text(selected && button.dataset.strikeDrumView === "kit" ?
+        "strikeDrumKit" : button.dataset.strikeDrumView === "kit" ? "strikeDrumKit" : "strikeDrumModels");
+    });
+    document.querySelectorAll("[data-strike-kit-drum]").forEach(button => {
+      const selected = button.dataset.strikeKitDrum === state.strikeDrumKit;
+      button.classList.toggle("selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+      button.textContent = text({ kick: "strikeKitKick", snare: "strikeKitSnare", rimshot: "strikeKitRimshot",
+        floorTom: "strikeKitFloorTom", midTom: "strikeKitMidTom", highTom: "strikeKitHighTom",
+        hat: "strikeKitHat", openHat: "strikeKitOpenHat", ride: "strikeKitRide",
+        crash: "strikeKitCrash", woodblock: "strikeKitWoodblock" }[button.dataset.strikeKitDrum]);
+    });
     $("strikeDrumVoice").value = state.strikeDrumVoice;
     $("strikeDrumTensionGroup").hidden = !["membrane", "snare"].includes(state.strikeDrumVoice);
     $("strikeDrumTension").value = String(Math.round(state.strikeDrumTension * 100));
@@ -5058,6 +5101,7 @@
     if (kind !== "kick") restoreStrikePitch();
     state.strikeStrength = state.strikeStrengthByKind[kind];
     state.strikeDecay = kind === "pluck" ? 0.65 : kind === "piano" ? pitchedStrikeDecay() :
+      state.strikeDrumView === "kit" ? activeStrikeDrumRecipe().decay :
       { membrane: .3, snare: .33, cymbal: .55, steelpan: .8, chimes: .7,
         woodblock: .24 }[state.strikeDrumVoice];
     state.strikeCursor = 0;
@@ -5137,6 +5181,8 @@
     state.strikeSnap = false;
     state.strikeDrumSize = "medium";
     state.strikeDrumVoice = "membrane";
+    state.strikeDrumView = "kit";
+    state.strikeDrumKit = "kick";
     state.strikeDrumTension = 1;
     state.strikeGuitarPlay = "single";
     state.strikeChord = "em";
@@ -7191,6 +7237,26 @@
     button.addEventListener("click", () => {
       const changed = state.strikeDrumSize !== button.dataset.drumSize;
       state.strikeDrumSize = button.dataset.drumSize;
+      return triggerStrike("kick", changed);
+    });
+  });
+  document.querySelectorAll("[data-strike-drum-view]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (button.dataset.strikeDrumView === state.strikeDrumView) return;
+      stopStrikeForEdit();
+      state.strikeDrumView = button.dataset.strikeDrumView;
+      state.strikeDecay = state.strikeDrumView === "kit" ? activeStrikeDrumRecipe().decay :
+        { membrane: .3, snare: .33, cymbal: .55, steelpan: .8, woodblock: .24 }[state.strikeDrumVoice];
+      renderStrikeControls();
+      drawPlots();
+    });
+  });
+  document.querySelectorAll("[data-strike-kit-drum]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (state.strikeKind !== "kick" || state.strikeDrumView !== "kit") return;
+      const changed = state.strikeDrumKit !== button.dataset.strikeKitDrum;
+      state.strikeDrumKit = button.dataset.strikeKitDrum;
+      if (changed) state.strikeDecay = activeStrikeDrumRecipe().decay;
       return triggerStrike("kick", changed);
     });
   });

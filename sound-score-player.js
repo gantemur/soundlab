@@ -669,7 +669,7 @@
     }
   }
 
-  return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, AHEAD_SECONDS,
+  return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES, AHEAD_SECONDS,
     MAX_PARTS, MAX_ENSEMBLE_EVENTS,
     noteFrequency, instrumentRange, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

@@ -179,6 +179,32 @@ test("track ordering, IDs, mix settings and editor choices round-trip", () => {
   assert.deepEqual(codec.decode(codec.encode(project)), codec.validate(project));
 });
 
+test("D2b keeps ornamented linked patterns, grid technique and legacy version-1 projects", () => {
+  const track = presets.create("snareRudiments", "en")[0];
+  const project = arrangement([track]);
+  project.content.editor = { gridBar: 3, gridStep: 16, gridStrength: "ghost", gridArticulation: "roll" };
+  const restored = codec.decode(codec.encode(project));
+  assert.equal(restored.content.editor.gridArticulation, "roll");
+  assert.deepEqual(drums.scheduledEvents(drums.parse(restored.content.tracks[0].abc)),
+    drums.scheduledEvents(drums.parse(track.abc)));
+  assert.ok(restored.content.tracks[0].patterns.patterns.some(pattern =>
+    pattern.bars.some(bar => bar.cells.some(cell => Object.values(cell).some(hit =>
+      typeof hit === "object" && hit.articulation === "flam")))));
+  delete project.content.editor.gridArticulation;
+  assert.equal(codec.decode(codec.encode(project)).content.editor.gridArticulation, "plain",
+    "Existing version-1 project files default to the original single-hit technique");
+  for (const bad of ["buzz", null, 2]) {
+    project.content.editor.gridArticulation = bad;
+    rejected(project);
+  }
+  const damaged = arrangement([presets.create("snareRudiments", "mn")[0]]);
+  const hit = damaged.content.tracks[0].patterns.patterns[0].bars[0].cells.find(cell =>
+    Object.values(cell).some(value => typeof value === "object"));
+  const note = Object.keys(hit).find(key => typeof hit[key] === "object");
+  hit[note].articulation = "buzz";
+  rejected(damaged);
+});
+
 test("linked patterns retain repeats, unused definitions, names and multi-bar grouping", () => {
   const track = drumTrack();
   const grouped = patterns.groupBars(track.patterns, 1, 4);

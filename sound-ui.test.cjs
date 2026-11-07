@@ -92,19 +92,18 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s069"/);
-  assert.match(html, /src="sound-drum-patterns\.js\?v=s049"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s069"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s069"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s070"/);
+  assert.match(html, /src="sound-drum-patterns\.js\?v=s070"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s070"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s069"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s069"/);
-  assert.match(html, /src="sound-project\.js\?v=s055"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s070"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s070"/);
+  assert.match(html, /src="sound-project\.js\?v=s070"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s066b"/);
+  assert.match(html, /src="sound-lab\.js\?v=s070"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -125,7 +124,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s065"/);
+  assert.match(html, /href="sound-lab\.css\?v=s070"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -235,7 +234,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   }
   for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensembleAddDrums",
     "ensemblePlayPause", "ensembleStop", "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList",
-    "ensembleDrumGrid", "ensembleDrumHint", "ensembleGridBar", "ensembleGridStep", "ensembleGridStrength", "ensembleGridCells",
+    "ensembleDrumGrid", "ensembleDrumHint", "ensembleGridBar", "ensembleGridStep", "ensembleGridStrength", "ensembleGridArticulation", "ensembleGridCells",
     "ensemblePatternPanel", "ensemblePatternTools", "ensemblePatternEnable", "ensemblePatternArrangement", "ensemblePatternBar",
     "ensemblePatternChoice", "ensemblePatternUnique", "ensemblePatternRepeat", "ensemblePatternGroup", "ensemblePatternRange",
     "ensemblePatternFrom", "ensemblePatternTo", "ensemblePatternLength", "ensemblePatternTextMode", "ensemblePatternRevert", "ensemblePatternMessage"]) {
@@ -277,6 +276,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   for (const family of transientModel.DRUM_VOICES) {
     assert.match(html, new RegExp('<option value="' + family + '" data-i18n="strikeDrum'));
   }
+  for (const drum of drumABC.DRUMS) {
+    assert.match(html, new RegExp('data-strike-kit-drum="' + drum.id + '"'));
+  }
+  assert.match(html, /data-strike-drum-view="kit"/);
+  assert.match(html, /data-strike-drum-view="models"/);
+  assert.match(html, /id="strikeDrumModelsGroup" hidden/);
   for (const chord of Object.keys(transientModel.STRUM_CHORDS)) {
     assert.match(html, new RegExp('data-guitar-chord="' + chord + '"'));
   }
@@ -424,6 +429,8 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   const mandolinPlayButtons = strikePlayButtons.slice(4);
   const sustainButtons = ["air", "bow", "organ", "reed"].map(sustainFamily => element({ sustainFamily }));
   const drumButtons = Object.keys(transientModel.KICK_SIZES).map(drumSize => element({ drumSize }));
+  const drumViewButtons = ["kit", "models"].map(strikeDrumView => element({ strikeDrumView }));
+  const drumKitButtons = drumABC.DRUMS.map(drum => element({ strikeKitDrum: drum.id }));
   const spectrumButtons = ["local", "overall"].map(spectrumView => element({ spectrumView }));
   const motionButtons = ["theremin", "siren"].map(motion => element({ motion }));
   const sirenPatternButtons = motionModel.PATTERNS.map(sirenPattern => element({ sirenPattern }));
@@ -491,6 +498,8 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
       if (selector === "[data-guitar-chord]") return guitarChordButtons;
       if (selector === "[data-sustain-family]") return sustainButtons;
       if (selector === "[data-drum-size]") return drumButtons;
+      if (selector === "[data-strike-drum-view]") return drumViewButtons;
+      if (selector === "[data-strike-kit-drum]") return drumKitButtons;
       if (selector === "[data-spectrum-view]") return spectrumButtons;
       if (selector === "[data-motion]") return motionButtons;
       if (selector === "[data-siren-pattern]") return sirenPatternButtons;
@@ -765,7 +774,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   return {
     contexts, offlineContexts, exportRequests, elements, document, window, waveButtons, strikeButtons,
     guitarPlayButtons, guitarChordButtons, pianoTouchButtons, mandolinPlayButtons, strikePlayButtons, sustainButtons,
-    drumButtons, spectrumButtons,
+    drumButtons, drumViewButtons, drumKitButtons, spectrumButtons,
     motionButtons, sirenPatternButtons, timbreButtons, vowelButtons, mixGapButtons, pureKindButtons, pureKindGroups, mixKindButtons,
     tuningKindButtons, composeSubtabButtons, scalePlayButtons, scaleTonicButtons,
     earHelpButtons, earSoundButtons, earPlayButtons, timers, animationFrames,
@@ -1380,6 +1389,7 @@ test("Strike & Pluck begins silently, triggers modeled buffers and bounds simult
 
   app.strikeButtons[1].events.click();
   assert.equal(app.elements.get("strikePitchGroup").hidden, true, "Kick has no fake musical note control");
+  app.drumViewButtons[1].click();
   await app.fire("strikeButton", "click");
   assert.equal(context.sources[0].stopped, true, "Switching recipes stops the old sound");
   for (let n = 0; n < 5; n++) await app.fire("strikeButton", "click");
@@ -1427,6 +1437,7 @@ test("string snap and small/medium/large drum pads play immediately and repeat",
   app.strikeButtons[1].events.click();
   assert.equal(app.elements.get("strikePitchGroup").hidden, true);
   assert.equal(app.elements.get("strikeDrumSizeGroup").hidden, false);
+  app.drumViewButtons[1].click();
   await app.drumButtons[0].click();
   assert.equal(app.drumButtons[0].getAttribute("aria-pressed"), "true");
   assert.equal(app.elements.get("strikeDrumFrequencies").textContent, "81 Гц");
@@ -1491,6 +1502,7 @@ test("guitar pluck, strum and chord pads always retrigger without stopping earli
   assert.equal(app.elements.get("strikePitchGroup").hidden, false);
   app.strikeButtons[1].click();
   assert.equal(app.elements.get("strikeGuitarPlayModes").hidden, true);
+  app.drumViewButtons[1].click();
   app.elements.get("strikeDrumTension").value = "200";
   app.fire("strikeDrumTension", "input");
   assert.equal(app.elements.get("strikeDrumTensionValue").textContent, "200%");
@@ -1513,6 +1525,7 @@ test("rapid pending chord and drum pad taps capture the intended sound recipes",
   assert.equal(context.sources[1].stopped, false);
 
   app.strikeButtons[1].click();
+  app.drumViewButtons[1].click();
   const largePending = app.drumButtons[0].click();
   const smallPending = app.drumButtons[2].click();
   await Promise.all([largePending, smallPending]);
@@ -2784,6 +2797,7 @@ test("percussion pads keep the existing drum mappings and stronger default after
   app.strikeButtons[1].click();
   assert.equal(app.elements.get("strikeStrengthValue").textContent, "78%",
     "Default drum strength increases without altering the guitar default");
+  app.drumViewButtons[1].click();
   assert.equal(app.contexts.length, 0);
   assert.equal(app.elements.get("strikeDrumVoice").value, "membrane");
   await app.drumButtons[1].click();
@@ -2838,6 +2852,68 @@ test("percussion pads keep the existing drum mappings and stronger default after
   assert.equal(app.elements.get("strikeStrengthValue").textContent, "78%");
   app.fire("stopAll", "click");
   assert.ok(context.sources.every(source => source.stopped), "Global Stop silences the last hit");
+});
+
+test("D2b Strike/Pluck Kit plays the exact eleven Compose recipes while Models preserves size experiments", async () => {
+  const app = fakePage();
+  app.fire("modeStrike", "click");
+  app.strikeButtons[1].click();
+  assert.equal(app.elements.get("strikeDrumKitGroup").hidden, false);
+  assert.equal(app.elements.get("strikeDrumModelsGroup").hidden, true);
+  assert.equal(app.elements.get("strikeButton").hidden, true, "Kit pads replace the redundant single-hit button");
+  const expected = require("./sound-score-player.js").DRUM_RECIPES;
+  const waveformHeads = [];
+  for (const drum of drumABC.DRUMS) {
+    const pad = app.drumKitButtons.find(button => button.dataset.strikeKitDrum === drum.id);
+    await pad.click();
+    const context = app.contexts[0], played = context.sources.at(-1).buffer.getChannelData(0);
+    const recipe = expected[drum.id];
+    assert.equal(pad.getAttribute("aria-pressed"), "true", drum.id);
+    assert.equal(app.elements.get("strikeDecay").value, String(recipe.decay), drum.id);
+    assert.equal(context.gains.at(-1).gain.value, .21 * .78, drum.id);
+    const reference = transientModel.makeSamples("kick", 220, recipe.decay,
+      context.sampleRate, recipe.size, { position: .22, drumVoice: recipe.voice, drumTension: 1 });
+    assert.equal(played[400], reference[400], drum.id + " uses the shared synthesis recipe");
+    waveformHeads.push(Array.from(played.slice(380, 430)).map(x => x.toFixed(5)).join(","));
+    assert.ok(context.sources.filter(source => !source.stopped).length <= 4,
+      "Safety cap still limits overlapping drum hits");
+  }
+  assert.equal(new Set(waveformHeads).size, drumABC.DRUMS.length, "Every kit voice sounds different");
+  app.fire("langEn", "click");
+  assert.equal(app.drumKitButtons[7].textContent, "High tom");
+  app.drumViewButtons[1].click();
+  assert.equal(app.elements.get("strikeDrumKitGroup").hidden, true);
+  assert.equal(app.elements.get("strikeDrumModelsGroup").hidden, false);
+  await app.drumButtons[0].click();
+  assert.equal(app.drumButtons[0].getAttribute("aria-pressed"), "true");
+  assert.equal(app.elements.get("strikeButton").hidden, false);
+  app.drumViewButtons[0].click();
+  assert.equal(app.elements.get("strikeDrumKitGroup").hidden, false);
+  assert.equal(app.drumKitButtons.at(-1).getAttribute("aria-pressed"), "true");
+});
+
+test("D2b drum grid edits ghost, flam and roll without altering the untouched repeat pattern", () => {
+  const app = fakePage();
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "snareRudiments";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(app.elements.get("ensembleGridArticulation").value, "plain");
+  const first = drumABC.parse(app.elements.get("ensembleText").value);
+  assert.ok(drumABC.scheduledEvents(first).some(hit => hit.stroke === "flam-grace"));
+  const originalPatterns = app.elements.get("ensemblePatternArrangement").children.map(x => x.textContent);
+  app.elements.get("ensembleGridStrength").value = "ghost";
+  app.elements.get("ensembleGridArticulation").value = "roll";
+  app.elements.get("ensembleGridCells").children[1].children[1].children[2].click();
+  const edited = drumABC.parse(app.elements.get("ensembleText").value);
+  assert.ok(drumABC.scheduledEvents(edited).some(hit => hit.stroke === "roll-4"));
+  assert.deepEqual(drumABC.gridOf(edited)[0].cells[2].snare,
+    { velocity: drumABC.VELOCITIES.ghost, articulation: "roll" });
+  assert.deepEqual(app.elements.get("ensemblePatternArrangement").children.map(x => x.textContent), originalPatterns);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  app.fire("langEn", "click");
+  assert.equal(app.elements.get("ensembleGridArticulation").value, "roll",
+    "Changing languages keeps the user's selected stroke technique");
 });
 
 test("held families keep morin khuur selectable, remember it, and never autoplay on navigation or translation", async () => {
@@ -4539,7 +4615,7 @@ test("native ensemble projects retain mixer state, IDs, selection and reusable o
   assert.deepEqual(content.tracks.map(track => track.id), [1, 2, 3, 5]);
   assert.equal(content.nextId, 6);
   assert.equal(content.selectedId, 3);
-  assert.deepEqual(content.editor, { gridBar: 2, gridStep: 8, gridStrength: "p" });
+  assert.deepEqual(content.editor, { gridBar: 2, gridStep: 8, gridStrength: "p", gridArticulation: "plain" });
   assert.equal(content.tracks[0].name, "Хуур · accompaniment");
   assert.equal(content.tracks[0].volume, 61);
   assert.equal(content.tracks[0].solo, true);

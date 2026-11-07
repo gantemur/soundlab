@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s065">
+  <link rel="stylesheet" href="sound-lab.css?v=s070">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -35,13 +35,13 @@
   <script src="sound-recorder.js?v=s057" defer></script>
   <script src="sound-score.js?v=s051" defer></script>
   <script src="sound-abc.js?v=s051" defer></script>
-  <script src="sound-drum-abc.js?v=s069" defer></script>
-  <script src="sound-drum-patterns.js?v=s049" defer></script>
-  <script src="sound-score-player.js?v=s069" defer></script>
+  <script src="sound-drum-abc.js?v=s070" defer></script>
+  <script src="sound-drum-patterns.js?v=s070" defer></script>
+  <script src="sound-score-player.js?v=s070" defer></script>
   <script src="sound-compose.js?v=s066" defer></script>
-  <script src="sound-ensemble-presets.js?v=s069" defer></script>
-  <script src="sound-ensemble.js?v=s069" defer></script>
-  <script src="sound-project.js?v=s055" defer></script>
+  <script src="sound-ensemble-presets.js?v=s070" defer></script>
+  <script src="sound-ensemble.js?v=s070" defer></script>
+  <script src="sound-project.js?v=s070" defer></script>
   <script src="sound-project-ui.js?v=s057" defer></script>
   <script src="sound-export.js?v=s059" defer></script>
   <script src="sound-export-ui.js?v=s064" defer></script>
@@ -50,7 +50,7 @@
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
   <script src="sound-analysis.js?v=s066" defer></script>
-  <script src="sound-lab.js?v=s066b" defer></script>
+  <script src="sound-lab.js?v=s070" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -334,6 +334,37 @@
         </div>
 
         <div class="field-group" id="strikeDrumSizeGroup" hidden>
+          <div class="drum-sizes strike-drum-views" role="group" aria-label="Бөмбөрийн горим" data-i18n-aria="strikeDrumViewTitle">
+            <button type="button" data-strike-drum-view="kit" class="selected" aria-pressed="true" data-i18n="strikeDrumKit">Иж бүрдэл</button>
+            <button type="button" data-strike-drum-view="models" aria-pressed="false" data-i18n="strikeDrumModels">Загварууд</button>
+          </div>
+          <div id="strikeDrumKitGroup">
+            <p class="field-help" data-i18n="strikeDrumKitHint">Бөмбөр бүрийг шууд дарж сонсоорой. Цохилтын хүч, намдах хугацааг доор тохируулна.</p>
+            <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitDrums">Бөмбөр</span>
+              <div class="strike-kit-pads strike-pads" role="group" aria-label="Бөмбөрийн товчлуур" data-i18n-aria="strikeKitDrums">
+                <button type="button" data-strike-kit-drum="kick" class="selected" aria-pressed="true" data-i18n="strikeKitKick">Их бөмбөр</button>
+                <button type="button" data-strike-kit-drum="snare" aria-pressed="false" data-i18n="strikeKitSnare">Жижиг бөмбөр</button>
+                <button type="button" data-strike-kit-drum="rimshot" aria-pressed="false" data-i18n="strikeKitRimshot">Хүрээтэй цохилт</button>
+                <button type="button" data-strike-kit-drum="floorTom" aria-pressed="false" data-i18n="strikeKitFloorTom">Суурь том</button>
+                <button type="button" data-strike-kit-drum="midTom" aria-pressed="false" data-i18n="strikeKitMidTom">Дунд том</button>
+                <button type="button" data-strike-kit-drum="highTom" aria-pressed="false" data-i18n="strikeKitHighTom">Өндөр том</button>
+              </div>
+            </div>
+            <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitCymbals">Цан</span>
+              <div class="strike-kit-pads strike-pads" role="group" aria-label="Цангийн товчлуур" data-i18n-aria="strikeKitCymbals">
+                <button type="button" data-strike-kit-drum="hat" aria-pressed="false" data-i18n="strikeKitHat">Хаалттай цан</button>
+                <button type="button" data-strike-kit-drum="openHat" aria-pressed="false" data-i18n="strikeKitOpenHat">Нээлттэй цан</button>
+                <button type="button" data-strike-kit-drum="ride" aria-pressed="false" data-i18n="strikeKitRide">Райд</button>
+                <button type="button" data-strike-kit-drum="crash" aria-pressed="false" data-i18n="strikeKitCrash">Крэш</button>
+              </div>
+            </div>
+            <div class="strike-kit-section"><span class="strike-kit-heading" data-i18n="strikeKitOther">Бусад</span>
+              <div class="strike-kit-pads strike-pads" role="group" aria-label="Бусад цохивор" data-i18n-aria="strikeKitOther">
+                <button type="button" data-strike-kit-drum="woodblock" aria-pressed="false" data-i18n="strikeKitWoodblock">Модон цохилуур</button>
+              </div>
+            </div>
+          </div>
+          <div id="strikeDrumModelsGroup" hidden>
           <label class="field-title" for="strikeDrumVoice" data-i18n="strikeDrumVoiceTitle">Цохивор хөгжмийн төрөл</label>
           <select id="strikeDrumVoice">
             <option value="membrane" data-i18n="strikeDrumMembrane">Басс бөмбөр</option>
@@ -353,6 +384,7 @@
             <div class="field-title"><label for="strikeDrumTension" data-i18n="strikeDrumTension">Арьсны таталт</label><output id="strikeDrumTensionValue">100%</output></div>
             <input id="strikeDrumTension" type="range" min="50" max="200" step="5" value="100">
             <p class="field-help" data-i18n="strikeDrumTensionHint">Таталтыг чангалах тусам хэлбэлзлийн давтамж нэмэгдэнэ.</p>
+          </div>
           </div>
         </div>
 
@@ -1497,6 +1529,7 @@
               <optgroup label="Бөмбөрийн гоцлол" data-ensemble-group-i18n="presetDrumSolo">
                 <option value="drumKitSolo">Бөмбөрийн иж бүрдэл · 8 тактын гоцлол</option>
                 <option value="snareStudy">Жижиг бөмбөр · Өргөлт, цохилтын дасгал</option>
+                <option value="snareRudiments">Жижиг бөмбөр · Флам, ролл, сул цохилт</option>
                 <option value="drumDialogue">Цохивор · Асуулт, хариулт</option>
                 <option value="tomCymbalStudy">Том бөмбөр ба цан · 8 тактын шилжилт</option>
               </optgroup>
@@ -1609,9 +1642,15 @@
                 <option value="16" data-ensemble-i18n="gridSixteenth" selected>Арван зургаат</option>
               </select></label>
               <label><span data-ensemble-i18n="gridStrength">Цохилтын хүч</span><select id="ensembleGridStrength">
+                <option value="ghost" data-ensemble-i18n="gridGhost">Маш зөөлөн</option>
                 <option value="p" data-ensemble-i18n="gridSoft">Зөөлөн</option>
                 <option value="normal" data-ensemble-i18n="gridNormal" selected>Энгийн</option>
                 <option value="accent" data-ensemble-i18n="gridAccent">Хүчтэй</option>
+              </select></label>
+              <label><span data-ensemble-i18n="gridArticulation">Цохих арга</span><select id="ensembleGridArticulation">
+                <option value="plain" data-ensemble-i18n="gridPlain" selected>Дан</option>
+                <option value="flam" data-ensemble-i18n="gridFlam">Флам</option>
+                <option value="roll" data-ensemble-i18n="gridRoll">4 цохилт</option>
               </select></label>
             </div>
             <p id="ensembleGridMessage" class="field-help" role="status" aria-live="polite"></p>

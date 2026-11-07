@@ -101,9 +101,9 @@
     }
     return changedPattern(project, id, drums.gridOf(score), score.title);
   }
-  function toggleHit(project, id, patternBar, sixteenth, voice, velocity) {
+  function toggleHit(project, id, patternBar, sixteenth, voice, velocity, articulation = "plain") {
     const text = drums.toggleGridHit(drums.parse(patternABC(project, id)),
-      patternBar, sixteenth, voice, velocity);
+      patternBar, sixteenth, voice, velocity, articulation);
     return updatePatternABC(project, id, text);
   }
   function nextPattern(project, bars, name) {

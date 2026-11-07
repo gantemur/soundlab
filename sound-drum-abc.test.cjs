@@ -59,6 +59,48 @@ test("D2a six extended drum notes round-trip through strict ABC and the sixteent
   assert.throws(() => drums.parse(source.replace("[!accent!A!p!Bcdf]", "[Ag]")), /mapped drum note/);
 });
 
+test("D2b flams, measured rolls, ghost strokes and accents survive text ⇄ pattern grid", () => {
+  const source = "M:4/4\nL:1/16\nQ:1/4=120\nK:C clef=perc\n" +
+    "[!ghost!!flam!D!accent!!roll!E]4 z4 !p!D4 !flam!!accent!D4 |]";
+  const score = drums.parse(source);
+  assert.deepEqual(score.parts[0].events[0].hits, [
+    { drum: "snare", velocity: drums.VELOCITIES.ghost, articulation: "flam" },
+    { drum: "hat", velocity: drums.VELOCITIES.accent, articulation: "roll" }
+  ]);
+  const strokes = drums.scheduledEvents(score);
+  assert.equal(strokes.length, 9, "Two flams, one four-stroke roll and one plain stroke");
+  assert.ok(strokes.every(hit => hit.startBeat >= 0), "Pickup grace strokes cannot begin before the score");
+  const firstFlam = strokes.filter(hit => hit.drum === "snare" && hit.bar === 1 && hit.startBeat < .25);
+  assert.equal(firstFlam.length, 2);
+  assert.ok(firstFlam[0].startBeat < firstFlam[1].startBeat);
+  assert.ok(firstFlam[0].velocity < firstFlam[1].velocity);
+  const roll = strokes.filter(hit => hit.drum === "hat");
+  assert.deepEqual(roll.map(hit => hit.startBeat), [0, .25, .5, .75]);
+  assert.ok(roll[0].velocity < roll.at(-1).velocity);
+  const grid = drums.gridOf(score);
+  assert.deepEqual(grid[0].cells[0].snare, { velocity: .34, articulation: "flam" });
+  assert.deepEqual(grid[0].cells[0].hat, { velocity: 1, articulation: "roll" });
+  const roundTrip = drums.parse(drums.fromGrid(score, grid));
+  assert.deepEqual(drums.scheduledEvents(roundTrip), strokes);
+  const changed = drums.toggleGridHit(score, 1, 7, "rimshot", .8, "roll");
+  assert.deepEqual(drums.gridOf(drums.parse(changed))[0].cells[7].rimshot,
+    { velocity: .8, articulation: "roll" });
+  assert.deepEqual(drums.gridOf(drums.parse(changed))[0].cells[0], grid[0].cells[0],
+    "Unedited simultaneous techniques must remain intact");
+  const cleared = drums.toggleGridHit(drums.parse(changed), 1, 7, "rimshot", .8, "roll");
+  assert.equal(drums.gridOf(drums.parse(cleared))[0].cells[7].rimshot, undefined);
+  assert.equal(drums.gridOf(drums.parse(changed))[0].cells[7].rimshot.articulation, "roll");
+});
+
+test("D2b rejects unknown, repeated or unfinished decorations and impossible grid technique", () => {
+  const base = "M:4/4\nL:1/4\nQ:1/4=120\nK:C clef=perc\n";
+  for (const note of ["!flam!!roll!D", "!p!!ghost!D", "!roll!!roll!D", "!flam!D!roll!", "!buzz!D", "!flamD"]) {
+    assert.throws(() => drums.parse(base + note + " z3 |]"), /./, note);
+  }
+  const score = drums.parse(base + "D z3 |]");
+  assert.throws(() => drums.toggleGridHit(score, 1, 0, "snare", .8, "buzz"), /Invalid grid/);
+});
+
 test("sixteenth and eighth note grids share all onsets, including simultaneous hits", () => {
   const source = "M:4/4\nL:1/8\nQ:1/4=120\nK:C clef=perc\n[!p!C!accent!F] E z [DE] z2 C2 |]";
   const parsed = drums.parse(source);

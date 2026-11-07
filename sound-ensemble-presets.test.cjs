@@ -59,11 +59,11 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 15);
+  assert.equal(presets.CATALOG.length, 16);
 });
 
 test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {
-  const cases = [["drumKitSolo", 1], ["snareStudy", 1], ["drumDialogue", 2]];
+  const cases = [["drumKitSolo", 1], ["snareStudy", 1], ["snareRudiments", 1], ["drumDialogue", 2]];
   for (const [id, count] of cases) {
     for (const language of ["mn", "en"]) {
       const tracks = presets.create(id, language);
@@ -75,7 +75,8 @@ test("D1 drum-only compositions contain eight synchronized bars and editable lin
       for (const track of prepared) {
         assert.equal(track.score.bars.length, 8, id);
         assert.equal(track.score.totalBeats, 32);
-        assert.equal(track.score.tempoQuarter, id === "snareStudy" ? 96 : id === "drumKitSolo" ? 108 : 112);
+        assert.equal(track.score.tempoQuarter, { snareStudy: 96, snareRudiments: 92,
+          drumKitSolo: 108, drumDialogue: 112 }[id]);
       }
       for (const track of tracks) {
         assert.equal(track.textMode, "pattern");
@@ -104,6 +105,23 @@ test("D1 kit and snare have dynamic variation; percussion dialogue really altern
   assert.ok(dialogue[0].every(hit => hit.bar !== 3 && hit.bar !== 4));
   assert.ok(dialogue[1].every(hit => hit.bar !== 1 && hit.bar !== 2));
   assert.ok(dialogue.every(part => part.some(hit => hit.bar === 6) && part.some(hit => hit.bar === 8)));
+});
+
+test("D2b original snare rudiment demonstrates flams, rolls, ghosts and accents in both languages", () => {
+  for (const language of ["en", "mn"]) {
+    const track = presets.create("snareRudiments", language)[0];
+    assert.equal(track.instrument, "drums");
+    const score = drums.parse(track.abc);
+    assert.equal(score.bars.length, 8);
+    assert.equal(score.tempoQuarter, 92);
+    const steps = score.parts[0].events.flatMap(event => event.hits);
+    assert.ok(steps.some(hit => hit.articulation === "flam"));
+    assert.ok(steps.some(hit => hit.articulation === "roll"));
+    assert.ok(steps.some(hit => hit.velocity === drums.VELOCITIES.ghost));
+    assert.ok(steps.some(hit => hit.velocity === drums.VELOCITIES.accent));
+    assert.ok(drums.scheduledEvents(score).length > steps.length, "Decorations produce actual extra attacks");
+    assert.deepEqual(drums.gridOf(drums.parse(drumPatterns.toABC(track.patterns))), drums.gridOf(score));
+  }
 });
 
 test("D2a tom/cymbal study uses all six new voices, varied strength and linked fill bars", () => {

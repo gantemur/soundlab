@@ -136,6 +136,14 @@ h1, h2, p { margin-top: 0; }
 .strike-pads button.selected { background: #d9edf9; border-color: #298c9c; color: #155e6d; }
 .strike-pads button:hover { background: #d1e8ff; }
 .strike-pads button:active { background: #aedaf7; transform: translateY(1px); }
+.strike-drum-views { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 9px; }
+.strike-drum-views button { font-size: 13px; }
+.strike-kit-section { margin-top: 8px; }
+.strike-kit-heading { display: block; margin: 8px 0 5px; color: #4d718b; font-size: 12px; font-weight: 800; }
+.strike-kit-pads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.strike-kit-pads button { min-height: 42px; padding: 6px 3px; line-height: 1.25; font-size: 11px; }
+.strike-kit-pads button.selected { padding: 5px 2px; }
+#strikeDrumModelsGroup > label { margin-top: 8px; }
 .strike-more-chords { margin-top: 7px; border: 1px solid #d2e2ef; border-radius: 9px;
   background: #f5f9ff; padding: 8px 10px; }
 .strike-more-chords summary { cursor: pointer; color: #36658c; font-size: 12px;
@@ -543,7 +551,10 @@ h1, h2, p { margin-top: 0; }
 .ensemble-drum-cell.quarter { border-left: 2px solid #799cb6; }
 .ensemble-drum-cell.on { color: #fff; background: #4c8abf; border-color: #3873aa; }
 .ensemble-drum-cell.on.soft { background: #7caac1; border-color: #6894ac; }
+.ensemble-drum-cell.on.ghost { background: #96aab4; border-color: #80959f; }
 .ensemble-drum-cell.on.accent { background: #b56ca1; border-color: #965388; }
+.ensemble-drum-cell.on.flam { box-shadow: inset 0 0 0 2px #edce8d; font-weight: 800; }
+.ensemble-drum-cell.on.roll { box-shadow: inset 0 0 0 2px #d5b5e9; font-weight: 800; }
 .ensemble-drum-cell:hover { outline: 2px solid #e2b768; outline-offset: -2px; }
 .ensemble-drum-cell:focus-visible { outline: 3px solid #d09a33; outline-offset: 1px; }
 

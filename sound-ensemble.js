@@ -51,9 +51,10 @@
       inspect: "Notes in each track; the gold line marks the current beat.",
       help: "Edit one track at a time; the other tracks remain in place. Different keys are allowed, but every track needs the same M: and Q:.",
       limits: "Up to 4 tracks, 1,024 note/drum events combined and 90 seconds. Multi-voice ABC import is not yet supported.",
-      drumHelp: "Drum ABC: C–G original kit; A floor tom, B mid tom, c high tom, d ride, e crash, f rimshot. Lowercase letters are distinct drum voices. [CE] plays simultaneous hits; !p! and !accent! set strength. Edit in the grid or in ABC.",
-      grid: "Drum grid · optional editor", gridHint: "A cell toggles a hit in the selected bar. Select Soft, Normal or Accent to set its strength. Text and grid share the same rhythm.",
-      gridBar: "Bar", gridStep: "Spacing", gridStrength: "Hit strength", gridSoft: "Soft", gridNormal: "Normal", gridAccent: "Accent",
+      drumHelp: "Drum ABC: C–G original kit; A floor tom, B mid tom, c high tom, d ride, e crash, f rimshot. [CE] plays simultaneous hits. !ghost!, !p!, !accent! change strength; !flam! adds a soft grace hit, !roll! plays four strokes over the written duration. Each hit may use one dynamic and one technique.",
+      grid: "Drum grid · optional editor", gridHint: "A cell toggles a hit in the selected bar. Choose a strength and a technique (single, flam, or four-stroke roll). F/R labels identify techniques; text and grid share one score.",
+      gridBar: "Bar", gridStep: "Spacing", gridStrength: "Hit strength", gridGhost: "Ghost", gridSoft: "Soft", gridNormal: "Normal", gridAccent: "Accent",
+      gridArticulation: "Technique", gridPlain: "Single", gridFlam: "Flam", gridRoll: "4 strokes",
       gridEighth: "Eighths", gridSixteenth: "Sixteenths", gridFine: "Sixteenth notes present; showing all 16th steps.",
       gridError: "Grid unavailable for this text; the ABC has not been changed: ",
       patternsTitle: "Rhythm patterns", patternsEnable: "Find repeats", patternsIntro: "Choose a song bar, then a pattern to assign it there (longer patterns fill following bars). Changes to notes or T: names apply immediately.",
@@ -90,9 +91,10 @@
       inspect: "Мөр бүрийн нотууд; шар зураас нь тоглож буй цохилт.",
       help: "Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. Хөг өөр байж болно, харин M: хэмжээ ба Q: хурд ижил байх ёстой.",
       limits: "4 хүртэл мөр, нийт 1024 нот/цохилт, 90 секунд. Олон хоолойтой ABC-г дараа нэмж болно.",
-      drumHelp: "Бөмбөрийн ABC: C–G өмнөх таван зэмсэг; A суурь том, B дунд том, c өндөр том, d райд цан, e крэш цан, f хүрээтэй цохилт. Жижиг үсэг нь тусдаа зэмсэг. [CE] зэрэг цохилт, !p! ба !accent! хүчийг заана. Тороор эсвэл ABC-ээр засна.",
-      grid: "Бөмбөрийн тор · хүсвэл нээх", gridHint: "Сонгосон тактын нүдийг дарж цохилт нэмнэ/хасна. Зөөлөн, энгийн, хүчтэй гэсэн түвшин сонгож болно. ABC бичиг ба тор нэг хэмнэлтэй.",
-      gridBar: "Такт", gridStep: "Алхам", gridStrength: "Цохилтын хүч", gridSoft: "Зөөлөн", gridNormal: "Энгийн", gridAccent: "Хүчтэй",
+      drumHelp: "Бөмбөрийн ABC: C–G үндсэн тав, A суурь том, B дунд том, c өндөр том, d райд, e крэш, f хүрээтэй цохилт. [CE] зэрэг цохилт. !ghost!, !p!, !accent! нь хүчийг; !flam! нь урьтал сул цохилт, !roll! нь нотын хугацаанд багтсан 4 цохилтыг заана. Нэг нотод нэг хүч, нэг арга хэрэглэнэ.",
+      grid: "Бөмбөрийн тор · хүсвэл нээх", gridHint: "Нүдийг дарж цохилт нэмэх/хасахдаа хүч болон аргыг сонгоно. F нь флам, R нь 4 цохилт; ABC ба тор нэг нотыг илэрхийлнэ.",
+      gridBar: "Такт", gridStep: "Алхам", gridStrength: "Цохилтын хүч", gridGhost: "Маш зөөлөн", gridSoft: "Зөөлөн", gridNormal: "Энгийн", gridAccent: "Хүчтэй",
+      gridArticulation: "Цохих арга", gridPlain: "Дан", gridFlam: "Флам", gridRoll: "4 цохилт",
       gridEighth: "Наймт", gridSixteenth: "Арван зургаат", gridFine: "Арван зургаатын цохилт байна; бүх алхмыг харуулж байна.",
       gridError: "Энэ бичигт тор нээх боломжгүй. ABC-г өөрчлөөгүй: ",
       patternsTitle: "Хэмнэлийн загвар", patternsEnable: "Давталт таних", patternsIntro: "Дууны тактаа сонгоод Загвар сонговол тэнд онооно (олон такттай загвар дараагийн тактуудыг хамарна). Нот, T: нэрний өөрчлөлт шууд хэрэгжинэ.",
@@ -147,6 +149,7 @@
       this.$("ensembleTuning").value = "equal";
       this.$("ensembleGridStep").value = "16";
       this.$("ensembleGridStrength").value = "normal";
+      this.$("ensembleGridArticulation").value = "plain";
       this.$("ensembleText").value = this.tracks[0].abc;
       this.$("ensembleText").addEventListener("input", () => this.textInput());
       this.$("ensembleTuning").addEventListener("change", () => this.parse());
@@ -233,7 +236,8 @@
       return { tuning: this.$("ensembleTuning").value, tracks: this.tracks,
         selectedId: this.selectedId, nextId: this.nextId,
         editor: { gridBar: this.gridBar, gridStep: Number(this.$("ensembleGridStep").value),
-          gridStrength: this.$("ensembleGridStrength").value } };
+          gridStrength: this.$("ensembleGridStrength").value,
+          gridArticulation: this.$("ensembleGridArticulation").value } };
     }
     isProjectDraft() {
       if (this.tracks.some(track => track.patternDraft)) return true;
@@ -254,6 +258,7 @@
       this.$("ensembleTuning").value = content.tuning;
       this.$("ensembleGridStep").value = String(content.editor.gridStep);
       this.$("ensembleGridStrength").value = content.editor.gridStrength;
+      this.$("ensembleGridArticulation").value = content.editor.gridArticulation || "plain";
       this.setEditorText();
       this.parse();
     }
@@ -701,24 +706,33 @@
         lane.style.gridTemplateColumns = "repeat(" + Math.ceil(cells.length / skip) + ", minmax(30px, 1fr))";
         for (let i = 0; i < cells.length; i += skip) {
           const value = cells[i][drum.id];
+          const velocity = typeof value === "number" ? value : value?.velocity;
+          const articulation = typeof value === "number" ? "plain" : value?.articulation || "plain";
           const label = drum[this.language] + ", " + this.t("gridBar") + " " + this.gridBar +
-            ", " + this.t("gridStep") + " " + (i + 1);
+            ", " + this.t("gridStep") + " " + (i + 1) +
+            (articulation === "plain" ? "" : ", " + this.t(articulation === "flam" ? "gridFlam" : "gridRoll"));
           const button = this.make("button", "ensemble-drum-cell" + (value ?
-            " on " + (value === drums.VELOCITIES.accent ? "accent" :
-              value === drums.VELOCITIES.p ? "soft" : "normal") : "") +
-            (i % 4 === 0 ? " quarter" : ""), value ? "●" : "·", lane);
+            " on " + (velocity === drums.VELOCITIES.accent ? "accent" :
+              velocity === drums.VELOCITIES.p ? "soft" :
+                velocity === drums.VELOCITIES.ghost ? "ghost" : "normal") : "") +
+            (articulation === "plain" ? "" : " " + articulation) +
+            (i % 4 === 0 ? " quarter" : ""), value ?
+            (articulation === "plain" ? "●" : articulation === "flam" ? "F" : "R") : "·", lane);
           button.type = "button";
           button.setAttribute("aria-label", label);
           button.setAttribute("aria-pressed", String(Boolean(value)));
-          button.title = label + (value ? " (" + value + ")" : "");
+          button.title = label + (value ? " (" + velocity + ")" : "");
           button.addEventListener("click", () => {
             try {
               const velocity = drums.VELOCITIES[this.$("ensembleGridStrength").value];
+              const technique = this.$("ensembleGridArticulation").value;
               if (inPattern) {
-                track.patterns = drumPatterns.toggleHit(track.patterns, track.patternId, this.gridBar, i, drum.id, velocity);
+                track.patterns = drumPatterns.toggleHit(track.patterns, track.patternId, this.gridBar, i,
+                  drum.id, velocity, technique);
                 track.abc = drumPatterns.toABC(track.patterns);
               } else {
-                track.abc = drums.toggleGridHit(drums.parse(track.abc), this.gridBar, i, drum.id, velocity);
+                track.abc = drums.toggleGridHit(drums.parse(track.abc), this.gridBar, i,
+                  drum.id, velocity, technique);
                 // A raw-score edit has no live links. Re-extract patterns explicitly.
                 track.patterns = null; track.textMode = "full";
               }

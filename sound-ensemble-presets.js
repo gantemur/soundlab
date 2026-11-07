@@ -28,6 +28,8 @@
       mn: "Бөмбөрийн иж бүрдэл · 8 тактын гоцлол" },
     { id: "snareStudy", category: "drumSolo", en: "Snare · Accent and stroke study",
       mn: "Жижиг бөмбөр · Өргөлт, цохилтын дасгал" },
+    { id: "snareRudiments", category: "drumSolo", en: "Snare · Flams, rolls and ghost notes",
+      mn: "Жижиг бөмбөр · Флам, ролл, сул цохилт" },
     { id: "drumDialogue", category: "drumSolo", en: "Percussion · Call and response",
       mn: "Цохивор · Асуулт, хариулт" },
     { id: "tomCymbalStudy", category: "drumSolo", en: "Toms and cymbals · Eight-bar fills",
@@ -432,7 +434,8 @@
 
   // D1/D2: original, entirely percussion-based scores. Each pattern is one 4/4
   // bar with four groups of four sixteenth-note cells. x = normal, o = soft,
-  // X = accent, . = rest. Repeated pattern letters become editable, linked
+  // X = accent, g = ghost, f/F = flam, r/R = measured four-stroke roll, . = rest.
+  // Repeated pattern letters become editable, linked
   // patterns in the existing drum grid; no special playback format is added.
   const DRUM_SOLOS = Object.freeze({
     drumKitSolo: {
@@ -455,6 +458,17 @@
           C: { snare: "Xoxo Xoxo Xoxo Xoxo" },
           D: { snare: "Xoox oXoo xoXo oxoX" },
           E: { snare: "X... x.x. xxxx X..." }
+        } }]
+    },
+    snareRudiments: {
+      tempo: 92,
+      parts: [{ names: { en: "Snare rudiments", mn: "Жижиг бөмбөрийн техник" }, volume: 62,
+        sequence: "AABBCDEE", patterns: {
+          A: { snare: "X... f... x... f..." },
+          B: { snare: "X... r... g... r..." },
+          C: { snare: "Xgfg Xgfg Xgfg Xgfg" },
+          D: { snare: "F... .... R... ...." },
+          E: { snare: "X... f... g.r. R..." }
         } }]
     },
     drumDialogue: {
@@ -516,10 +530,13 @@
           for (let step = 0; step < marks.length; step++) {
             const mark = marks[step];
             if (mark === ".") continue;
-            const velocity = { o: drums.VELOCITIES.p, x: drums.VELOCITIES.normal,
-              X: drums.VELOCITIES.accent }[mark];
-            if (velocity === undefined) throw new Error("Unknown drum strength mark");
-            cells[step][voice] = velocity;
+            const velocity = { o: drums.VELOCITIES.p, g: drums.VELOCITIES.ghost,
+              x: drums.VELOCITIES.normal, f: drums.VELOCITIES.normal, r: drums.VELOCITIES.normal,
+              X: drums.VELOCITIES.accent, F: drums.VELOCITIES.accent, R: drums.VELOCITIES.accent }[mark];
+            if (velocity === undefined) throw new Error("Unknown drum strength or technique mark");
+            const articulation = mark === "f" || mark === "F" ? "flam" :
+              mark === "r" || mark === "R" ? "roll" : "plain";
+            cells[step][voice] = articulation === "plain" ? velocity : { velocity, articulation };
           }
         }
         return { number: barIndex + 1, cells };

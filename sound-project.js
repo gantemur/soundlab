@@ -24,6 +24,7 @@
   const DRUM_IDS = drums.DRUMS.map(drum => drum.id);
   const STRENGTHS = Object.keys(drums.VELOCITIES);
   const VELOCITIES = Object.values(drums.VELOCITIES);
+  const ARTICULATIONS = drums.ARTICULATIONS;
   const same = (a, b) => Math.abs(a - b) < 1e-7;
   const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 
@@ -79,6 +80,12 @@
   function choice(value, path, choices) {
     if (!choices.includes(value)) invalid(path, "unsupported choice");
     return value;
+  }
+  function drumHit(value, path) {
+    if (typeof value === "number") return choice(value, path, VELOCITIES);
+    record(value, path, ["velocity", "articulation"]);
+    return { velocity: choice(value.velocity, path + ".velocity", VELOCITIES),
+      articulation: choice(value.articulation, path + ".articulation", ["flam", "roll"]) };
   }
   function boolean(value, path) {
     if (typeof value !== "boolean") invalid(path, "expected true or false");
@@ -138,7 +145,7 @@
             const cellPath = barPath + ".cells[" + c + "]";
             record(cell, cellPath, DRUM_IDS, []);
             const clean = {};
-            for (const id of DRUM_IDS) if (own(cell, id)) clean[id] = choice(cell[id], cellPath + "." + id, VELOCITIES);
+            for (const id of DRUM_IDS) if (own(cell, id)) clean[id] = drumHit(cell[id], cellPath + "." + id);
             return clean;
           }) };
         }) };
@@ -162,10 +169,12 @@
     const parsed = checked(path, () => drums.parse(text));
     const raw = checked(path, () => drums.gridOf(parsed));
     const expanded = checked(path, () => drumPatterns.expanded(project));
+    const sameHit = (a, b) => a === b || (a && b && typeof a === "object" && typeof b === "object" &&
+      a.velocity === b.velocity && a.articulation === b.articulation);
     if (parsed.title !== project.title || parsed.meter.numerator !== project.meter.numerator ||
         parsed.meter.denominator !== project.meter.denominator || !same(parsed.tempoQuarter, project.tempoQuarter) ||
         raw.length !== expanded.length || raw.some((bar, i) => bar.cells.length !== expanded[i].cells.length ||
-          bar.cells.some((cell, step) => DRUM_IDS.some(id => cell[id] !== expanded[i].cells[step][id])))) {
+          bar.cells.some((cell, step) => DRUM_IDS.some(id => !sameHit(cell[id], expanded[i].cells[step][id]))))) {
       invalid(path, "linked patterns and whole-song ABC describe different music");
     }
   }
@@ -240,12 +249,15 @@
       if (!ids.has(selectedId)) invalid(path + ".selectedId", "unknown selected track");
       const nextId = number(source.nextId, path + ".nextId", 1, MAX_ID, true);
       if (nextId <= Math.max(...ids)) invalid(path + ".nextId", "must follow every track ID");
-      record(source.editor, path + ".editor", ["gridBar", "gridStep", "gridStrength"]);
+      record(source.editor, path + ".editor", ["gridBar", "gridStep", "gridStrength", "gridArticulation"],
+        ["gridBar", "gridStep", "gridStrength"]);
       project.content = { tuning: choice(source.tuning, path + ".tuning", scoreModel.TUNINGS),
         tracks, selectedId, nextId, editor: {
           gridBar: number(source.editor.gridBar, path + ".editor.gridBar", 1, 32, true),
           gridStep: choice(source.editor.gridStep, path + ".editor.gridStep", [8, 16]),
-          gridStrength: choice(source.editor.gridStrength, path + ".editor.gridStrength", STRENGTHS)
+          gridStrength: choice(source.editor.gridStrength, path + ".editor.gridStrength", STRENGTHS),
+          gridArticulation: choice(own(source.editor, "gridArticulation") ? source.editor.gridArticulation : "plain",
+            path + ".editor.gridArticulation", ARTICULATIONS)
         } };
     }
     return project;
