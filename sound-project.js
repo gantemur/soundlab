@@ -25,6 +25,7 @@
   const STRENGTHS = Object.keys(drums.VELOCITIES);
   const VELOCITIES = Object.values(drums.VELOCITIES);
   const ARTICULATIONS = drums.ARTICULATIONS;
+  const HANDS = drums.HANDS;
   const same = (a, b) => Math.abs(a - b) < 1e-7;
   const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 
@@ -83,9 +84,12 @@
   }
   function drumHit(value, path) {
     if (typeof value === "number") return choice(value, path, VELOCITIES);
-    record(value, path, ["velocity", "articulation"]);
+    record(value, path, ["velocity", "articulation", "hand"], ["velocity"]);
+    if (!own(value, "articulation") && !own(value, "hand")) invalid(path, "a marked hit needs a technique or hand");
     return { velocity: choice(value.velocity, path + ".velocity", VELOCITIES),
-      articulation: choice(value.articulation, path + ".articulation", ["flam", "roll"]) };
+      ...(own(value, "articulation") ? { articulation: choice(value.articulation,
+        path + ".articulation", ["flam", "roll"]) } : {}),
+      ...(own(value, "hand") ? { hand: choice(value.hand, path + ".hand", ["R", "L"]) } : {}) };
   }
   function boolean(value, path) {
     if (typeof value !== "boolean") invalid(path, "expected true or false");
@@ -170,7 +174,7 @@
     const raw = checked(path, () => drums.gridOf(parsed));
     const expanded = checked(path, () => drumPatterns.expanded(project));
     const sameHit = (a, b) => a === b || (a && b && typeof a === "object" && typeof b === "object" &&
-      a.velocity === b.velocity && a.articulation === b.articulation);
+      a.velocity === b.velocity && a.articulation === b.articulation && a.hand === b.hand);
     if (parsed.title !== project.title || parsed.meter.numerator !== project.meter.numerator ||
         parsed.meter.denominator !== project.meter.denominator || !same(parsed.tempoQuarter, project.tempoQuarter) ||
         raw.length !== expanded.length || raw.some((bar, i) => bar.cells.length !== expanded[i].cells.length ||
@@ -179,7 +183,7 @@
     }
   }
   function track(value, path) {
-    const fields = ["id", "name", "instrument", "volume", "mute", "solo", "abc", "guitar", "drumFeel", "patterns", "patternBar", "patternId", "textMode", "patternDraft"];
+    const fields = ["id", "name", "instrument", "volume", "mute", "solo", "abc", "guitar", "drumFeel", "drumTouch", "patterns", "patternBar", "patternId", "textMode", "patternDraft"];
     record(value, path, fields, ["id", "name", "instrument", "volume", "mute", "solo", "abc"]);
     const result = {
       id: number(value.id, path + ".id", 1, MAX_ID, true),
@@ -190,9 +194,14 @@
       abc: string(value.abc, path + ".abc", MAX_TEXT)
     };
     if (own(value, "guitar")) result.guitar = guitar(value.guitar, path + ".guitar");
-    if (result.instrument === "drums") result.drumFeel = choice(own(value, "drumFeel") ? value.drumFeel :
-      "straight", path + ".drumFeel", Object.keys(drums.FEELS));
-    else if (own(value, "drumFeel")) invalid(path + ".drumFeel", "only drum tracks have rhythmic feel");
+    if (result.instrument === "drums") {
+      result.drumFeel = choice(own(value, "drumFeel") ? value.drumFeel :
+        "straight", path + ".drumFeel", Object.keys(drums.FEELS));
+      result.drumTouch = choice(own(value, "drumTouch") ? value.drumTouch :
+        "even", path + ".drumTouch", drums.TOUCHES);
+    } else if (own(value, "drumFeel") || own(value, "drumTouch")) {
+      invalid(path, "only drum tracks have rhythmic feel and touch");
+    }
     result.patterns = null;
     result.textMode = "full";
     result.patternDraft = null;
@@ -252,7 +261,7 @@
       if (!ids.has(selectedId)) invalid(path + ".selectedId", "unknown selected track");
       const nextId = number(source.nextId, path + ".nextId", 1, MAX_ID, true);
       if (nextId <= Math.max(...ids)) invalid(path + ".nextId", "must follow every track ID");
-      record(source.editor, path + ".editor", ["gridBar", "gridStep", "gridStrength", "gridArticulation"],
+      record(source.editor, path + ".editor", ["gridBar", "gridStep", "gridStrength", "gridArticulation", "gridHand"],
         ["gridBar", "gridStep", "gridStrength"]);
       project.content = { tuning: choice(source.tuning, path + ".tuning", scoreModel.TUNINGS),
         tracks, selectedId, nextId, editor: {
@@ -260,7 +269,9 @@
           gridStep: choice(source.editor.gridStep, path + ".editor.gridStep", [8, 16]),
           gridStrength: choice(source.editor.gridStrength, path + ".editor.gridStrength", STRENGTHS),
           gridArticulation: choice(own(source.editor, "gridArticulation") ? source.editor.gridArticulation : "plain",
-            path + ".editor.gridArticulation", ARTICULATIONS)
+            path + ".editor.gridArticulation", ARTICULATIONS),
+          gridHand: choice(own(source.editor, "gridHand") ? source.editor.gridHand : "auto",
+            path + ".editor.gridHand", HANDS)
         } };
     }
     return project;

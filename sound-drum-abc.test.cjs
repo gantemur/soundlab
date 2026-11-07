@@ -203,6 +203,64 @@ test("D2c closed hi-hat marks an earlier open-hat tail for choking, including ac
   assert.equal(drums.scheduledEvents(free)[0].chokeBeat, undefined);
 });
 
+test("D2d sticking marks survive strict ABC, chords, pattern grids and toggles", () => {
+  const source = "M:4/4\nL:1/16\nQ:1/4=100\nK:C clef=perc\n" +
+    "[!R!!accent!!flam!D!L!!ghost!E]4 !roll!!L!D4 !R!D4 z4 |]";
+  const score = drums.parse(source);
+  assert.deepEqual(score.parts[0].events[0].hits, [
+    { drum: "snare", velocity: 1, articulation: "flam", hand: "R" },
+    { drum: "hat", velocity: .34, hand: "L" }
+  ]);
+  assert.deepEqual(drums.gridOf(score)[0].cells[0].snare,
+    { velocity: 1, articulation: "flam", hand: "R" });
+  assert.deepEqual(drums.gridOf(score)[0].cells[0].hat,
+    { velocity: .34, hand: "L" });
+  const restored = drums.parse(drums.fromGrid(score, drums.gridOf(score)));
+  assert.deepEqual(drums.scheduledEvents(restored), drums.scheduledEvents(score));
+  const changed = drums.toggleGridHit(score, 1, 14, "snare", .55, "plain", "L");
+  assert.deepEqual(drums.gridOf(drums.parse(changed))[0].cells[14].snare, { velocity: .55, hand: "L" });
+  assert.equal(drums.gridOf(drums.parse(drums.toggleGridHit(drums.parse(changed),
+    1, 14, "snare", .55, "plain", "L")))[0].cells[14].snare, undefined);
+  for (const bad of ["!R!!L!D", "!R!!R!D", "!L!z", "!r!D", "!R!!flam!!roll!D"]) {
+    assert.throws(() => drums.parse("M:4/4\nL:1/4\nQ:1/4=100\nK:C clef=perc\n" +
+      bad + " z3 |]"), /./, bad);
+  }
+  assert.throws(() => drums.toggleGridHit(score, 1, 7, "snare", .8, "plain", "both"), /Invalid grid/);
+});
+
+test("D2d a marked flam uses the opposite grace hand; a roll alternates from its first hand", () => {
+  const score = drums.parse("M:4/4\nL:1/4\nQ:1/4=100\nK:C clef=perc\n" +
+    "!flam!!R!D !roll!!L!D !R!D z |]");
+  const hits = drums.scheduledEvents(score);
+  assert.deepEqual(hits.filter(hit => hit.stroke?.startsWith("flam")).map(hit => hit.hand), ["L", "R"]);
+  assert.deepEqual(hits.filter(hit => hit.stroke?.startsWith("roll")).map(hit => hit.hand),
+    ["L", "R", "L", "R"]);
+  assert.equal(hits.find(hit => hit.startBeat === 2)?.hand, "R");
+  assert.equal(drums.scheduledEvents(drums.parse("M:4/4\nL:1/4\nQ:1/4=100\nK:C clef=perc\nD z3 |]"))[0].hand,
+    undefined, "Legacy unmarked hits remain unmarked");
+});
+
+test("D2d expressive touch is deterministic, bounded and preserves written ghosts/accents", () => {
+  const score = drums.parse("M:4/4\nL:1/16\nQ:1/4=100\nK:C clef=perc\n" +
+    "!accent!D2 !p!D2 !ghost!D2 D2 !R!D8 | !p!D4 D4 D4 D4 |]");
+  const frozen = structuredClone(score);
+  const even = drums.scheduledEvents(score, "straight", "even");
+  const played = drums.scheduledEvents(score, "straight", "expressive");
+  assert.deepEqual(drums.scheduledEvents(score, "straight", "expressive"), played,
+    "Subtle accents may not change between playbacks or exports");
+  assert.deepEqual(played.map(hit => hit.startBeat), even.map(hit => hit.startBeat));
+  assert.deepEqual(played.map(hit => hit.durationBeats), even.map(hit => hit.durationBeats));
+  assert.equal(played[0].velocity, 1);
+  assert.equal(played[2].velocity, .34);
+  assert.ok(played.some((hit, i) => hit.velocity !== even[i].velocity));
+  for (let i = 0; i < played.length; i++) {
+    const change = played[i].velocity / even[i].velocity;
+    assert.ok(change >= .90 && change <= 1.06, "Dynamic variation stays modest");
+  }
+  assert.deepEqual(score, frozen, "Choice changes playback, never the written score");
+  assert.throws(() => drums.scheduledEvents(score, "straight", "random"), /Unknown drum touch/);
+});
+
 test("a 32-bar drum part fits the full-score bound and waltz preset uses 3 beats", () => {
   const full = drums.parse(drums.groove({ meter: METER, tempoQuarter: 96, totalBeats: 128 }));
   assert.equal(full.bars.length, 32);

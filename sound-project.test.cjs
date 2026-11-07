@@ -228,6 +228,38 @@ test("D2c stores per-track drum feel in version 1 without rewriting ABC or patte
   assert.equal(codec.VERSION, 1);
 });
 
+test("D2d preserves R/L pattern hits, editorial hand choice and per-track touch in version 1", () => {
+  const track = presets.create("stickingRudiments", "en")[0];
+  const project = arrangement([track]);
+  project.content.editor = { gridBar: 2, gridStep: 16, gridStrength: "p",
+    gridArticulation: "flam", gridHand: "L" };
+  const result = codec.decode(codec.encode(project));
+  assert.equal(result.content.editor.gridHand, "L");
+  assert.equal(result.content.tracks[0].drumTouch, "expressive");
+  assert.equal(result.content.tracks[0].abc, track.abc);
+  assert.deepEqual(result.content.tracks[0].patterns, track.patterns);
+  assert.ok(result.content.tracks[0].patterns.patterns.some(pattern =>
+    pattern.bars.some(bar => bar.cells.some(cell => Object.values(cell).some(hit =>
+      typeof hit === "object" && (hit.hand === "R" || hit.hand === "L"))))));
+  const legacy = copy(project);
+  delete legacy.content.tracks[0].drumTouch;
+  delete legacy.content.editor.gridHand;
+  const old = codec.decode(codec.encode(legacy));
+  assert.equal(old.content.tracks[0].drumTouch, "even");
+  assert.equal(old.content.editor.gridHand, "auto");
+  for (const bad of ["random", null, 1]) {
+    rejected(arrangement([{ ...track, drumTouch: bad }]));
+    rejected({ ...project, content: { ...project.content, editor: { ...project.content.editor, gridHand: bad } } });
+  }
+  rejected(arrangement([{ ...copy(ensemble.DEFAULTS[0]), drumTouch: "expressive" }]));
+  const malformed = copy(project);
+  const marked = malformed.content.tracks[0].patterns.patterns[0].bars[0].cells.find(cell =>
+    Object.values(cell).some(hit => typeof hit === "object" && hit.hand));
+  Object.values(marked).find(hit => typeof hit === "object" && hit.hand).hand = "both";
+  rejected(malformed);
+  assert.equal(codec.VERSION, 1);
+});
+
 test("linked patterns retain repeats, unused definitions, names and multi-bar grouping", () => {
   const track = drumTrack();
   const grouped = patterns.groupBars(track.patterns, 1, 4);

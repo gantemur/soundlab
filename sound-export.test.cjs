@@ -495,6 +495,22 @@ test("D2c WAV export shares swung offbeat positions and audible hi-hat choke wit
   }
 });
 
+test("D2d offline WAV follows live expressive sticking velocity exactly without touching ABC", async () => {
+  const abcText = percussion("!R!!accent!D2 !L!D2 !ghost!D2 !flam!!R!D2 !roll!!L!D8 |]");
+  const part = track(1, "drums", abcText, { drumTouch: "expressive" });
+  const data = arrangement([part]), original = copy(data);
+  const expected = drumABC.scheduledEvents(drumABC.parse(abcText), "straight", "expressive");
+  const f = fixture();
+  await exporter.render(data, f.deps);
+  assert.equal(f.contexts[0].graph.sources.length, expected.length);
+  for (const [i, source] of f.contexts[0].graph.sources.entries()) {
+    close(source.at, expected[i].startBeat * .5);
+    close(source.gain.find(event => event[0] === "set")[1], .32 * expected[i].velocity);
+  }
+  assert.deepEqual(data, original);
+  cleaned(f.contexts[0]);
+});
+
 test("peak protection attenuates only above 0.98 and never boosts quieter or silent exports", async () => {
   for (const [samples, peak, gain] of [[Float32Array.of(2, -1, .5), 2, .49],
     [Float32Array.of(.25, -.125, 0), .25, 1], [Float32Array.of(0, 0, 0), 0, 1]]) {

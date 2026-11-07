@@ -59,7 +59,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 17);
+  assert.equal(presets.CATALOG.length, 18);
 });
 
 test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {
@@ -145,6 +145,32 @@ test("D2c swing hi-hat study is bilingual, linked, original and actually demonst
     const another = presets.create("swingHats", language)[0];
     track.patterns.patterns[0].name = "Private edit";
     assert.notEqual(another.patterns.patterns[0].name, "Private edit");
+  }
+});
+
+test("D2d bilingual paradiddle demonstrates both hands and subtle written-independent accents", () => {
+  for (const language of ["en", "mn"]) {
+    const [track] = presets.create("stickingRudiments", language);
+    assert.equal(track.instrument, "drums");
+    assert.equal(track.drumTouch, "expressive");
+    assert.equal(track.drumFeel, "straight");
+    assert.equal(track.textMode, "pattern");
+    assert.equal(drumPatterns.expanded(track.patterns).length, 8);
+    assert.equal(drumPatterns.toABC(track.patterns), track.abc);
+    const score = drums.parse(track.abc);
+    assert.equal(score.bars.length, 8);
+    assert.equal(score.tempoQuarter, 100);
+    const hands = score.parts[0].events.flatMap(event => event.hits.map(hit => hit.hand));
+    assert.ok(hands.includes("R") && hands.includes("L"));
+    const strokes = drums.scheduledEvents(score, track.drumFeel, track.drumTouch);
+    assert.ok(strokes.some(hit => hit.stroke === "flam-grace" && hit.hand));
+    assert.ok(strokes.some(hit => hit.stroke === "roll-4" && hit.hand));
+    assert.ok(strokes.some(hit => hit.velocity === drums.VELOCITIES.ghost));
+    assert.ok(strokes.some(hit => hit.velocity === drums.VELOCITIES.accent));
+    const { summary } = ensemble.parseTracks([track], "equal", temperament);
+    assert.equal(summary.totalBeats, 32);
+    assert.ok(summary.eventCount <= 1024);
+    assert.ok(track.name.includes(language === "en" ? "R/L" : "Баруун/зүүн"));
   }
 });
 

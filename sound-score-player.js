@@ -552,7 +552,7 @@
           score.meter.denominator !== first.meter.denominator) {
         throw new RangeError("All tracks must have the same M: and Q: tempo");
       }
-      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score, track.drumFeel) :
+      const soundingEvents = instrument === "drums" ? drumModel.scheduledEvents(score, track.drumFeel, track.drumTouch) :
         scheduledEvents(score, 0, instrument === "guitar" ? track.guitar : DEFAULT_GUITAR);
       events += soundingEvents.length;
       totalBeats = Math.max(totalBeats, score.totalBeats);
@@ -588,7 +588,7 @@
       this.partSettings = tracks.map(t => ({ id: t.id, instrument: t.instrument, volume: t.volume,
         mute: Boolean(t.mute), solo: Boolean(t.solo) }));
       this.playEvents = tracks.flatMap((t, partIndex) => (t.instrument === "drums" ?
-        drumModel.scheduledEvents(t.score, t.drumFeel) : scheduledEvents(t.score, 0,
+        drumModel.scheduledEvents(t.score, t.drumFeel, t.drumTouch) : scheduledEvents(t.score, 0,
           t.instrument === "guitar" ? t.guitar : DEFAULT_GUITAR)).map(event => ({
         ...event, partIndex
       }))).sort((a, b) => a.startBeat - b.startBeat || a.partIndex - b.partIndex);

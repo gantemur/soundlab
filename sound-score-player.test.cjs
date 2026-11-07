@@ -640,6 +640,22 @@ test("D2c ensemble schedules swung offbeats without moving downbeats or touching
     [.08, +(.08 + 1 / 3).toFixed(9), .58, +(.08 + 5 / 6).toFixed(9)]);
 });
 
+test("D2d live ensemble honors per-track expressive dynamics and explicit sticking", () => {
+  const part = drumABC.parse("M:4/4\nL:1/16\nQ:1/4=120\nK:C clef=perc\n" +
+    "!accent!!R!D2 !L!D2 !ghost!D2 !R!D2 !roll!!L!D8 |]");
+  const expected = drumABC.scheduledEvents(part, "straight", "expressive");
+  const { player } = audioFixture(playerModel.EnsemblePlayer);
+  player.configure({ tracks: [{ id: 1, instrument: "drums", score: part,
+    volume: 65, drumFeel: "straight", drumTouch: "expressive" }] });
+  assert.deepEqual(player.playEvents.map(({ partIndex, ...event }) => event), expected);
+  assert.equal(player.playEvents[0].velocity, 1, "A written accent remains exact");
+  assert.equal(player.playEvents[2].velocity, .34, "A ghost remains exact");
+  assert.deepEqual(player.playEvents.filter(event => event.stroke?.startsWith("roll"))
+    .map(event => event.hand), ["L", "R", "L", "R"]);
+  const even = drumABC.scheduledEvents(part);
+  assert.ok(player.playEvents.some((event, i) => event.velocity !== even[i].velocity));
+});
+
 test("resuming after all tails expired stops cleanly instead of looping from bar one", async t => {
   for (const instrument of ["flute", "morin", "marimba", "sine"]) {
     const { player, context } = audioFixture();

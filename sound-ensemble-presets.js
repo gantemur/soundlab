@@ -32,6 +32,8 @@
       mn: "Жижиг бөмбөр · Флам, ролл, сул цохилт" },
     { id: "swingHats", category: "drumSolo", en: "Hi-hat · Swing and choking (8 bars)",
       mn: "Цан · Свинг, дуу дарах дасгал (8 такт)" },
+    { id: "stickingRudiments", category: "drumSolo", en: "Snare · Paradiddles and sticking (8 bars)",
+      mn: "Жижиг бөмбөр · Парадидл, гарын ээлж (8 такт)" },
     { id: "drumDialogue", category: "drumSolo", en: "Percussion · Call and response",
       mn: "Цохивор · Асуулт, хариулт" },
     { id: "tomCymbalStudy", category: "drumSolo", en: "Toms and cymbals · Eight-bar fills",
@@ -487,6 +489,23 @@
             openHat: ".... .... .... X..." }
         } }]
     },
+    stickingRudiments: {
+      tempo: 100,
+      parts: [{ names: { en: "Snare · R/L sticking", mn: "Жижиг бөмбөр · Баруун/зүүн гар" },
+        volume: 63, touch: "expressive", sequence: "AABBCDEE", patterns: {
+          A: { snare: "X.o.x.x. X.o.x.x." },
+          B: { snare: "X.g.x.g. X.g.x.g." },
+          C: { snare: "X.x.x.X. x.x.X.x." },
+          D: { snare: "F... r... F... r..." },
+          E: { snare: "X.g. F... R... X..." }
+        }, sticking: {
+          A: { snare: "R.L.R.R. L.R.L.L." },
+          B: { snare: "L.R.L.L. R.L.R.R." },
+          C: { snare: "R.L.R.R. L.R.L.L." },
+          D: { snare: "R... L... L... R..." },
+          E: { snare: "R.L. R... L... R..." }
+        } }]
+    },
     drumDialogue: {
       tempo: 112,
       parts: [
@@ -543,8 +562,13 @@
         for (const [voice, notation] of Object.entries(pattern)) {
           const marks = notation.replace(/\s+/g, "");
           if (marks.length !== 16) throw new Error("Drum pattern needs 16 subdivisions");
+          const handMarks = part.sticking?.[symbol]?.[voice]?.replace(/\s+/g, "");
+          if (handMarks && handMarks.length !== 16) throw new Error("Drum sticking needs 16 subdivisions");
           for (let step = 0; step < marks.length; step++) {
             const mark = marks[step];
+            const hand = handMarks?.[step];
+            if (hand && !".RL".includes(hand)) throw new Error("Unknown drum hand mark");
+            if (mark === "." && hand && hand !== ".") throw new Error("Sticking cannot mark an empty step");
             if (mark === ".") continue;
             const velocity = { o: drums.VELOCITIES.p, g: drums.VELOCITIES.ghost,
               x: drums.VELOCITIES.normal, f: drums.VELOCITIES.normal, r: drums.VELOCITIES.normal,
@@ -552,7 +576,9 @@
             if (velocity === undefined) throw new Error("Unknown drum strength or technique mark");
             const articulation = mark === "f" || mark === "F" ? "flam" :
               mark === "r" || mark === "R" ? "roll" : "plain";
-            cells[step][voice] = articulation === "plain" ? velocity : { velocity, articulation };
+            cells[step][voice] = articulation === "plain" && (!hand || hand === ".") ? velocity :
+              { velocity, ...(articulation === "plain" ? {} : { articulation }),
+                ...(!hand || hand === "." ? {} : { hand }) };
           }
         }
         return { number: barIndex + 1, cells };
@@ -562,7 +588,7 @@
         .replace(/^X:1$/m, "X:" + (index + 1));
       const patterns = drumPatterns.fromABC(abc);
       return { id: index + 1, name: title, instrument: "drums", volume: part.volume,
-        drumFeel: part.feel || "straight",
+        drumFeel: part.feel || "straight", drumTouch: part.touch || "even",
         mute: false, solo: false, abc: drumPatterns.toABC(patterns), patterns,
         patternBar: 1, patternId: drumPatterns.atBar(patterns, 1).pattern.id,
         textMode: "pattern", patternDraft: null };

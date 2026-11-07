@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: MIT
  * A strict ABC-like percussion part. C D E F G retain the original five voices;
  * A B c d e f add six D2 kit voices. Lowercase notes are percussion identifiers.
- * Per-hit dynamics, !flam!/!roll!, and per-track swing are Sound Lab extensions.
+ * Per-hit dynamics, !flam!/!roll!, !R!/!L! sticking and per-track groove
+ * are Sound Lab extensions, not claims of general-purpose ABC compatibility.
  */
 (function (root, factory) {
   const score = typeof module === "object" && module.exports ? require("./sound-score.js") : root.SoundLabScore;
@@ -28,6 +29,8 @@
   const BY_ID = Object.fromEntries(DRUMS.map(drum => [drum.id, drum]));
   const VELOCITIES = Object.freeze({ ghost: .34, p: .55, normal: .8, accent: 1 });
   const ARTICULATIONS = Object.freeze(["plain", "flam", "roll"]);
+  const HANDS = Object.freeze(["auto", "R", "L"]);
+  const TOUCHES = Object.freeze(["even", "expressive"]);
   // Playback feel never rewrites ABC or its linked pattern definitions.
   // Ratios describe where the eighth-note offbeat falls within a quarter beat.
   const FEELS = Object.freeze({ straight: .5, light: .58, swing: 2 / 3 });
@@ -64,6 +67,17 @@
       (match[2] ? (match[3] ? +match[3] : 2 ** match[2].match(/^\/+/)[0].length) : 1);
     if (!Number.isFinite(factor) || factor <= 0 || factor > 128) throw new DrumABCError("Invalid note length: " + raw);
     return { factor, length: raw.length };
+  }
+  function otherHand(hand) { return hand === "R" ? "L" : "R"; }
+  // Deliberately small, repeatable emphasis for comparison with even touch.
+  // The score, its written dynamics, and groove timing remain unmodified.
+  function expressiveVelocity(velocity, event, barStart) {
+    if (velocity === VELOCITIES.ghost || velocity === VELOCITIES.accent) return velocity;
+    const sixteenths = Math.round((event.startBeat - barStart) * 4);
+    const aligned = Math.abs((event.startBeat - barStart) * 4 - sixteenths) < 1e-7;
+    const weight = aligned ? (sixteenths % 4 === 0 ? 1.04 : sixteenths % 2 === 0 ? .965 : .93) : .975;
+    const fourBarCycle = [1, .985, 1.01, .995][(event.bar - 1) % 4];
+    return Math.min(1, +(velocity * weight * fourBarCycle).toFixed(5));
   }
   function parse(source) {
     if (typeof source !== "string" || source.length > 8192) throw new DrumABCError("Drum ABC must fit in 8,192 characters");
@@ -118,7 +132,7 @@
       bar++; barStart = beat;
     };
     const readHit = (body, position, line) => {
-      let i = position, velocity = VELOCITIES.normal, articulation = "plain";
+      let i = position, velocity = VELOCITIES.normal, articulation = "plain", hand = "auto";
       let hasDynamic = false;
       while (body[i] === "!") {
         const decoration = /^!([^!]*)!/.exec(body.slice(i));
@@ -129,12 +143,15 @@
           hasDynamic = true;
         } else if (["flam", "roll"].includes(name) && articulation === "plain") {
           articulation = name;
-        } else throw new DrumABCError("Use one drum dynamic and one !flam!/!roll! technique per hit", line, i + 1);
+        } else if (["R", "L"].includes(name) && hand === "auto") {
+          hand = name;
+        } else throw new DrumABCError("Use at most one dynamic, technique and !R!/!L! hand per hit", line, i + 1);
         i += decoration[0].length;
       }
       const drum = BY_NOTE[body[i]];
       if (!drum) throw new DrumABCError("Expected mapped drum note C–G, A, B, or c–f", line, i + 1);
-      return { hit: { drum: drum.id, velocity, ...(articulation === "plain" ? {} : { articulation }) },
+      return { hit: { drum: drum.id, velocity, ...(articulation === "plain" ? {} : { articulation }),
+        ...(hand === "auto" ? {} : { hand }) },
         position: i + 1 };
     };
     for (const { body, line } of bodyLines) {
@@ -211,7 +228,8 @@
       const used = new Set();
       for (const hit of event.hits) {
         if (!BY_ID[hit.drum] || used.has(hit.drum) || !Object.values(VELOCITIES).includes(hit.velocity) ||
-            (hit.articulation !== undefined && !["flam", "roll"].includes(hit.articulation))) {
+            (hit.articulation !== undefined && !["flam", "roll"].includes(hit.articulation)) ||
+            (hit.hand !== undefined && !["R", "L"].includes(hit.hand))) {
           throw new DrumABCError("Unknown or duplicate drum/strength/technique");
         }
         used.add(hit.drum); hits++;
@@ -229,22 +247,26 @@
     return barStart + whole + (fraction <= .5 ? fraction * 2 * ratio :
       ratio + (fraction - .5) * 2 * (1 - ratio));
   }
-  function scheduledEvents(score, feel = "straight") {
+  function scheduledEvents(score, feel = "straight", touch = "even") {
     validate(score);
     if (!Object.hasOwn(FEELS, feel)) throw new DrumABCError("Unknown drum rhythmic feel");
+    if (!TOUCHES.includes(touch)) throw new DrumABCError("Unknown drum touch");
     const ratio = FEELS[feel];
     const sounding = [];
     for (const event of score.parts[0].events) for (const hit of event.hits) {
       const barStart = score.bars[event.bar - 1].startBeat;
       const warp = beat => swungBeat(beat, barStart, ratio);
       const start = warp(event.startBeat), end = warp(event.startBeat + event.durationBeats);
+      const velocity = touch === "expressive" ? expressiveVelocity(hit.velocity, event, barStart) : hit.velocity;
       const base = { type: "drum", startBeat: start,
-        durationBeats: end - start, bar: event.bar, drum: hit.drum, velocity: hit.velocity };
+        durationBeats: end - start, bar: event.bar, drum: hit.drum, velocity,
+        ...(hit.hand ? { hand: hit.hand } : {}) };
       if (hit.articulation === "flam") {
         const gap = Math.min(FLAM_GAP_SECONDS * score.tempoQuarter / 60, base.durationBeats * .35);
         const canLead = start >= barStart + gap;
         sounding.push({ ...base, startBeat: canLead ? start - gap : start,
-          velocity: hit.velocity * .5, stroke: "flam-grace" });
+          velocity: velocity * .5, stroke: "flam-grace",
+          ...(hit.hand ? { hand: otherHand(hit.hand) } : {}) });
         sounding.push({ ...base, startBeat: canLead ? start : start + gap,
           stroke: "flam-main" });
       } else if (hit.articulation === "roll") {
@@ -252,7 +274,8 @@
           const from = warp(event.startBeat + event.durationBeats * index / ROLL_STROKES.length);
           const to = warp(event.startBeat + event.durationBeats * (index + 1) / ROLL_STROKES.length);
           sounding.push({ ...base, startBeat: from, durationBeats: to - from,
-            velocity: hit.velocity * strength, stroke: "roll-" + (index + 1) });
+            velocity: velocity * strength, stroke: "roll-" + (index + 1),
+            ...(hit.hand ? { hand: index % 2 ? otherHand(hit.hand) : hit.hand } : {}) });
         });
       } else sounding.push(base);
     }
@@ -291,7 +314,9 @@
       if (!cell) throw new DrumABCError("Percussion event outside bar");
       for (const hit of event.hits) {
         if (Object.hasOwn(cell, hit.drum)) throw new DrumABCError("Two hits of the same drum overlap in one grid cell");
-        cell[hit.drum] = hit.articulation ? { velocity: hit.velocity, articulation: hit.articulation } : hit.velocity;
+        cell[hit.drum] = hit.articulation || hit.hand ?
+          { velocity: hit.velocity, ...(hit.articulation ? { articulation: hit.articulation } : {}),
+            ...(hit.hand ? { hand: hit.hand } : {}) } : hit.velocity;
       }
     }
     return bars;
@@ -304,13 +329,16 @@
     const token = cell => {
       const hits = DRUMS.filter(d => Object.hasOwn(cell, d.id)).map(d => {
         const value = cell[d.id], v = typeof value === "number" ? value : value?.velocity;
-        const articulation = typeof value === "number" ? "plain" : value?.articulation;
-        if (!Object.values(VELOCITIES).includes(v) || !ARTICULATIONS.includes(articulation)) {
-          throw new DrumABCError("Unknown grid strength or technique");
+        const articulation = typeof value === "number" ? "plain" : value?.articulation || "plain";
+        const hand = typeof value === "number" ? "auto" : value?.hand || "auto";
+        if (!Object.values(VELOCITIES).includes(v) || !ARTICULATIONS.includes(articulation) ||
+            !HANDS.includes(hand)) {
+          throw new DrumABCError("Unknown grid strength, technique or sticking");
         }
         return (v === VELOCITIES.ghost ? "!ghost!" : v === VELOCITIES.p ? "!p!" :
           v === VELOCITIES.accent ? "!accent!" : "") +
-          (articulation === "plain" ? "" : "!" + articulation + "!") + d.note;
+          (articulation === "plain" ? "" : "!" + articulation + "!") +
+          (hand === "auto" ? "" : "!" + hand + "!") + d.note;
       });
       return hits.length > 1 ? "[" + hits.join("") + "]" : (hits[0] || "z");
     };
@@ -336,17 +364,23 @@
     parse(source); // Do not export a grid the parser cannot read.
     return source;
   }
-  function toggleGridHit(score, barNumber, sixteenth, drum, velocity = VELOCITIES.normal, articulation = "plain") {
+  function toggleGridHit(score, barNumber, sixteenth, drum, velocity = VELOCITIES.normal,
+      articulation = "plain", hand = "auto") {
     const bars = gridOf(score);
     const bar = bars[barNumber - 1];
     if (!bar || !Number.isInteger(sixteenth) || sixteenth < 0 || sixteenth >= bar.cells.length ||
         !BY_ID[drum] || !Object.values(VELOCITIES).includes(velocity) ||
-        !ARTICULATIONS.includes(articulation)) throw new DrumABCError("Invalid grid position or instrument");
+        !ARTICULATIONS.includes(articulation) || !HANDS.includes(hand)) {
+      throw new DrumABCError("Invalid grid position or instrument");
+    }
     const cell = bar.cells[sixteenth];
     const existing = cell[drum];
-    if (existing === velocity && articulation === "plain" ||
-        existing?.velocity === velocity && existing?.articulation === articulation) delete cell[drum];
-    else cell[drum] = articulation === "plain" ? velocity : { velocity, articulation };
+    if (existing === velocity && articulation === "plain" && hand === "auto" ||
+        existing?.velocity === velocity && (existing?.articulation || "plain") === articulation &&
+        (existing?.hand || "auto") === hand) delete cell[drum];
+    else cell[drum] = articulation === "plain" && hand === "auto" ? velocity :
+      { velocity, ...(articulation === "plain" ? {} : { articulation }),
+        ...(hand === "auto" ? {} : { hand }) };
     return fromGrid(score, bars);
   }
   function groove({ meter, tempoQuarter, totalBeats, barDurations }, id = 1, title = "Drums") {
@@ -387,7 +421,8 @@
     const placeholder = { meter, tempoQuarter, title };
     return fromGrid(placeholder, bars).replace(/^X:1$/m, "X:" + id);
   }
-  return Object.freeze({ DRUMS, VELOCITIES, ARTICULATIONS, FEELS, FLAM_GAP_SECONDS, ROLL_STROKES,
+  return Object.freeze({ DRUMS, VELOCITIES, ARTICULATIONS, HANDS, FEELS, TOUCHES,
+    FLAM_GAP_SECONDS, ROLL_STROKES,
     MAX_HITS, DrumABCError, parse, validate,
     scheduledEvents, gridOf, fromGrid, toggleGridHit, groove });
 });

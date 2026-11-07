@@ -92,13 +92,13 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-score\.js\?v=s051"/);
   assert.match(html, /src="sound-abc\.js\?v=s051"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s071"/);
-  assert.match(html, /src="sound-drum-patterns\.js\?v=s070"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s071"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s072"/);
+  assert.match(html, /src="sound-drum-patterns\.js\?v=s072"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s072"/);
   assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s071"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s071"/);
-  assert.match(html, /src="sound-project\.js\?v=s071"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s072"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s072"/);
+  assert.match(html, /src="sound-project\.js\?v=s072"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
@@ -124,7 +124,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s071"/);
+  assert.match(html, /href="sound-lab\.css\?v=s072"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -234,7 +234,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   }
   for (const id of ["ensembleText", "ensembleTuning", "ensemblePreset", "ensembleApplyPreset", "ensembleAdd", "ensembleAddDrums",
     "ensemblePlayPause", "ensembleStop", "ensembleStatus", "ensembleLoad", "ensembleTimeline", "ensembleTrackList",
-    "ensembleDrumGrid", "ensembleDrumHint", "ensembleGridBar", "ensembleGridStep", "ensembleGridStrength", "ensembleGridArticulation", "ensembleGridCells",
+    "ensembleDrumGrid", "ensembleDrumHint", "ensembleGridBar", "ensembleGridStep", "ensembleGridStrength", "ensembleGridArticulation", "ensembleGridHand", "ensembleGridCells",
     "ensemblePatternPanel", "ensemblePatternTools", "ensemblePatternEnable", "ensemblePatternArrangement", "ensemblePatternBar",
     "ensemblePatternChoice", "ensemblePatternUnique", "ensemblePatternRepeat", "ensemblePatternGroup", "ensemblePatternRange",
     "ensemblePatternFrom", "ensemblePatternTo", "ensemblePatternLength", "ensemblePatternTextMode", "ensemblePatternRevert", "ensemblePatternMessage"]) {
@@ -3499,6 +3499,51 @@ test("D2c drum feel is a per-track bilingual control, persists through Save/Open
   assert.equal(app.contexts.length, 0, "Translation and file operations must not start audio");
 });
 
+test("D2d drum touch and sticking stay bilingual and editable with linked patterns and Save/Open", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "stickingRudiments";
+  app.fire("ensembleApplyPreset", "click");
+  const findTouch = () => projectTrackControl(app, 0, "ensemble-drum-touch");
+  assert.equal(findTouch().value, "expressive");
+  assert.match(findTouch().getAttribute("aria-label"), /Stroke dynamics/);
+  const source = app.elements.get("ensembleText").value;
+  assert.match(source, /!R!/);
+  assert.match(source, /!L!/);
+  findTouch().value = "even";
+  findTouch().events.change();
+  assert.equal(app.elements.get("ensembleText").value, source,
+    "Changing stroke dynamics does not rewrite authored notes or pattern links");
+  app.elements.get("ensembleGridStrength").value = "p";
+  app.elements.get("ensembleGridArticulation").value = "flam";
+  app.elements.get("ensembleGridHand").value = "L";
+  app.elements.get("ensembleGridCells").children[1].children[1].children[1].click();
+  const edited = drumABC.parse(app.elements.get("ensembleText").value);
+  assert.deepEqual(drumABC.gridOf(edited)[0].cells[1].snare,
+    { velocity: .55, articulation: "flam", hand: "L" });
+  const saved = await saveNativeProject(app);
+  const full = drumABC.gridOf(drumABC.parse(saved.data.content.tracks[0].abc));
+  assert.equal(full[1].cells[1].snare.hand, "L",
+    "Editing linked pattern A also changes its repeated occurrence");
+  assert.equal(saved.data.content.editor.gridHand, "L");
+  assert.equal(saved.data.content.tracks[0].drumTouch, "even");
+  app.fire("langMn", "click");
+  assert.equal(findTouch().value, "even");
+  assert.match(findTouch().getAttribute("aria-label"), /Цохилтын хүчний хэм/);
+  assert.equal(app.elements.get("ensembleGridHand").value, "L");
+  app.elements.get("ensemblePreset").value = "snareStudy";
+  app.fire("ensembleApplyPreset", "click");
+  assert.equal(findTouch().value, "even");
+  assert.equal(await offerNativeProject(app, saved.text), true);
+  assert.equal(app.fire("projectReplace", "click"), true);
+  assert.equal(app.elements.get("ensembleGridHand").value, "L");
+  assert.equal(app.elements.get("ensembleText").value,
+    drumPatterns.patternABC(saved.data.content.tracks[0].patterns,
+      saved.data.content.tracks[0].patternId));
+  assert.equal(app.contexts.length, 0, "Editing and restoring patterns never starts sound");
+});
+
 test("the three sourced songs load silently in Solo and Ensemble with editable guitar parts", () => {
   const app = fakePage();
   app.fire("modeCompose", "click");
@@ -4666,7 +4711,7 @@ test("native ensemble projects retain mixer state, IDs, selection and reusable o
   assert.deepEqual(content.tracks.map(track => track.id), [1, 2, 3, 5]);
   assert.equal(content.nextId, 6);
   assert.equal(content.selectedId, 3);
-  assert.deepEqual(content.editor, { gridBar: 2, gridStep: 8, gridStrength: "p", gridArticulation: "plain" });
+  assert.deepEqual(content.editor, { gridBar: 2, gridStep: 8, gridStrength: "p", gridArticulation: "plain", gridHand: "auto" });
   assert.equal(content.tracks[0].name, "Хуур · accompaniment");
   assert.equal(content.tracks[0].volume, 61);
   assert.equal(content.tracks[0].solo, true);
