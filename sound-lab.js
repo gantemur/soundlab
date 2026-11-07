@@ -2596,7 +2596,12 @@
     OfflineAudioContext: window.OfflineAudioContext || window.webkitOfflineAudioContext }) : null;
   const microphone = microphoneModel ? new microphoneModel.Controller({ document, window,
     onBegin: () => analysis?.stopPlayback?.(true),
-    onStop: () => analysis?.draw?.() }) : null;
+    onStop: () => analysis?.draw?.(),
+    onViewChange: open => {
+      $("analysisWorkspace").hidden = state.mode !== "analysis" || open;
+      $("analysisMicWorkspace").hidden = state.mode !== "analysis" || !open;
+    },
+    onCapture: (blob, name, source) => analysis?.openPrepared(blob, name, source) }) : null;
   let recordStatusKey = "recordReady";
   let recordError = false;
   let recordUrl = null;
@@ -4496,7 +4501,8 @@
     $("pureChallenge").hidden = !isWaves;
     $("pureExplanation").hidden = !isWaves;
     $("projectToolbar").hidden = !isCompose;
-    $("analysisWorkspace").hidden = !isAnalysis;
+    $("analysisWorkspace").hidden = !isAnalysis || Boolean(microphone?.open);
+    $("analysisMicWorkspace").hidden = !isAnalysis || !microphone?.open;
     if (analysis) analysis.setActive(isAnalysis);
     if (microphone) microphone.setActive(isAnalysis);
     $("composeWorkspace").hidden = !isCompose || state.composeSubtab !== "solo";

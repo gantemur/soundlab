@@ -14,8 +14,11 @@
   "use strict";
   const words = {
     en: {
-      title: "Analyze a sound", intro: "Choose an example, open a WAV, or inspect live microphone sound.",
-      classLabel: "Class", exampleLabel: "Example", open: "Open WAV…", local: "Local file",
+      title: "Analyze a sound", intro: "Choose an example, open a WAV, or capture microphone sound.",
+      classLabel: "Class", exampleLabel: "Example", open: "Open WAV…", microphoneButton: "Microphone…", local: "Local file",
+      microphoneClass: "Microphone capture", microphone: "Recorded with microphone",
+      micRollingDescription: "Last 30 seconds (or less) captured from your microphone. Stored only on this device; never uploaded.",
+      micTakeDescription: "Explicit microphone take captured on this device. It is separate from WAV files and synthesized examples.",
       generated: "Generated signal", modeled: "Modeled instrument", recorded: "Real recording", imported: "Your local file",
       recordingCredit: "Recording by", spectroMaxHz: "Spectrogram upper frequency", spectroFullRange: "Full range (Nyquist)",
       top2k: "2,000 Hz", top5k: "5,000 Hz", top10k: "10,000 Hz",
@@ -74,8 +77,11 @@
       cursorPosition: "Cursor {time} s", selected: "Selection"
     },
     mn: {
-      title: "Дуу шинжлэх", intro: "Жишээ сонгох, WAV нээх эсвэл микрофоны авиаг шууд шинжлээрэй.",
-      classLabel: "Бүлэг", exampleLabel: "Жишээ", open: "WAV нээх…", local: "Төхөөрөмжийн файл",
+      title: "Дуу шинжлэх", intro: "Жишээ сонгох, WAV нээх эсвэл микрофоны авиаг бичиж шинжлээрэй.",
+      classLabel: "Бүлэг", exampleLabel: "Жишээ", open: "WAV нээх…", microphoneButton: "Микрофон…", local: "Төхөөрөмжийн файл",
+      microphoneClass: "Микрофоны бичлэг", microphone: "Микрофоноор бичсэн авиа",
+      micRollingDescription: "Микрофоны сүүлийн 30 секунд (эсвэл түүнээс богино) бичлэг. Зөвхөн төхөөрөмжид хадгалсан; серверт илгээгээгүй.",
+      micTakeDescription: "Таны тусгайлан бичсэн микрофоны авиа. WAV файлаас болон тооцоолж үүсгэсэн авианаас тусдаа эх үүсвэр.",
       generated: "Тооцоолж үүсгэсэн авиа", modeled: "Хөгжмийн загвар", recorded: "Бодит бичлэг", imported: "Таны төхөөрөмжийн файл",
       recordingCredit: "Бичлэгийн эх", spectroMaxHz: "Спектрограммын дээд давтамж", spectroFullRange: "Бүх давтамж (Найквист)",
       top2k: "2,000 Гц", top5k: "5,000 Гц", top10k: "10,000 Гц",
@@ -362,7 +368,7 @@
       const entry = examples.CATALOGUE.find(item => item.id === id);
       if (!entry) return;
       return this.load(options => examples.create(id, { ...this.models, ...options }),
-        { kind: entry.kind, classId: entry.classId, exampleId: id });
+        { kind: entry.kind, classId: entry.classId, exampleId: id, origin: "catalogue" });
     }
     maxVisibleHz() {
       return Math.min(this.pcm?.sampleRate / 2 || 22050, this.spectroMaxHz ?? Infinity);
@@ -375,13 +381,18 @@
         const bytes = await file.arrayBuffer();
         if (options.isCancelled()) { const error = new Error("Cancelled"); error.code = "cancelled"; throw error; }
         return reader.decode(bytes, options);
-      }, { kind: "imported", classId: "local", name: safeName(file.name) });
+      }, { kind: "imported", classId: "local", origin: "file", name: safeName(file.name) });
     }
     // REC and Compose keep their already prepared Blob. The same bounded WAV
     // decoder as Open WAV is used, without a download, upload, or extra PCM cache.
-    async openPrepared(blob, name) {
+    async openPrepared(blob, name, provenance = null) {
       if (!blob || typeof blob.arrayBuffer !== "function" || !Number.isFinite(blob.size)) return false;
       if (this.sourceBusy) this.cancelWork(); // Supersede lazy first example on tab entry.
+      const source = provenance?.kind === "microphone" ? {
+        kind: "microphone", classId: "microphone", origin: "microphone",
+        captureMode: provenance.captureMode === "take" ? "take" : "rolling",
+        recordedAt: String(provenance.recordedAt || ""), name: safeName(name || "microphone.wav")
+      } : { kind: "prepared", classId: "local", origin: "soundlab", name: safeName(name || "sound-lab.wav") };
       return this.load(async options => {
         if (blob.size > reader.MAX_INPUT_BYTES) {
           const error = new Error("Input size"); error.code = "limit"; throw error;
@@ -389,7 +400,7 @@
         const bytes = await blob.arrayBuffer();
         if (options.isCancelled()) { const error = new Error("Cancelled"); error.code = "cancelled"; throw error; }
         return reader.decode(bytes, options);
-      }, { kind: "prepared", classId: "local", name: safeName(name || "sound-lab.wav") });
+      }, source);
     }
     async load(create, source) {
       if (this.sourceBusy) return false;
@@ -779,16 +790,19 @@
       const entry = examples.CATALOGUE.find(item => item.id === this.source?.exampleId);
       const classes = examples.CLASSES.map(item => [item.id, item.title[this.language]]);
       if (this.source?.classId === "local") classes.push(["local", this.text("local")]);
+      if (this.source?.classId === "microphone") classes.push(["microphone", this.text("microphoneClass")]);
       const classId = this.source?.classId || examples.CATALOGUE[0].classId;
       this.options("analysisClass", classes, classId);
-      this.options("analysisExample", classId === "local" ? [["local", this.source.name]] :
+      this.options("analysisExample", ["local", "microphone"].includes(classId) ? [[classId, this.source.name]] :
         examples.CATALOGUE.filter(item => item.classId === classId).map(item => [item.id, item.title[this.language]]),
-        classId === "local" ? "local" : (entry?.id || examples.CATALOGUE[0].id));
+        ["local", "microphone"].includes(classId) ? classId : (entry?.id || examples.CATALOGUE[0].id));
       this.options("analysisChannel", this.pcm?.channels.length === 2 ?
         [["0", this.text("left")], ["1", this.text("right")]] : [["0", this.text("mono")]], this.channel);
       this.$("analysisChannelField").hidden = this.pcm?.channels.length !== 2;
       this.put("analysisSourceName", entry ? entry.title[this.language] : (this.source?.name || this.text("noSource")));
-      this.put("analysisSourceDescription", entry ? entry.description[this.language] : this.text("noUpload"));
+      this.put("analysisSourceBadge", this.source ? this.text(this.source.kind) : "");
+      this.put("analysisSourceDescription", entry ? entry.description[this.language] :
+        this.source?.kind === "microphone" ? this.text(this.source.captureMode === "take" ? "micTakeDescription" : "micRollingDescription") : this.text("noUpload"));
       this.$("analysisRecordingCredit").hidden = !entry?.credit;
       if (entry?.credit) {
         const source = this.$("analysisRecordingSource"), license = this.$("analysisRecordingLicense");
@@ -805,7 +819,7 @@
       this.renderTimes();
     }
     renderControls() {
-      for (const id of ["analysisClass", "analysisExample", "analysisOpen"]) this.$(id).disabled = this.sourceBusy;
+      for (const id of ["analysisClass", "analysisExample", "analysisOpen", "analysisMicOpen"]) this.$(id).disabled = this.sourceBusy;
       for (const id of ["analysisPlay", "analysisPlaySelection", "analysisAtCursor", "analysisAverage",
         "analysisFFT", "analysisSpectroFFT", "analysisSpectroMaxHz", "analysisChannel", "analysisCursor", "analysisCursorSlider", "analysisStart", "analysisEnd",
         "analysisZoomIn", "analysisZoomOut", "analysisFit", "analysisSelectAll", "analysisFrequency"])

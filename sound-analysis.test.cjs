@@ -194,7 +194,7 @@ function fixture({ exampleModel = examples, dspModel = dsp, width = 920 } = {}) 
   return api;
 }
 
-test("Analysis is a lazy eighth tab with local WAV controls and independent opt-in microphone panel", async () => {
+test("Analysis is a lazy eighth tab with two compact source buttons and a separate microphone screen", async () => {
   const f = fixture(), c = f.controller;
   assert.equal(c.pcm, null); assert.equal(c.active, false); assert.equal(f.owner.readyCalls, 0);
   assert.equal(f.timers.size, 0); assert.equal(f.frames.size, 0);
@@ -208,7 +208,9 @@ test("Analysis is a lazy eighth tab with local WAV controls and independent opt-
   const markup = html.slice(html.indexOf('id="analysisWorkspace"'), html.indexOf('id="analysisWorkspace"') + 18000);
   assert.equal([...markup.matchAll(/<details class="analysis-settings">/g)].length, 2);
   assert.doesNotMatch(source, /\b(?:fetch|XMLHttpRequest|getUserMedia|decodeAudioData)\s*\(/);
-  assert.match(markup, /id="analysisMicrophone"/);
+  assert.match(markup, /id="analysisOpen"[\s\S]*id="analysisMicOpen"/);
+  assert.match(html, /id="analysisMicWorkspace" hidden[\s\S]*id="analysisMicRecord"/);
+  assert.doesNotMatch(markup.slice(0, markup.indexOf('id="analysisOfflineVisuals"')), /id="analysisMicRecord"/);
   assert.doesNotMatch(markup, /id="analysis(?:Pitch|Compare)/);
   for (const element of f.translations) {
     const key = element.getAttribute("data-analysis-i18n");
@@ -311,6 +313,39 @@ test("A2a prepared REC/Compose WAV uses the same decoder as Open WAV and superse
   assert.equal(await fail, false);
   assert.equal(c.pcm, previous, "invalid prepared WAV must not replace previously loaded PCM");
   assert.equal(f.owner.readyCalls, 0);
+});
+
+test("M2 mic capture is a distinct Analysis source, with class, mode, and origin preserved for Compare", async () => {
+  const f = fixture(), c = f.controller;
+  await f.activate();
+  const samples = sine(.2, 48000, .3, 523.25);
+  const blob = new Blob([encoder.encodeWav([samples], 48000, { maxSeconds: 30 })], { type: "audio/wav" });
+  const stamped = "microphone-2026-11-07T14-00-00Z.wav";
+  const pending = c.openPrepared(blob, stamped, { kind: "microphone", classId: "microphone",
+    captureMode: "rolling", origin: "microphone", recordedAt: "2026-11-07T14:00:00Z" });
+  await f.settle(); assert.equal(await pending, true);
+  assert.equal(c.source.kind, "microphone");
+  assert.equal(c.source.origin, "microphone");
+  assert.equal(c.source.captureMode, "rolling");
+  assert.equal(c.source.recordedAt, "2026-11-07T14:00:00Z");
+  assert.equal(f.get("analysisClass").value, "microphone");
+  assert.equal(f.get("analysisExample").value, "microphone");
+  assert.equal(f.get("analysisSourceName").textContent, stamped);
+  assert.match(f.get("analysisSourceBadge").textContent, /Микрофон/);
+  assert.match(f.get("analysisSourceInfo").textContent, /Микрофон/);
+  assert.match(f.get("analysisSourceDescription").textContent, /30 секунд/);
+  assert.equal(c.pcm.frames, samples.length);
+  c.renderLanguage("en");
+  assert.match(f.get("analysisSourceBadge").textContent, /Recorded with microphone/);
+  assert.match(f.get("analysisSourceDescription").textContent, /Last 30 seconds/);
+  const take = c.openPrepared(blob, stamped, { kind: "microphone", captureMode: "take" });
+  await f.settle(); assert.equal(await take, true);
+  assert.match(f.get("analysisSourceDescription").textContent, /Explicit microphone take/);
+  assert.equal(c.source.captureMode, "take");
+  f.get("analysisClass").value = "reference";
+  f.get("analysisClass").dispatch("change"); await f.settle();
+  assert.equal(c.source.origin, "catalogue");
+  assert.match(f.get("analysisSourceBadge").textContent, /Generated signal/);
 });
 
 test("class/example dropdowns use the catalogue and language changes preserve all inspection state", async () => {

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s076">
+  <link rel="stylesheet" href="sound-lab.css?v=s077">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -49,9 +49,9 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
-  <script src="sound-analysis.js?v=s075" defer></script>
-  <script src="sound-microphone.js?v=s076" defer></script>
-  <script src="sound-lab.js?v=s076" defer></script>
+  <script src="sound-analysis.js?v=s077" defer></script>
+  <script src="sound-microphone.js?v=s077" defer></script>
+  <script src="sound-lab.js?v=s077" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -1716,20 +1716,13 @@
         </div>
         <label class="analysis-field"><span data-analysis-i18n="classLabel">Бүлэг</span><select id="analysisClass"></select></label>
         <label class="analysis-field"><span data-analysis-i18n="exampleLabel">Жишээ</span><select id="analysisExample"></select></label>
-        <button id="analysisOpen" type="button" class="analysis-secondary" data-analysis-i18n="open">WAV нээх…</button>
+        <div class="analysis-source-actions">
+          <button id="analysisOpen" type="button" class="analysis-secondary" data-analysis-i18n="open">WAV нээх…</button>
+          <button id="analysisMicOpen" type="button" class="analysis-secondary" data-analysis-i18n="microphoneButton">Микрофон…</button>
+        </div>
         <input id="analysisFile" type="file" accept=".wav,audio/wav,audio/x-wav" hidden>
-        <section id="analysisMicrophone" class="analysis-microphone" aria-labelledby="analysisMicTitle">
-          <div class="analysis-mic-heading">
-            <strong id="analysisMicTitle" data-mic-i18n="title">Микрофон</strong>
-            <span id="analysisMicIndicator" class="analysis-mic-indicator" data-state="off">● Унтраалттай</span>
-          </div>
-          <p class="field-help" data-mic-i18n="intro">Зөвшөөрөл өгөөд орчны авианы долгион, спектрийг шууд ажиглаарай.</p>
-          <button id="analysisMicStart" class="analysis-primary" type="button" data-mic-i18n="start">Микрофон асаах</button>
-          <button id="analysisMicStop" class="analysis-secondary analysis-mic-stop" type="button" data-mic-i18n="stop" hidden>Микрофон унтраах</button>
-          <p id="analysisMicStatus" class="analysis-status" role="status" aria-live="polite"></p>
-          <p class="field-help analysis-mic-privacy" data-mic-i18n="privacy">Зөвхөн таны төхөөрөмж дээр. Чанга яригчаар гаргахгүй, бичихгүй, илгээхгүй.</p>
-        </section>
         <div class="analysis-source">
+          <span id="analysisSourceBadge" class="analysis-origin-tag"></span>
           <strong id="analysisSourceName"></strong>
           <span id="analysisSourceInfo"></span>
           <p id="analysisSourceDescription" class="field-help"></p>
@@ -1829,7 +1822,30 @@
           <p class="field-help" data-analysis-i18n="levelNote">Хэмжилт нь сонгосон суваг, хэсгийн эх сорьцод хамаарна. Сонсох чангыг өөрчлөхөд хэмжилт өөрчлөгдөхгүй.</p>
         </section>
       </div>
-      <div class="visuals analysis-mic-visuals" id="analysisMicVisuals" hidden>
+    </div>
+
+    <div class="workspace" id="analysisMicWorkspace" hidden>
+      <section class="panel controls analysis-controls" aria-labelledby="analysisMicTitle">
+        <div class="section-top">
+          <h2 id="analysisMicTitle" tabindex="-1" data-mic-i18n="title">Микрофон</h2>
+          <p class="description" data-mic-i18n="intro">Орчны авиаг шууд ажиглаж, 30 секунд хүртэлх хэсгийг шинжлээрэй.</p>
+        </div>
+        <div class="analysis-mic-heading"><strong data-mic-i18n="statusTitle">Микрофоны төлөв</strong>
+          <span id="analysisMicIndicator" class="analysis-mic-indicator" data-state="off">● Унтраалттай</span></div>
+        <p id="analysisMicStatus" class="analysis-status" role="status" aria-live="polite"></p>
+        <button id="analysisMicRetry" class="analysis-secondary" type="button" data-mic-i18n="retry" hidden>Дахин оролдох</button>
+        <div class="analysis-mic-record">
+          <strong data-mic-i18n="recordTitle">Авиа хадгалах</strong>
+          <p class="field-help" data-mic-i18n="recordHelp">Бичихгүй бол сүүлийн 30 секундийг шинжилгээнд авна. «Бичих» дарвал хүссэн хэсгийг сонгоно.</p>
+          <button id="analysisMicRecord" class="analysis-primary" type="button" data-mic-i18n="record">● Бичих</button>
+          <button id="analysisMicRecordStop" class="analysis-secondary analysis-mic-stop" type="button" data-mic-i18n="recordStop" hidden>■ Бичлэг зогсоох</button>
+          <p id="analysisMicRecordingStatus" class="field-help" role="status" aria-live="polite"></p>
+        </div>
+        <button id="analysisMicFinish" class="analysis-primary" type="button" data-mic-i18n="finish">Дуусгаад шинжлэх</button>
+        <button id="analysisMicDiscard" class="analysis-secondary" type="button" data-mic-i18n="discard">Бичлэг авахгүй буцах</button>
+        <p class="field-help analysis-mic-privacy" data-mic-i18n="privacy">Авиа зөвхөн таны төхөөрөмжид хадгалагдана. Дуу өсгөгчөөр гаргахгүй, серверт илгээхгүй.</p>
+      </section>
+      <div class="visuals analysis-mic-visuals" id="analysisMicVisuals">
         <section class="panel chart-panel" aria-labelledby="analysisMicWaveTitle">
           <div class="chart-heading">
             <div><h2 id="analysisMicWaveTitle" data-mic-i18n="waveTitle">Шууд долгион</h2>

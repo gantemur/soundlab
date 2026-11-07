@@ -103,7 +103,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-wav\.js\?v=s056"/);
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
-  assert.match(html, /src="sound-lab\.js\?v=s076"/);
+  assert.match(html, /src="sound-lab\.js\?v=s077"/);
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=s058"'));
@@ -111,10 +111,10 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   }
   for (const module of ["analysis-spectrogram", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=' +
-      (module === "analysis" ? "s075" : "s065") + '"'));
+      (module === "analysis" ? "s077" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
-  assert.match(html, /src="sound-microphone\.js\?v=s076"/);
+  assert.match(html, /src="sound-microphone\.js\?v=s077"/);
   assert.ok(html.indexOf('src="sound-analysis.js') < html.indexOf('src="sound-microphone.js'));
   assert.ok(html.indexOf('src="sound-microphone.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fft.js') < html.indexOf('src="sound-spectrum.js'));
@@ -127,7 +127,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s076"/);
+  assert.match(html, /href="sound-lab\.css\?v=s077"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -851,7 +851,7 @@ test("Analysis integrates with navigation, language, resize and the shared Stop 
   assert.equal(typeof calls.owner.readyContext, "function");
 });
 
-test("M1 mic controller is kept lazy and participates in navigation, language and global Stop", () => {
+test("M2 mic controller stays lazy and participates in navigation, language and global Stop", () => {
   const micCalls = { active: [], languages: [], stops: 0 };
   const wavCalls = { stops: 0, playsStopped: 0, draws: 0 };
   let microphone;
@@ -885,6 +885,36 @@ test("M1 mic controller is kept lazy and participates in navigation, language an
   app.fire("modeCompose", "click");
   assert.equal(micCalls.active.at(-1), false, "Leaving Analysis stops microphone capture");
   assert.equal(app.contexts.length, 0);
+});
+
+test("M2 microphone workspace is separate from Analysis and hands captured WAV to the normal controller", async () => {
+  const handoffs = [];
+  let microphone;
+  class AnalysisFixture {
+    setActive() {} renderLanguage() {} isPlaying() { return false; }
+    stop() {} stopPlayback() {} draw() {}
+    openPrepared(blob, name, source) { handoffs.push({ blob, name, source }); return Promise.resolve(true); }
+  }
+  class MicrophoneFixture {
+    constructor(options) { this.options = options; microphone = this; this.open = false; }
+    setActive() {} renderLanguage() {} stop() {}
+  }
+  const app = fakePage("?lang=en", true, AnalysisFixture, false, MicrophoneFixture);
+  app.fire("modeAnalysis", "click");
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(app.elements.get("analysisMicWorkspace").hidden, true);
+  microphone.open = true;
+  microphone.options.onViewChange(true);
+  assert.equal(app.elements.get("analysisWorkspace").hidden, true);
+  assert.equal(app.elements.get("analysisMicWorkspace").hidden, false);
+  microphone.open = false;
+  microphone.options.onViewChange(false);
+  assert.equal(app.elements.get("analysisWorkspace").hidden, false);
+  assert.equal(app.elements.get("analysisMicWorkspace").hidden, true);
+  const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/wav" });
+  const provenance = { kind: "microphone", origin: "microphone", captureMode: "rolling" };
+  assert.equal(await microphone.options.onCapture(blob, "captured.wav", provenance), true);
+  assert.deepEqual(handoffs, [{ blob, name: "captured.wav", source: provenance }]);
 });
 
 test("A2a REC Analyze reuses the prepared audio Blob and enters Analysis without another download", async () => {

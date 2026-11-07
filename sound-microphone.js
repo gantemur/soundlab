@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Tsogtgerel Gantumur
  * SPDX-License-Identifier: MIT
- * M1: opt-in, local-only microphone oscilloscope and spectrum. No recording.
+ * M2: opt-in microphone workspace, 30-second local PCM capture and Analysis handoff.
  */
 (function (root, factory) {
   "use strict";
@@ -16,12 +16,15 @@
   });
   const words = {
     en: {
-      title: "Microphone", intro: "Allow microphone access to inspect live sound.",
-      start: "Use microphone", stop: "Stop microphone",
+      title: "Microphone", intro: "Inspect live sound, then analyze the most recent 30 seconds or a recorded take.",
+      statusTitle: "Microphone status", recordTitle: "Capture sound",
+      recordHelp: "Without pressing Record, Close & analyze takes the last 30 seconds. Press Record to choose a take instead.",
+      record: "● Record", recordStop: "■ Stop recording", retry: "Try microphone again",
+      finish: "Close & analyze", discard: "Back without loading",
       off: "● Mic off", pending: "● Awaiting permission", on: "● Mic active",
-      ready: "No microphone access until you press Use microphone.",
+      ready: "Microphone starts only when you open this workspace.",
       requesting: "Waiting for microphone permission… You can cancel.",
-      live: "Input active. Stop releases the microphone.",
+      live: "Input active. Closing releases the microphone.",
       muted: "Microphone is muted or temporarily interrupted.",
       stopped: "Microphone stopped and released.",
       ended: "Microphone disconnected; input released.",
@@ -29,8 +32,16 @@
       denied: "Microphone permission denied or blocked. Check browser settings to retry.",
       missing: "No usable microphone was found.",
       busy: "Microphone is unavailable or already in use by another app.",
-      audioError: "Could not start live audio analysis. Microphone released.",
-      privacy: "On this device only. No speaker monitoring, recording or upload.",
+      audioError: "Could not start microphone capture. Microphone released.",
+      workletError: "This browser cannot capture PCM audio. A current browser with AudioWorklet support is required.",
+      captureError: "Could not retrieve the audio. Try again or return without loading.",
+      captureEmpty: "No microphone samples yet. Speak or play a sound, then try again.",
+      privacy: "Audio stays on this device. No speaker monitoring, upload or automatic download. The header REC records synthesized audio only.",
+      rolling: "Last {seconds} s available (up to 30 s). Close to analyze those samples.",
+      recording: "Recording your take: {seconds} / 30 s",
+      saved: "Take saved: {seconds} s. Close to analyze it, or record again.",
+      recordCap: "The take reached 30 seconds and stopped automatically.",
+      finishing: "Preparing the microphone recording for Analysis…",
       waveTitle: "Live waveform", waveHelp: "Recent samples · fixed vertical scale −1…+1",
       spectrumTitle: "Live spectrum", spectrumHelp: "Digital level in dBFS, not acoustic dB SPL",
       axis: "Frequency axis", linear: "Linear", log: "Logarithmic",
@@ -43,12 +54,15 @@
       rate: "Hz", ms: "ms", db: "dBFS"
     },
     mn: {
-      title: "Микрофон", intro: "Зөвшөөрөл өгөөд орчны авианы долгион, спектрийг шууд ажиглаарай.",
-      start: "Микрофон асаах", stop: "Микрофон унтраах",
+      title: "Микрофон", intro: "Орчны авиаг шууд ажиглаад, сүүлийн 30 секунд эсвэл тусгай бичлэгийг шинжлээрэй.",
+      statusTitle: "Микрофоны төлөв", recordTitle: "Авиа хадгалах",
+      recordHelp: "«Бичих» дараагүй бол хаахад сүүлийн 30 секундийг шинжилгээнд авна. Хүссэн хэсгийг сонгох бол «Бичих» дарна.",
+      record: "● Бичих", recordStop: "■ Бичлэг зогсоох", retry: "Дахин оролдох",
+      finish: "Хааж шинжлэх", discard: "Бичлэг авахгүй буцах",
       off: "● Унтраалттай", pending: "● Зөвшөөрөл хүлээж байна", on: "● Микрофон ажиллаж байна",
-      ready: "«Микрофон асаах» товч дарахаас нааш микрофон ашиглахгүй.",
+      ready: "Энэ цонхыг нээх хүртэл микрофон ашиглахгүй.",
       requesting: "Микрофоны зөвшөөрөл хүлээж байна… Болих боломжтой.",
-      live: "Микрофон ажиллаж байна. «Унтраах» товч төхөөрөмжөөс салгана.",
+      live: "Микрофон ажиллаж байна. Цонхыг хаахад төхөөрөмжөөс салгана.",
       muted: "Микрофоныг хаасан эсвэл түр саатуулсан байна.",
       stopped: "Микрофоныг унтрааж, төхөөрөмжөөс салгалаа.",
       ended: "Микрофон салсан тул оролтыг чөлөөллөө.",
@@ -56,8 +70,16 @@
       denied: "Микрофоны зөвшөөрөл өгөөгүй эсвэл хаасан байна. Хөтчийн тохиргоог шалгаарай.",
       missing: "Ашиглах боломжтой микрофон олдсонгүй.",
       busy: "Микрофоныг ашиглах боломжгүй эсвэл өөр програм ашиглаж байна.",
-      audioError: "Шууд шинжилгээг эхлүүлж чадсангүй. Микрофоныг чөлөөллөө.",
-      privacy: "Зөвхөн таны төхөөрөмж дээр. Чанга яригчаар гаргахгүй, бичихгүй, илгээхгүй.",
+      audioError: "Микрофоноос авиа авах боломжгүй. Төхөөрөмжийг чөлөөллөө.",
+      workletError: "Энэ хөтөч PCM бичлэгийг дэмжихгүй. AudioWorklet дэмждэг шинэ хөтөч ашиглаарай.",
+      captureError: "Авианы сорьцыг авч чадсангүй. Дахин оролдох эсвэл буцаарай.",
+      captureEmpty: "Авианы сорьц хараахан алга. Дуу гаргаад дахин оролдоорой.",
+      privacy: "Авиа зөвхөн төхөөрөмжид хадгалагдана. Чанга яригчаар гаргахгүй, серверт илгээхгүй. Дээд REC нь зөвхөн зохиомол авиаг бичнэ.",
+      rolling: "Сүүлийн {seconds} сек бэлэн (30 сек хүртэл). Хаахад энэ хэсгийг шинжилнэ.",
+      recording: "Бичиж байна: {seconds} / 30 сек",
+      saved: "{seconds} сек бичлэг хадгаллаа. Хаагаад шинжлэх эсвэл дахин бичээрэй.",
+      recordCap: "30 секунд хүрсэн тул бичлэг автоматаар зогслоо.",
+      finishing: "Микрофоны бичлэгийг шинжилгээнд бэлтгэж байна…",
       waveTitle: "Шууд долгион", waveHelp: "Сүүлийн сорьцууд · босоо хуваарь −1…+1",
       spectrumTitle: "Шууд спектр", spectrumHelp: "Дижитал түвшин, dBFS · дууны даралтын dB SPL биш",
       axis: "Давтамжийн тэнхлэг", linear: "Шугаман", log: "Логарифмын",
@@ -115,16 +137,26 @@
   }
 
   class Controller {
-    constructor({ document, window, onBegin = () => {}, onStop = () => {} }) {
+    constructor({ document, window, onBegin = () => {}, onStop = () => {},
+      onViewChange = () => {}, onCapture = async () => false }) {
       this.document = document; this.window = window;
       this.onBegin = onBegin; this.onStop = onStop;
-      this.language = "mn"; this.active = false; this.phase = "idle";
+      this.onViewChange = onViewChange; this.onCapture = onCapture;
+      this.language = "mn"; this.active = false; this.open = false; this.phase = "idle";
       this.statusKey = "ready"; this.ticket = 0;
-      this.stream = null; this.context = null; this.source = null; this.analyser = null; this.sink = null;
+      this.stream = null; this.context = null; this.source = null; this.analyser = null;
+      this.capture = null; this.sink = null;
       this.frame = null; this.lastDraw = -Infinity; this.timeData = null; this.frequencyData = null;
+      this.recording = false; this.takeReady = false; this.takeDuration = 0; this.available = 0;
+      this.takeId = 0;
+      this.finishing = false; this.pendingSnapshot = null; this.snapshotId = 0;
       this.trackListeners = [];
-      this.$("analysisMicStart").addEventListener("click", () => { void this.start(); });
-      this.$("analysisMicStop").addEventListener("click", () => this.stop());
+      this.$("analysisMicOpen").addEventListener("click", () => { void this.openView(); });
+      this.$("analysisMicRetry").addEventListener("click", () => { void this.start(); });
+      this.$("analysisMicRecord").addEventListener("click", () => this.beginTake());
+      this.$("analysisMicRecordStop").addEventListener("click", () => this.stopTake());
+      this.$("analysisMicFinish").addEventListener("click", () => { void this.finish(); });
+      this.$("analysisMicDiscard").addEventListener("click", () => this.stop());
       for (const id of ["analysisMicAxis", "analysisMicMaxHz"]) this.$(id).addEventListener("change", () => this.draw());
       this.document.addEventListener("visibilitychange", () => {
         if (this.document.hidden && this.isActive()) this.stop();
@@ -145,6 +177,16 @@
       if (!active) this.stop();
       else this.render();
     }
+    openView() {
+      if (!this.active || this.open) return false;
+      this.open = true;
+      this.recording = false; this.takeReady = false; this.takeDuration = 0; this.available = 0;
+      this.onViewChange(true);
+      this.render();
+      this.$("analysisMicTitle").focus?.();
+      // start() calls getUserMedia immediately in the original click gesture.
+      return this.start();
+    }
     renderLanguage(language) {
       this.language = language === "en" ? "en" : "mn";
       for (const element of this.document.querySelectorAll("[data-mic-i18n]")) {
@@ -158,27 +200,38 @@
       if (this.phase === "live") this.draw();
     }
     render() {
-      const busy = this.isActive(), live = this.phase === "live";
-      this.$("analysisMicStart").hidden = busy;
-      this.$("analysisMicStop").hidden = !busy;
-      this.$("analysisMicStop").disabled = false;
+      const live = this.phase === "live";
+      this.$("analysisWorkspace").hidden = !this.active || this.open;
+      this.$("analysisMicWorkspace").hidden = !this.active || !this.open;
+      this.$("analysisMicRecord").hidden = this.recording;
+      this.$("analysisMicRecordStop").hidden = !this.recording;
+      this.$("analysisMicRecord").disabled = !live || this.finishing;
+      this.$("analysisMicRecordStop").disabled = !live || this.finishing;
+      this.$("analysisMicFinish").disabled = this.finishing;
+      this.$("analysisMicDiscard").disabled = this.finishing;
+      this.$("analysisMicRetry").hidden = this.phase !== "error";
+      this.$("analysisMicRecordingStatus").hidden = !live;
       const indicator = this.$("analysisMicIndicator");
       indicator.dataset.state = live ? "live" : this.phase === "requesting" ? "requesting" : "off";
       this.put("analysisMicIndicator", this.text(live ? "on" : this.phase === "requesting" ? "pending" : "off"));
-      this.put("analysisMicStatus", this.text(this.statusKey));
+      this.put("analysisMicStatus", this.text(this.finishing ? "finishing" : this.statusKey));
       this.$("analysisMicStatus").classList.toggle("error", this.phase === "error");
-      this.$("analysisOfflineVisuals").hidden = busy;
-      this.$("analysisMicVisuals").hidden = !live;
-      this.$("analysisWorkspace").classList.toggle("analysis-mic-live", busy);
+      this.renderRecording();
+    }
+    renderRecording() {
+      const digits = value => fmt(value || 0, 1);
+      this.put("analysisMicRecordingStatus", this.recording ? this.text("recording", { seconds: digits(this.takeDuration) }) :
+        this.takeReady ? this.text("saved", { seconds: digits(this.takeDuration) }) :
+          this.text("rolling", { seconds: digits(this.available) }));
     }
     async start() {
-      if (!this.active || this.isActive()) return false;
+      if (!this.active || !this.open || this.isActive()) return false;
       const navigator = this.window.navigator, Context = this.window.AudioContext || this.window.webkitAudioContext;
       if (this.window.isSecureContext === false || !navigator?.mediaDevices?.getUserMedia) {
         this.phase = "error"; this.statusKey = "unavailable"; this.render(); return false;
       }
-      if (typeof Context !== "function") {
-        this.phase = "error"; this.statusKey = "audioError"; this.render(); return false;
+      if (typeof Context !== "function" || typeof this.window.AudioWorkletNode !== "function") {
+        this.phase = "error"; this.statusKey = "workletError"; this.render(); return false;
       }
       this.onBegin(); // Stop internal audition before opening a live microphone.
       const ticket = ++this.ticket;
@@ -189,7 +242,7 @@
         stream = await navigator.mediaDevices.getUserMedia({
           audio: { ...constraints.audio }, video: false
         });
-        if (ticket !== this.ticket || !this.active || this.document.hidden) {
+        if (ticket !== this.ticket || !this.active || !this.open || this.document.hidden) {
           stopTracks(stream); return false;
         }
         if (!stream.getAudioTracks?.().some(track => track.readyState !== "ended")) {
@@ -199,15 +252,27 @@
         this.context = context; this.stream = stream;
         // Assign each node as soon as it exists so an intermediate failure can
         // disconnect every allocated node, not just close the context.
+        if (!context.audioWorklet?.addModule) throw Object.assign(new Error("No AudioWorklet"), { code: "worklet" });
+        await context.audioWorklet.addModule("./sound-mic-capture-worklet.js?v=s077");
+        if (ticket !== this.ticket || !this.active || !this.open || this.document.hidden) {
+          if (ticket === this.ticket) this.releaseGraph();
+          return false;
+        }
         const source = this.source = context.createMediaStreamSource(stream);
         const analyser = this.analyser = context.createAnalyser();
+        const capture = this.capture = new this.window.AudioWorkletNode(context, "soundlab-mic-capture", {
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1,
+          channelCountMode: "explicit"
+        });
+        capture.port.onmessage = event => this.onCaptureMessage(event.data, ticket);
+        capture.port.onmessageerror = () => { if (ticket === this.ticket) this.stop("captureError"); };
         const sink = this.sink = context.createGain();
         analyser.fftSize = FFT_SIZE; analyser.minDecibels = MIN_DB;
         analyser.maxDecibels = MAX_DB; analyser.smoothingTimeConstant = 0.18;
         // Keeping the graph connected ensures that the analyser runs on WebKit.
         // The output is always exactly zero; microphone samples never reach speakers.
         sink.gain.value = 0;
-        source.connect(analyser); analyser.connect(sink); sink.connect(context.destination);
+        source.connect(analyser); analyser.connect(capture); capture.connect(sink); sink.connect(context.destination);
         this.timeData = new Float32Array(FFT_SIZE);
         this.frequencyData = new Float32Array(analyser.frequencyBinCount);
         for (const track of stream.getTracks()) {
@@ -220,7 +285,7 @@
           this.trackListeners.push({ track, ended, mute, unmute });
         }
         if (typeof context.resume === "function") await context.resume();
-        if (ticket !== this.ticket || !this.active || this.document.hidden) {
+        if (ticket !== this.ticket || !this.active || !this.open || this.document.hidden) {
           // Stop or a newer start has already taken ownership of cleanup.
           // Do not release the newer attempt's graph from this stale continuation.
           if (ticket === this.ticket) this.releaseGraph();
@@ -234,8 +299,74 @@
         const graphOwnedStream = this.stream === stream;
         this.releaseGraph();
         if (stream && !graphOwnedStream) stopTracks(stream);
-        this.phase = "error"; this.statusKey = errorKey(error); this.render();
+        this.phase = "error"; this.statusKey = error?.code === "worklet" ? "workletError" : errorKey(error); this.render();
         return false;
+      }
+    }
+    onCaptureMessage(message, ticket) {
+      if (ticket !== this.ticket || !message || typeof message !== "object") return;
+      if (message.type === "progress") {
+        this.available = clamp(Number(message.available) || 0, 0, 30);
+        if (this.recording) this.takeDuration = clamp(Number(message.take) || 0, 0, 30);
+        this.renderRecording();
+      } else if (message.type === "takeStopped" && message.takeId === this.takeId) {
+        this.recording = false;
+        this.takeReady = Number(message.frames) > 0;
+        this.takeDuration = (Number(message.frames) || 0) / (Number(message.sampleRate) || 48000);
+        if (message.reason === "limit") this.statusKey = "recordCap";
+        this.render();
+      } else if (message.type === "snapshot" && this.pendingSnapshot?.id === message.id) {
+        const pending = this.pendingSnapshot;
+        this.pendingSnapshot = null;
+        this.window.clearTimeout(pending.timeout);
+        pending.resolve(message);
+      }
+    }
+    beginTake() {
+      if (!this.open || this.phase !== "live" || !this.capture || this.finishing) return false;
+      this.capture.port.postMessage({ type: "beginTake", takeId: ++this.takeId });
+      this.recording = true; this.takeReady = false; this.takeDuration = 0;
+      this.statusKey = "live"; this.render(); return true;
+    }
+    stopTake() {
+      if (!this.recording || !this.capture || this.finishing) return false;
+      this.capture.port.postMessage({ type: "stopTake" });
+      this.recording = false; this.render(); return true;
+    }
+    async finish() {
+      if (!this.open || this.finishing) return false;
+      if (this.phase !== "live" || !this.capture) { this.stop(); return false; }
+      const ticket = this.ticket, id = ++this.snapshotId, node = this.capture;
+      this.finishing = true; this.render();
+      try {
+        const result = await new Promise((resolve, reject) => {
+          const timeout = this.window.setTimeout(() => {
+            if (this.pendingSnapshot?.id === id) this.pendingSnapshot = null;
+            reject(new Error("Microphone snapshot timed out"));
+          }, 2500);
+          this.pendingSnapshot = { id, timeout, resolve, reject };
+          node.port.postMessage({ type: "snapshot", id });
+        });
+        if (ticket !== this.ticket || !this.open) return false;
+        const samples = result.samples;
+        if (!(samples instanceof Float32Array) || samples.length === 0) {
+          this.finishing = false; this.statusKey = "captureEmpty"; this.render(); return false;
+        }
+        const rate = result.sampleRate;
+        const encoder = this.window.SoundLabWav;
+        if (!encoder?.encodeWav || typeof this.window.Blob !== "function") throw new Error("WAV codec unavailable");
+        const wav = encoder.encodeWav([samples], rate, { maxSeconds: 30 });
+        const blob = new this.window.Blob([wav], { type: "audio/wav" });
+        const recordedAt = new Date().toISOString();
+        const name = "microphone-" + recordedAt.replace(/[:.]/g, "-") + ".wav";
+        const origin = { kind: "microphone", classId: "microphone", name,
+          origin: "microphone", captureMode: result.mode, recordedAt };
+        // Release microphone *before* opening the normal offline source.
+        this.stop();
+        return await this.onCapture(blob, name, origin);
+      } catch (_) {
+        if (ticket !== this.ticket || !this.open) return false;
+        this.finishing = false; this.statusKey = "captureError"; this.render(); return false;
       }
     }
     nextFrame() {
@@ -330,11 +461,18 @@
         track.removeEventListener?.("unmute", unmute);
       }
       this.trackListeners = [];
-      for (const node of [this.source, this.analyser, this.sink]) {
+      if (this.pendingSnapshot) {
+        const pending = this.pendingSnapshot;
+        this.pendingSnapshot = null;
+        this.window.clearTimeout(pending.timeout);
+        pending.reject(new Error("Microphone closed"));
+      }
+      for (const node of [this.source, this.analyser, this.capture, this.sink]) {
         try { node?.disconnect(); } catch (_) { /* A browser may already have detached it. */ }
       }
       const context = this.context, stream = this.stream;
-      this.context = null; this.stream = null; this.source = null; this.analyser = null; this.sink = null;
+      if (this.capture?.port) this.capture.port.onmessage = null;
+      this.context = null; this.stream = null; this.source = null; this.analyser = null; this.capture = null; this.sink = null;
       stopTracks(stream);
       if (context?.close) {
         try { Promise.resolve(context.close()).catch(() => {}); } catch (_) { /* Already closed. */ }
@@ -342,10 +480,14 @@
       this.timeData = null; this.frequencyData = null;
     }
     stop(reason = "stopped") {
-      const wasActive = this.isActive();
+      const wasActive = this.isActive(), wasOpen = this.open;
       this.ticket++; this.releaseGraph();
+      this.open = false; this.finishing = false;
+      this.recording = false; this.takeReady = false; this.takeDuration = 0; this.available = 0;
       this.phase = "idle"; this.statusKey = wasActive ? reason : "ready";
       this.render();
+      if (wasOpen) this.onViewChange(false);
+      if (wasOpen && this.active && !this.document.hidden) this.$("analysisMicOpen").focus?.();
       if (wasActive) this.onStop();
     }
   }
