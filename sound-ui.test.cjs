@@ -36,6 +36,19 @@ const css = fs.readFileSync(path.join(__dirname, "sound-lab.css"), "utf8");
 const browserCode = fs.readFileSync(path.join(__dirname, "sound-lab.js"), "utf8");
 const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
 
+test("every ensemble preset in the catalog is selectable in the published HTML", () => {
+  const presetMenu = html.match(/<select id="ensemblePreset">([\s\S]*?)<\/select>/);
+  assert.ok(presetMenu, "Missing ensemble preset selector");
+  const options = [...presetMenu[1].matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g)];
+  const optionIds = options.map(match => match[1]);
+  assert.deepEqual(new Set(optionIds), new Set(ensemblePresets.CATALOG.map(piece => piece.id)));
+  assert.equal(optionIds.length, new Set(optionIds).size, "Duplicate ensemble preset options");
+  for (const [, id, label] of options) {
+    const preset = ensemblePresets.CATALOG.find(piece => piece.id === id);
+    assert.equal(label, preset.mn, `Initial Mongolian label for ${id}`);
+  }
+});
+
 test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.equal(ids.length, new Set(ids).size);
   const usedIds = [...browserCode.matchAll(/\$\("([^"]+)"\)/g)].map(match => match[1]);
