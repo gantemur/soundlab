@@ -200,7 +200,8 @@ test("Analysis is a lazy eighth tab with bilingual local-only controls, two view
   assert.equal(f.timers.size, 0); assert.equal(f.frames.size, 0);
   assert.equal(c.language, "mn");
   assert.equal(f.get("analysisPlay").disabled, true);
-  assert.deepEqual(f.get("analysisClass").children.map(item => item.value), ["reference", "instruments"]);
+  assert.deepEqual(f.get("analysisClass").children.map(item => item.value),
+    ["reference", "instruments", "nature", "wildlife", "objects", "footsteps", "mechanical"]);
   assert.equal(f.get("analysisExample").children.length, 4);
   assert.match(html, /id="modeCompose"[\s\S]*id="modeAnalysis"/);
   assert.match(html, /id="analysisWorkspace" hidden/);
@@ -236,11 +237,13 @@ test("A2a spectrogram stays linked to waveform time, cursor, selection, channel 
   assert.equal(f.get("analysisSpectroView").hidden, false);
   assert.equal(f.get("analysisSpectrumModes").hidden, true);
   assert.equal(f.get("analysisSpectroFFTField").hidden, false);
+  assert.equal(f.get("analysisSpectroMaxHzField").hidden, false);
   assert.equal(f.get("analysisViewSpectro").getAttribute("aria-pressed"), "true");
   assert.ok(c.spectrogram && c.spectrogram.pixels.length > 0);
   assert.equal(c.spectrogram.minDb, -100); assert.equal(c.spectrogram.maxDb, 0);
   assert.ok(c.spectrogram.columns <= 384);
   assert.equal(c.spectrogram.fftSize, 1024);
+  assert.equal(c.spectrogram.maxHz, 5000);
   const unchanged = c.spectrogram, oldCursor = c.cursor;
   c.setCursor(.72, true);
   c.setSelection(.25, .92);
@@ -251,7 +254,7 @@ test("A2a spectrogram stays linked to waveform time, cursor, selection, channel 
   const pointer = f.get("analysisSpectroCanvas");
   pointer.dispatch("pointerdown", { clientX: 20 + 50 + (390 - 66) / 2, clientY: 30 + 38 + (280 - 70) / 2 });
   close(c.cursor, 1, 1 / c.pcm.sampleRate);
-  close(c.frequency, c.pcm.sampleRate / 4, c.pcm.sampleRate / 20);
+  close(c.frequency, 2500, 10);
   c.zoom(.5); await f.settle();
   close(c.viewSpan, 1);
   assert.notEqual(c.spectrogram, unchanged);
@@ -264,6 +267,14 @@ test("A2a spectrogram stays linked to waveform time, cursor, selection, channel 
   await f.settle();
   assert.equal(c.spectrogram.axis, "log");
   assert.equal(c.spectrogram.fftSize, 4096);
+  f.get("analysisSpectroMaxHz").value = "2000"; f.get("analysisSpectroMaxHz").dispatch("change");
+  await f.settle();
+  assert.equal(c.spectrogram.maxHz, 2000);
+  assert.equal(c.spectrogram.minHz, c.pcm.sampleRate / c.spectroFFT);
+  assert.ok(c.frequency <= 2000, "frequency readout follows the visible top frequency");
+  f.get("analysisSpectroMaxHz").value = "all"; f.get("analysisSpectroMaxHz").dispatch("change");
+  await f.settle();
+  assert.equal(c.spectrogram.maxHz, c.pcm.sampleRate / 2);
   assert.ok(c.spectroCache.tiles.size <= spectro.MAX_TILES);
   c.renderLanguage("en");
   assert.match(f.get("analysisSpectroInfo").textContent, /Hann.*4096 samples/);
@@ -272,6 +283,7 @@ test("A2a spectrogram stays linked to waveform time, cursor, selection, channel 
   assert.equal(f.get("analysisSpectrumView").hidden, false);
   assert.ok(c.spectrum && c.spectrum.magnitudes.length === 2049);
   assert.equal(c.viewSpan, 1, "switching views preserves waveform zoom");
+  assert.equal(f.get("analysisSpectroMaxHzField").hidden, true);
   assert.equal(f.owner.readyCalls, 0, "analysis does not start audio on view changes");
 });
 
@@ -320,6 +332,29 @@ test("class/example dropdowns use the catalogue and language changes preserve al
   c.renderLanguage("mn");
   for (const [key, value] of Object.entries(saved)) assert.equal(key === "span" ? c.viewSpan : c[key], value);
   assert.deepEqual(calls, ["reference-sine-440", "model-guitar-a3", "model-flute-a4"]);
+  assert.equal(f.owner.readyCalls, 0);
+});
+
+test("recorded catalogue groups are bilingual and show original creator and license links", async () => {
+  const model = { ...examples, async create(id) { return pcm([sine(.5)]); } };
+  const f = fixture({ exampleModel: model }), c = f.controller;
+  await f.activate();
+  f.get("analysisClass").value = "nature"; f.get("analysisClass").dispatch("change"); await f.settle();
+  assert.equal(c.source.exampleId, "nature-rain");
+  assert.equal(f.get("analysisExample").children.length, 3);
+  assert.equal(f.get("analysisRecordingCredit").hidden, false);
+  assert.equal(f.get("analysisRecordingSource").textContent, "Anthousai");
+  assert.match(f.get("analysisRecordingSource").href, /^https:\/\/freesound\.org\//);
+  assert.equal(f.get("analysisRecordingLicense").textContent, "CC0 1.0");
+  c.renderLanguage("en");
+  assert.match(f.get("analysisSourceDescription").textContent, /real rain recording/);
+  f.get("analysisClass").value = "objects"; f.get("analysisClass").dispatch("change"); await f.settle();
+  f.get("analysisExample").value = "object-latch"; f.get("analysisExample").dispatch("change"); await f.settle();
+  assert.equal(f.get("analysisRecordingSource").textContent, "Gravity Sound");
+  assert.equal(f.get("analysisRecordingLicense").textContent, "CC BY 4.0");
+  assert.match(f.get("analysisRecordingLicense").href, /by\/4\.0/);
+  f.get("analysisClass").value = "reference"; f.get("analysisClass").dispatch("change"); await f.settle();
+  assert.equal(f.get("analysisRecordingCredit").hidden, true);
   assert.equal(f.owner.readyCalls, 0);
 });
 

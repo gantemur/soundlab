@@ -21,14 +21,15 @@
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
   const yieldTask = () => new Promise(resolve => setTimeout(resolve, 0));
 
-  function validInput(samples, rate, start, end, size, axis, rows) {
+  function validInput(samples, rate, start, end, size, axis, rows, maxHz) {
     if (!(samples instanceof Float32Array || samples instanceof Float64Array) || !samples.length ||
         samples.length > 16 * 1024 * 1024) throw new RangeError("Expected bounded source PCM");
     if (!Number.isSafeInteger(rate) || rate < 1 || rate > 384000 ||
         !Number.isFinite(start) || !Number.isFinite(end) ||
         start < 0 || end <= start || end > samples.length / rate ||
         !FFT_SIZES.includes(size) || !["linear", "log"].includes(axis) ||
-        !Number.isInteger(rows) || rows < 8 || rows > MAX_ROWS) {
+        !Number.isInteger(rows) || rows < 8 || rows > MAX_ROWS ||
+        !Number.isFinite(maxHz) || maxHz <= rate / size) {
       throw new RangeError("Invalid spectrogram range or settings");
     }
   }
@@ -42,14 +43,14 @@
     }
     return cachedWindows.get(size);
   }
-  function frequencyFraction(frequency, rate, size, axis) {
-    const max = rate / 2;
+  function frequencyFraction(frequency, rate, size, axis, maxHz = rate / 2) {
+    const max = Math.min(rate / 2, maxHz);
     if (axis === "linear") return frequency / max;
     const min = rate / size;
     return Math.log(Math.max(min, frequency) / min) / Math.log(max / min);
   }
-  function frequencyAtFraction(fraction, rate, size, axis) {
-    const max = rate / 2;
+  function frequencyAtFraction(fraction, rate, size, axis, maxHz = rate / 2) {
+    const max = Math.min(rate / 2, maxHz);
     if (axis === "linear") return clamp(fraction, 0, 1) * max;
     const min = rate / size;
     return min * Math.pow(max / min, clamp(fraction, 0, 1));
@@ -74,13 +75,15 @@
       this.tiles = new Map();
     }
     clear() { this.source = null; this.rate = null; this.tiles.clear(); }
-    async tile(samples, rate, size, axis, rows, hop, tileIndex, options) {
+    async tile(samples, rate, size, axis, maxHz, rows, hop, tileIndex, options) {
       const win = windowFor(size), real = new Float64Array(size), imag = new Float64Array(size);
       const bank = new Uint8Array(TILE_COLUMNS * rows);
       const rowsByBin = new Int16Array(size / 2 + 1);
       for (let bin = 0; bin < rowsByBin.length; bin++) {
-        rowsByBin[bin] = axis === "log" && bin === 0 ? -1 :
-          clamp(Math.floor(frequencyFraction(bin * rate / size, rate, size, axis) * rows), 0, rows - 1);
+        const hz = bin * rate / size;
+        // Never fold bins above the chosen top frequency into the top row.
+        rowsByBin[bin] = hz > maxHz || (axis === "log" && bin === 0) ? -1 :
+          clamp(Math.floor(frequencyFraction(hz, rate, size, axis, maxHz) * rows), 0, rows - 1);
       }
       let lastYield = Date.now();
       for (let column = 0; column < TILE_COLUMNS; column++) {
@@ -113,7 +116,8 @@
     async view(samples, rate, start, end, settings = {}) {
       const size = settings.fftSize ?? 1024, axis = settings.axis ?? "linear";
       const rows = settings.rows ?? 160;
-      validInput(samples, rate, start, end, size, axis, rows);
+      const maxHz = Math.min(rate / 2, settings.maxHz ?? rate / 2);
+      validInput(samples, rate, start, end, size, axis, rows, maxHz);
       if (settings.isCancelled?.()) throw new Error("Spectrogram cancelled");
       if (this.source !== samples || this.rate !== rate) {
         this.clear(); this.source = samples; this.rate = rate;
@@ -129,12 +133,12 @@
       const lastTile = Math.floor(lastColumn / TILE_COLUMNS);
       for (let tileIndex = firstTile; tileIndex <= lastTile; tileIndex++) {
         if (settings.isCancelled?.()) throw new Error("Spectrogram cancelled");
-        const key = [size, axis, rows, hop, tileIndex].join("|");
+        const key = [size, axis, maxHz, rows, hop, tileIndex].join("|");
         let tile = this.tiles.get(key);
         if (tile) {
           this.tiles.delete(key); this.tiles.set(key, tile); // LRU
         } else {
-          tile = await this.tile(samples, rate, size, axis, rows, hop, tileIndex, settings);
+          tile = await this.tile(samples, rate, size, axis, maxHz, rows, hop, tileIndex, settings);
           if (settings.isCancelled?.()) throw new Error("Spectrogram cancelled");
           this.tiles.set(key, tile);
           if (this.tiles.size > MAX_TILES) this.tiles.delete(this.tiles.keys().next().value);
@@ -154,7 +158,7 @@
       return { pixels, columns, rows, firstColumn, hopFrames: hop, fftSize: size,
         sampleRate: rate, timeStart: firstColumn * hop / rate,
         timeEnd: (lastColumn + 1) * hop / rate, windowSeconds: size / rate,
-        hopSeconds: hop / rate, minHz: axis === "log" ? rate / size : 0, maxHz: rate / 2,
+        hopSeconds: hop / rate, minHz: axis === "log" ? rate / size : 0, maxHz,
         axis, minDb: MIN_DB, maxDb: MAX_DB };
     }
   }

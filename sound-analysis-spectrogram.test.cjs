@@ -17,7 +17,7 @@ function hottest(result, time) {
     if (value > level) { row = k; level = value; }
   }
   return { row, level, hz: spectral.frequencyAtFraction((row + .5) / result.rows,
-    result.sampleRate, result.fftSize, result.axis) };
+    result.sampleRate, result.fftSize, result.axis, result.maxHz) };
 }
 
 test("1024 Hann spectrogram shares one-sided dB convention and fixed source-independent scale", async () => {
@@ -71,6 +71,22 @@ test("log axis omits DC, preserves frequency coordinates and retains channel pol
     "Opposite-phase stereo channels are analyzed individually, never mixed away");
 });
 
+test("spectrogram frequency cap expands low frequencies without aliasing out-of-range bins", async () => {
+  const cache = new spectral.TileCache();
+  const sample = Float32Array.from(sine(500), (value, i) =>
+    value + .45 * Math.sin(2 * Math.PI * 6500 * i / rate));
+  const full = await cache.view(sample, rate, 0, 2, { maxHz: 8000, fftSize: 1024, rows: 160 });
+  const cropped = await cache.view(sample, rate, 0, 2, { maxHz: 2000, fftSize: 1024, rows: 160 });
+  assert.equal(full.maxHz, 8000); assert.equal(cropped.maxHz, 2000);
+  assert.ok(Math.abs(hottest(cropped, 1).hz - 500) < 40,
+    "the 500 Hz ridge gets a larger share of the plot after changing the ceiling");
+  assert.notEqual(full.pixels.join(","), cropped.pixels.join(","), "range is part of the tile-cache key");
+  assert.equal(spectral.frequencyAtFraction(.5, rate, 1024, "linear", 2000), 1000);
+  assert.equal(spectral.frequencyFraction(1000, rate, 1024, "linear", 2000), .5);
+  const lowRate = await cache.view(sine(500), rate, 0, 2, { maxHz: 20000, rows: 80 });
+  assert.equal(lowRate.maxHz, rate / 2, "caps above Nyquist are safely clamped");
+});
+
 test("long sources and large FFT sizes stay inside the tile and column budgets", async () => {
   const cache = new spectral.TileCache();
   const samples = new Float32Array(rate * 120);
@@ -96,7 +112,7 @@ test("cancellation, invalid input and excessive display work are rejected safely
     isCancelled: () => stop, onProgress: x => { progress = x; } }), /cancelled/);
   assert.ok(progress < 1);
   for (const options of [{ fftSize: 512 }, { fftSize: 65536 }, { axis: "illegal" },
-    { rows: 300 }]) {
+    { rows: 300 }, { maxHz: -5 }, { maxHz: NaN }, { maxHz: 1 }]) {
     await assert.rejects(cache.view(samples, rate, 0, 2, options), RangeError);
   }
   await assert.rejects(cache.view(samples, rate, 2, 1), RangeError);

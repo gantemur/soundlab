@@ -1,7 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 Tsogtgerel Gantumur
  * SPDX-License-Identifier: MIT
- * Seven local teaching examples: four exact generated signals and three
- * current Compose/offline instrument models. No recordings or live playback.
+ * Four exact generated signals, three Compose/offline models and eleven
+ * provenance-reviewed local recordings. Recording WAVs load on selection only.
  */
 (function (root, factory) {
   "use strict";
@@ -23,9 +23,25 @@
   const CHUNK_FRAMES = 16384;
   const yieldTask = () => new Promise(resolve => setTimeout(resolve, 0));
   const label = (mn, en) => Object.freeze({ mn, en });
+  const CC0 = "https://creativecommons.org/publicdomain/zero/1.0/";
+  const BY3 = "https://creativecommons.org/licenses/by/3.0/";
+  const BY4 = "https://creativecommons.org/licenses/by/4.0/";
+  function recorded(id, classId, duration, mn, en, descriptionMn, descriptionEn, creator, sourceUrl, license, licenseUrl) {
+    return {
+      id, classId, kind: "recorded", duration, title: label(mn, en),
+      description: label(descriptionMn, descriptionEn),
+      path: `assets/analysis/${id}.wav`,
+      credit: Object.freeze({ creator, sourceUrl, license, licenseUrl })
+    };
+  }
   const CLASSES = Object.freeze([
     Object.freeze({ id: "reference", title: label("Жишиг дохионууд", "Reference signals") }),
-    Object.freeze({ id: "instruments", title: label("Хөгжмийн загварууд", "Modeled instruments") })
+    Object.freeze({ id: "instruments", title: label("Хөгжмийн загварууд", "Modeled instruments") }),
+    Object.freeze({ id: "nature", title: label("Байгаль, ус", "Nature and water") }),
+    Object.freeze({ id: "wildlife", title: label("Амьтдын авиа", "Wildlife") }),
+    Object.freeze({ id: "objects", title: label("Эд зүйлс, цохилт", "Objects and impacts") }),
+    Object.freeze({ id: "footsteps", title: label("Алхах чимээ", "Footsteps") }),
+    Object.freeze({ id: "mechanical", title: label("Механик хэмнэл", "Mechanical rhythms") })
   ]);
   const CATALOGUE = Object.freeze([
     {
@@ -69,7 +85,51 @@
       title: label("Хонхон саваа · C5", "Chime · C5"),
       description: label("Одоогийн хонхон савааны загварыг WAV болгосон; бодит бичлэг биш. Гармоник бус оргилууд ба удаан жингэнэлтийг ажиглаарай.",
         "The current chime model rendered through WAV export, not a recording. Inspect its inharmonic peaks and ringing tail.")
-    }
+    },
+    recorded("nature-rain", "nature", 8, "Бороо · цонхны цаана", "Rain · outside a window",
+      "Бодит борооны бичлэг. Тогтвортой өргөн зурвасын шуугианыг ажиглаарай.",
+      "A real rain recording. Look for sustained broadband noise.",
+      "Anthousai", "https://freesound.org/people/Anthousai/sounds/398741/", "CC0 1.0", CC0),
+    recorded("nature-stream", "nature", 6, "Ойн горхи", "Forest stream",
+      "Бодит горхины бичлэг. Усны тасралтгүй шуугиан ба өөрчлөгдөх бүрэлдэхүүнийг харьцуулаарай.",
+      "A real stream recording. Compare its continuous noise with fluctuating components.",
+      "cher1101", "https://freesound.org/people/cher1101/sounds/671947/", "CC0 1.0", CC0),
+    recorded("nature-drips", "nature", 4, "Усны дусал, намдалт", "Water drops and settling",
+      "Бодит усны хөдөлгөөний богино бичлэгээс давтан эвлүүлсэн хэсэг; тасралтгүй хээрийн бичлэг биш.",
+      "Repeated excerpts of real water settling and dripping; an assembled example, not uninterrupted ambience.",
+      "felix.blume", "https://freesound.org/people/felix.blume/sounds/434978/", "CC0 1.0", CC0),
+    recorded("wildlife-bird", "wildlife", 4, "Өглөөний шувууд", "Morning birds",
+      "Бодит шувуудын жиргээний бичлэг. Нарийн давтамжийн судлуудыг хайгаарай.",
+      "A recording of morning birds. Look for narrow time-varying frequency bands.",
+      "Joseph Sardin", "https://commons.wikimedia.org/wiki/File:R%C3%A9veil_des_oiseaux.ogg", "CC0 1.0", CC0),
+    recorded("wildlife-cricket", "wildlife", 5, "Хүрэлзгэнэ", "Crickets",
+      "Шөнийн хүрэлзгэнийн бодит бичлэгийн хэсэг. Давтагдах өндөр давтамжийн зурвасуудыг ажиглаарай.",
+      "Excerpt of recorded nighttime crickets. Inspect the repeating high-frequency bands.",
+      "hdfreema", "https://freesound.org/people/hdfreema/sounds/333221/", "CC0 1.0", CC0),
+    recorded("object-wood", "objects", 2, "Модон хаалга тогших", "Knocking on wood",
+      "Бодит модон хаалга тогшсон бичлэгийн хэсэг. Цохилтын эхлэл ба богино цуурайг харьцуулаарай.",
+      "Excerpt of knocks on a real wooden door. Compare the transients and short resonances.",
+      "Ligidium", "https://freesound.org/people/Ligidium/sounds/193866/", "CC0 1.0", CC0),
+    recorded("object-metal", "objects", 3, "Төмөр тавиур цохих", "Metal rack strike",
+      "Бодит төмөр тавиурын цохилт. Богино бичлэгийн араас чимээгүй хугацаа залгасан.",
+      "A recorded metal-rack strike with silence appended to inspect its decay.",
+      "code4fukui", "https://github.com/code4fukui/sound-cc0/blob/main/metal1.wav", "CC0 1.0", CC0),
+    recorded("object-latch", "objects", 2, "Хаалга хаах", "Closing a door",
+      "Бодит хаалга хаах бичлэг; түгжээ, цохилт, замхралыг ялгаж хараарай. Төгсгөлд чимээгүй хугацаа залгасан.",
+      "Recorded door closing; inspect the latch/impact and decay. Silence is appended.",
+      "Gravity Sound", "https://commons.wikimedia.org/wiki/File:Close_door_(Gravity_Sound).wav", "CC BY 4.0", BY4),
+    recorded("footsteps-wood", "footsteps", 6, "Модон дээр алхах", "Walking on wood",
+      "Бодит модон дээрх таван алхмын хэсгийг давтан эвлүүлсэн зургаан секундийн жишээ.",
+      "Six seconds assembled by repeating five recorded hollow-wood steps.",
+      "florianreichelt", "https://freesound.org/people/florianreichelt/sounds/459970/", "CC0 1.0", CC0),
+    recorded("footsteps-gravel", "footsteps", 6, "Хайрган дээр алхах", "Gravel-like footsteps",
+      "Kenney-ийн бодит алхалтын арван өөр богино цохилтыг дараалан эвлүүлсэн. Нэг удаагийн тасралтгүй бичлэг биш.",
+      "Ten distinct Kenney foley footstep samples arranged into a sequence, not a continuous field recording.",
+      "Kenney", "https://kenney.nl/assets/rpg-audio", "CC0 1.0", CC0),
+    recorded("mechanical-clock", "mechanical", 5, "Цагийн цохилт", "Clock ticks",
+      "ESC-10 дахь жинхэнэ цагийн бичлэгийн таван секундийн хэсэг. Бичлэг CC BY 3.0 нөхцөлтэй.",
+      "Five-second excerpt of a real clock from ESC-10, licensed CC BY 3.0.",
+      "Bansemer / ESC-10 (Karol J. Piczak)", "https://github.com/karolpiczak/ESC-50", "CC BY 3.0", BY3)
   ].map(Object.freeze));
 
   class ExampleError extends Error {
@@ -96,6 +156,26 @@
     } };
   }
 
+  async function readBundledRecording(path) {
+    // Only hard-coded same-origin assets can reach this loader. Local user WAVs
+    // follow the separate file chooser and never go to a server.
+    if (!/^assets\/analysis\/[a-z-]+\.wav$/.test(path)) {
+      throw new ExampleError("invalid", "Invalid bundled recording path");
+    }
+    try {
+      const response = await fetch(path, { credentials: "same-origin" });
+      if (!response.ok) throw new ExampleError("unavailable", "Bundled recording could not be loaded");
+      const length = Number(response.headers?.get("content-length") || 0);
+      if (length > reader.MAX_INPUT_BYTES) throw new ExampleError("limit", "Recording too large");
+      const bytes = await response.arrayBuffer();
+      if (bytes.byteLength > reader.MAX_INPUT_BYTES) throw new ExampleError("limit", "Recording too large");
+      return bytes;
+    } catch (error) {
+      if (error instanceof ExampleError) throw error;
+      throw new ExampleError("unavailable", "Bundled recording could not be loaded");
+    }
+  }
+
   async function create(id, options = {}) {
     const entry = CATALOGUE.find(item => item.id === id);
     if (!entry) throw new ExampleError("invalid", "Unknown analysis example");
@@ -109,6 +189,18 @@
     onProgress(0);
     await pause();
     checkCancelled(isCancelled);
+
+    if (entry.kind === "recorded") {
+      if (!reader) throw new ExampleError("unsupported", "The bundled WAV decoder is unavailable");
+      const bytes = await (options.loadRecording || readBundledRecording)(entry.path);
+      checkCancelled(isCancelled);
+      onProgress(.35);
+      const pcm = await reader.decode(bytes, {
+        isCancelled, yieldTask: pause, onProgress: value => onProgress(.35 + .65 * value)
+      });
+      checkCancelled(isCancelled);
+      return { ...pcm, exampleId: id, kind: entry.kind };
+    }
 
     if (entry.kind === "modeled") {
       if (!exporter || !reader) throw new ExampleError("unsupported", "The local instrument renderer is unavailable");

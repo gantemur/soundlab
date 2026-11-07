@@ -16,7 +16,9 @@
     en: {
       title: "Analyze a sound", intro: "Choose an example or open a WAV to inspect its waveform and frequency content.",
       classLabel: "Class", exampleLabel: "Example", open: "Open WAV…", local: "Local file",
-      generated: "Generated signal", modeled: "Modeled instrument", imported: "Your local file",
+      generated: "Generated signal", modeled: "Modeled instrument", recorded: "Real recording", imported: "Your local file",
+      recordingCredit: "Recording by", spectroMaxHz: "Spectrogram upper frequency", spectroFullRange: "Full range (Nyquist)",
+      top2k: "2,000 Hz", top5k: "5,000 Hz", top10k: "10,000 Hz",
       prepared: "Prepared Sound Lab WAV", chooseView: "Analysis view", viewSpectrum: "Spectrum", viewSpectro: "Spectrogram",
       spectrogram: "Time–frequency spectrogram", spectroFFT: "Spectrogram window · samples",
       spectroInfo: "Hann · {n} samples ({ms} ms) · hop {hop} ms · {axis} frequency · {low}–{high} dB (unit peak)",
@@ -49,6 +51,7 @@
       errorLimit: "The file exceeds a supported limit: 120 seconds, 32 MiB input, 64 MiB decoded samples or 4,096 metadata/audio chunks. It was not truncated.",
       errorNonfinite: "The WAV contains non-finite sample values and cannot be analyzed. The previous sound is kept.",
       errorGeneric: "Could not prepare this sound. The previous sound is kept; try another example or WAV.",
+      errorUnavailable: "Could not load this bundled recording. Try again once the page is fully available.",
       errorAnalysis: "Analysis could not finish. Try a smaller FFT window or selection.",
       errorTime: "Enter a time within this sound; selection start must be before its end.",
       errorPlayback: "This browser could not play this source/rate. Its samples can still be analyzed.",
@@ -73,7 +76,9 @@
     mn: {
       title: "Дуу шинжлэх", intro: "Жишээ сонгох эсвэл WAV файл нээж, долгион ба давтамжийн бүрэлдэхүүнийг шинжлээрэй.",
       classLabel: "Бүлэг", exampleLabel: "Жишээ", open: "WAV нээх…", local: "Төхөөрөмжийн файл",
-      generated: "Тооцоолж үүсгэсэн авиа", modeled: "Хөгжмийн загвар", imported: "Таны төхөөрөмжийн файл",
+      generated: "Тооцоолж үүсгэсэн авиа", modeled: "Хөгжмийн загвар", recorded: "Бодит бичлэг", imported: "Таны төхөөрөмжийн файл",
+      recordingCredit: "Бичлэгийн эх", spectroMaxHz: "Спектрограммын дээд давтамж", spectroFullRange: "Бүх давтамж (Найквист)",
+      top2k: "2,000 Гц", top5k: "5,000 Гц", top10k: "10,000 Гц",
       prepared: "Sound Lab-д бэлдсэн WAV", chooseView: "Шинжилгээний харагдац", viewSpectrum: "Спектр", viewSpectro: "Спектрограмм",
       spectrogram: "Хугацаа–давтамжийн спектрограмм", spectroFFT: "Спектрограммын цонх · сорьц",
       spectroInfo: "Hann · {n} сорьц ({ms} мс) · алхам {hop} мс · {axis} давтамж · {low}–{high} dB (нэгж оргил)",
@@ -107,6 +112,7 @@
       errorLimit: "120 секунд, 32 МиБ файл, 64 МиБ задарсан сорьц эсвэл 4,096 мета өгөгдөл/аудио хэсгийн хязгаараас хэтэрсэн. Файлыг тайраагүй.",
       errorNonfinite: "WAV дотор төгсгөлгүй эсвэл тодорхойгүй сорьц байна. Өмнөх дуу хэвээр үлдлээ.",
       errorGeneric: "Дууг бэлтгэж чадсангүй. Өмнөх дуу хэвээр; өөр жишээ эсвэл WAV сонгоно уу.",
+      errorUnavailable: "Энд хадгалсан бичлэгийг ачаалж чадсангүй. Хуудас бүрэн бэлэн болсны дараа дахин оролдоно уу.",
       errorAnalysis: "Шинжилгээг дуусгаж чадсангүй. FFT цонх эсвэл сонгосон хэсгийг багасгаж үзнэ үү.",
       errorTime: "Дууны хүрээнд хугацаа оруулна уу. Хэсгийн эхлэл төгсгөлөөсөө өмнө байх ёстой.",
       errorPlayback: "Хөтөч энэ дуу эсвэл сорьцлох давтамжаар тоглуулж чадсангүй. Сорьцыг шинжлэх боломжтой хэвээр.",
@@ -150,6 +156,7 @@
       this.channel = 0;
       this.fftSize = 4096;
       this.spectroFFT = 1024;
+      this.spectroMaxHz = 5000;
       this.axis = "linear";
       this.spectrumMode = "local";
       this.analysisView = "spectrum";
@@ -249,6 +256,13 @@
         this.spectroFFT = size;
         this.scheduleSpectrogram();
       });
+      this.on("analysisSpectroMaxHz", "change", event => {
+        const cap = event.target.value === "all" ? null : Number(event.target.value);
+        if (cap !== null && ![2000, 5000, 10000].includes(cap)) return;
+        this.spectroMaxHz = cap;
+        if (this.pcm) this.frequency = Math.min(this.frequency, this.maxVisibleHz());
+        this.scheduleSpectrogram();
+      });
       this.on("analysisCancel", "click", () => this.cancelWork());
       this.on("analysisRetry", "click", () => {
         if (!this.pcm) this.loadExample(examples.CATALOGUE[0].id);
@@ -294,8 +308,9 @@
         if (["ArrowUp", "ArrowDown"].includes(event.key)) {
           const delta = event.shiftKey ? .1 : .02;
           const fraction = clamp(spectro.frequencyFraction(this.frequency, this.pcm.sampleRate,
-            this.spectroFFT, this.axis) + (event.key === "ArrowUp" ? delta : -delta), 0, 1);
-          this.frequency = spectro.frequencyAtFraction(fraction, this.pcm.sampleRate, this.spectroFFT, this.axis);
+            this.spectroFFT, this.axis, this.maxVisibleHz()) + (event.key === "ArrowUp" ? delta : -delta), 0, 1);
+          this.frequency = spectro.frequencyAtFraction(fraction, this.pcm.sampleRate, this.spectroFFT,
+            this.axis, this.maxVisibleHz());
           this.drawSpectrogram();
         } else {
           this.setCursor(clamp(this.cursor + (event.key === "ArrowRight" ? 1 : -1) *
@@ -317,6 +332,9 @@
       if (!entry) return;
       return this.load(options => examples.create(id, { ...this.models, ...options }),
         { kind: entry.kind, classId: entry.classId, exampleId: id });
+    }
+    maxVisibleHz() {
+      return Math.min(this.pcm?.sampleRate / 2 || 22050, this.spectroMaxHz ?? Infinity);
     }
     async openFile(file) {
       return this.load(async options => {
@@ -382,7 +400,7 @@
       } catch (error) {
         if (!isCancelled()) {
           this.status(({ invalid: "errorInvalid", unsupported: "errorUnsupported", limit: "errorLimit",
-            nonfinite: "errorNonfinite", cancelled: "cancelled" })[error.code] || "errorGeneric", error.code !== "cancelled");
+            nonfinite: "errorNonfinite", unavailable: "errorUnavailable", cancelled: "cancelled" })[error.code] || "errorGeneric", error.code !== "cancelled");
         }
         return false;
       } finally {
@@ -423,7 +441,7 @@
       if (this.analysisView !== "spectrogram" || !this.active || !this.pcm || this.sourceBusy) return;
       const ticket = this.spectroTicket, pcm = this.pcm, channel = this.channel;
       const start = this.viewStart, end = Math.min(pcm.duration, start + this.viewSpan);
-      const size = this.spectroFFT, axis = this.axis;
+      const size = this.spectroFFT, axis = this.axis, maxHz = this.maxVisibleHz();
       const cancelled = () => ticket !== this.spectroTicket || !this.active ||
         this.pcm !== pcm || this.analysisView !== "spectrogram";
       this.spectroBusy = true;
@@ -433,7 +451,7 @@
         await this.yieldTask();
         if (cancelled()) return;
         const result = await this.spectroCache.view(pcm.channels[channel], pcm.sampleRate, start, end, {
-          fftSize: size, axis, rows: 160, isCancelled: cancelled, yieldTask: () => this.yieldTask(),
+          fftSize: size, axis, maxHz, rows: 160, isCancelled: cancelled, yieldTask: () => this.yieldTask(),
           onProgress: fraction => {
             if (!cancelled()) this.put("analysisSpectroStatus", this.text("spectroCalculating") +
               " " + Math.round(100 * fraction) + "%");
@@ -729,6 +747,14 @@
       this.$("analysisChannelField").hidden = this.pcm?.channels.length !== 2;
       this.put("analysisSourceName", entry ? entry.title[this.language] : (this.source?.name || this.text("noSource")));
       this.put("analysisSourceDescription", entry ? entry.description[this.language] : this.text("noUpload"));
+      this.$("analysisRecordingCredit").hidden = !entry?.credit;
+      if (entry?.credit) {
+        const source = this.$("analysisRecordingSource"), license = this.$("analysisRecordingLicense");
+        source.textContent = entry.credit.creator;
+        source.href = entry.credit.sourceUrl;
+        license.textContent = entry.credit.license;
+        license.href = entry.credit.licenseUrl;
+      }
       const pcm = this.pcm;
       this.put("analysisSourceInfo", pcm ? `${this.text(this.source.kind)} · ${number(pcm.duration)} ${this.text("seconds")} · ${number(pcm.sampleRate)} ${this.text("hz")} · ${this.text(pcm.channels.length === 2 ? "stereo" : "mono")}` : "");
       this.put("analysisEncoding", pcm ? `${this.text("encoding")}: ${pcm.encoding === "generated-float32" ? this.text("generatedEncoding") : pcm.encoding}` : "");
@@ -739,7 +765,7 @@
     renderControls() {
       for (const id of ["analysisClass", "analysisExample", "analysisOpen"]) this.$(id).disabled = this.sourceBusy;
       for (const id of ["analysisPlay", "analysisPlaySelection", "analysisAtCursor", "analysisAverage",
-        "analysisFFT", "analysisSpectroFFT", "analysisChannel", "analysisCursor", "analysisCursorSlider", "analysisStart", "analysisEnd",
+        "analysisFFT", "analysisSpectroFFT", "analysisSpectroMaxHz", "analysisChannel", "analysisCursor", "analysisCursorSlider", "analysisStart", "analysisEnd",
         "analysisZoomIn", "analysisZoomOut", "analysisFit", "analysisSelectAll", "analysisFrequency"])
         this.$(id).disabled = !this.pcm || this.sourceBusy;
       this.$("analysisCancel").hidden = !this.sourceBusy && !this.analysisBusy && !this.spectroBusy;
@@ -750,6 +776,7 @@
       this.$("analysisSpectrumModes").hidden = this.analysisView !== "spectrum";
       this.$("analysisFFTField").hidden = this.analysisView !== "spectrum";
       this.$("analysisSpectroFFTField").hidden = this.analysisView !== "spectrogram";
+      this.$("analysisSpectroMaxHzField").hidden = this.analysisView !== "spectrogram";
       this.$("analysisSpectrumView").hidden = this.analysisView !== "spectrum";
       this.$("analysisSpectroView").hidden = this.analysisView !== "spectrogram";
       for (const [id, view] of [["analysisViewSpectrum", "spectrum"], ["analysisViewSpectro", "spectrogram"]]) {
@@ -800,7 +827,7 @@
       this.put("analysisSpectroInfo", pcm ? this.text("spectroInfo", { n: this.spectroFFT,
         ms: number(1000 * this.spectroFFT / pcm.sampleRate, 1),
         hop: grid ? number(1000 * grid.hopSeconds, 2) : "—", axis: this.text(this.axis),
-        low: spectro.MIN_DB, high: spectro.MAX_DB }) : "");
+        low: spectro.MIN_DB, high: spectro.MAX_DB }) + ` · 0–${number(this.maxVisibleHz())} ${this.text("hz")}` : "");
       let padding = "";
       if (spectrum) {
         padding = this.spectrumMode === "average" ? this.text("averageInfo", { count: spectrum.windowCount, padded: spectrum.paddedWindowCount || 0 }) :
@@ -983,7 +1010,8 @@
       const timeFraction = clamp((event.clientX - rect.left - 50) / Math.max(1, rect.width - 66), 0, 1);
       const frequencyFraction = 1 - clamp((event.clientY - rect.top - 38) /
         Math.max(1, rect.height - 70), 0, 1);
-      this.frequency = spectro.frequencyAtFraction(frequencyFraction, this.pcm.sampleRate, this.spectroFFT, this.axis);
+      this.frequency = spectro.frequencyAtFraction(frequencyFraction, this.pcm.sampleRate, this.spectroFFT,
+        this.axis, this.maxVisibleHz());
       this.setCursor(clamp(this.viewStart + timeFraction * this.viewSpan, 0, this.pcm.duration), true);
       this.drawSpectrogram();
     }
@@ -1037,7 +1065,8 @@
       ctx.strokeStyle = "#a5b7cf"; ctx.fillStyle = "#526b8a"; ctx.textAlign = "right";
       for (let i = 0; i <= 4; i++) {
         const fraction = i / 4, y = bottom - fraction * (bottom - top);
-        const frequency = spectro.frequencyAtFraction(fraction, this.pcm.sampleRate, this.spectroFFT, this.axis);
+        const frequency = spectro.frequencyAtFraction(fraction, this.pcm.sampleRate, this.spectroFFT,
+          this.axis, this.maxVisibleHz());
         ctx.fillText(number(frequency, 1), left - 5, y + 4);
       }
       ctx.textAlign = "left"; ctx.fillText(this.text("hz"), left, 19);
@@ -1056,7 +1085,7 @@
         ctx.fillStyle = "#2f786b"; ctx.textAlign = "center"; ctx.fillText(label, xx, top - 12);
       }
       const frequencyY = bottom - clamp(spectro.frequencyFraction(this.frequency,
-        this.pcm.sampleRate, this.spectroFFT, this.axis), 0, 1) * (bottom - top);
+        this.pcm.sampleRate, this.spectroFFT, this.axis, this.maxVisibleHz()), 0, 1) * (bottom - top);
       ctx.strokeStyle = "rgba(250, 213, 139, .75)"; ctx.setLineDash([3, 4]); ctx.beginPath();
       ctx.moveTo(left, frequencyY); ctx.lineTo(right, frequencyY); ctx.stroke(); ctx.setLineDash([]);
       if (this.cursor >= this.viewStart && this.cursor <= this.viewStart + this.viewSpan) {

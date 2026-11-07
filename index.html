@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s064">
+  <link rel="stylesheet" href="sound-lab.css?v=s065">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -45,9 +45,9 @@
   <script src="sound-export-ui.js?v=s064" defer></script>
   <script src="sound-wave-reader.js?v=s058" defer></script>
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
-  <script src="sound-analysis-spectrogram.js?v=s064" defer></script>
-  <script src="sound-analysis-examples.js?v=s059" defer></script>
-  <script src="sound-analysis.js?v=s064" defer></script>
+  <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
+  <script src="sound-analysis-examples.js?v=s065" defer></script>
+  <script src="sound-analysis.js?v=s065" defer></script>
   <script src="sound-lab.js?v=s064" defer></script>
 </head>
 <body>
@@ -1651,6 +1651,10 @@
           <strong id="analysisSourceName"></strong>
           <span id="analysisSourceInfo"></span>
           <p id="analysisSourceDescription" class="field-help"></p>
+          <p id="analysisRecordingCredit" class="field-help" hidden><span data-analysis-i18n="recordingCredit">Бичлэгийн эх</span>:
+            <a id="analysisRecordingSource" href="#" target="_blank" rel="noopener noreferrer"></a> ·
+            <a id="analysisRecordingLicense" href="#" target="_blank" rel="noopener noreferrer"></a>
+          </p>
         </div>
         <div class="analysis-play-actions">
           <button id="analysisPlay" type="button" class="analysis-primary">▶ Тоглуулах</button>
@@ -1675,6 +1679,7 @@
           <summary data-analysis-i18n="settings">Шинжилгээний тохиргоо</summary>
           <label class="analysis-field" id="analysisFFTField"><span data-analysis-i18n="fftSize">FFT цонхны урт · сорьц</span><select id="analysisFFT"><option>1024</option><option selected>4096</option><option>16384</option><option>65536</option></select></label>
           <label class="analysis-field" id="analysisSpectroFFTField" hidden><span data-analysis-i18n="spectroFFT">Спектрограммын цонх · сорьц</span><select id="analysisSpectroFFT"><option selected>1024</option><option>4096</option><option>16384</option></select></label>
+          <label class="analysis-field" id="analysisSpectroMaxHzField" hidden><span data-analysis-i18n="spectroMaxHz">Спектрограммын дээд давтамж</span><select id="analysisSpectroMaxHz"><option value="2000" data-analysis-i18n="top2k">2,000 Гц</option><option value="5000" data-analysis-i18n="top5k" selected>5,000 Гц</option><option value="10000" data-analysis-i18n="top10k">10,000 Гц</option><option value="all" data-analysis-i18n="spectroFullRange">Бүх давтамж (Найквист)</option></select></label>
           <label class="analysis-field"><span data-analysis-i18n="frequencyAxis">Давтамжийн тэнхлэг</span><select id="analysisAxis"><option value="linear" data-analysis-i18n="linear">Шугаман</option><option value="log" data-analysis-i18n="log">Логарифмын</option></select></label>
           <p class="field-help" data-analysis-i18n="settingsHint">Hann цонх. FFT-ийн урт долгионыг томруулахад өөрчлөгдөхгүй. Сорьцын утга болон эх давтамжийг хэвээр хадгална.</p>
         </details>
