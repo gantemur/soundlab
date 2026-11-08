@@ -53,6 +53,30 @@ test("440 Hz off-bin peaks have the right axes at 16, 44.1 and 48 kHz", () => {
   }
 });
 
+test("C2b matches Hann duration across sample rates without resampling PCM or mistaking FFT zero padding for resolution", () => {
+  const seconds = .256, a = sine(16000, 16000, 440, .4), b = sine(48000, 48000, 440, .2);
+  const savedA = a.slice(), savedB = b.slice();
+  const first = dsp.spectrumAtDuration(a, 16000, .5, seconds);
+  const second = dsp.spectrumAtDuration(b, 48000, .5, seconds);
+  assert.equal(first.windowSamples, 4096);
+  assert.equal(second.windowSamples, 12288);
+  close(first.windowSeconds, second.windowSeconds, 1e-12);
+  assert.equal(first.fftSize, 8192);
+  assert.equal(second.fftSize, 32768);
+  assert.equal(first.fftPaddingSamples, 4096);
+  assert.equal(second.fftPaddingSamples, 20480);
+  assert.equal(first.paddedSamples, 0); assert.equal(second.paddedSamples, 0);
+  assert.ok(Math.abs(peakBin(first) * first.binHz - 440) <= first.binHz);
+  assert.ok(Math.abs(peakBin(second) * second.binHz - 440) <= second.binHz);
+  assert.ok(first.magnitudes[peakBin(first)] > .38);
+  assert.ok(second.magnitudes[peakBin(second)] > .19);
+  assert.deepEqual(a, savedA); assert.deepEqual(b, savedB);
+  const edge = dsp.spectrumAtDuration(a, 16000, 0, seconds);
+  assert.equal(edge.paddedSamples, 2048);
+  assert.throws(() => dsp.spectrumAtDuration(a, 16000, .5, 3), error => error.code === "invalid");
+  assert.throws(() => dsp.spectrumAtDuration(a, 16000, -1, seconds), error => error.code === "invalid");
+});
+
 test("half amplitude reads -6.0206 dB and a unit sine has -3.0103 dB RMS", async () => {
   const rate = 48000, size = 4096, bin = 67;
   const full = sine(size, rate, bin * rate / size), half = full.map(value => value / 2);

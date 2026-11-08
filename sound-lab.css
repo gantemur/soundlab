@@ -699,6 +699,18 @@ h1, h2, p { margin-top: 0; }
 .compare-plot-panel canvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
 .compare-overlay-panel { grid-column: 1 / -1; min-width: 0; }
 .compare-overlay-panel canvas { height: 250px; margin: 10px 0 4px; cursor: default; }
+.compare-plot-modes { width: min(100%, 470px); margin: 13px 0 5px; }
+.compare-plot-modes button { min-height: 43px; }
+.compare-difference-heading { margin-top: 9px; }
+.compare-difference-heading h3 { margin: 0 0 5px; color: #2b5074; font-size: 16px; }
+#compareDifferenceView > .compare-option { margin: 4px 0; }
+#compareDifferenceView canvas { cursor: crosshair; touch-action: manipulation; }
+#compareDifferenceView canvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
+.compare-frequency-probe { display: flex; flex-wrap: wrap; gap: 9px 20px; align-items: end; margin: 6px 0 10px; }
+.compare-frequency-probe .analysis-field { flex: 0 1 190px; min-width: 155px; margin: 0; }
+.compare-frequency-probe input { width: 100%; }
+.compare-frequency-probe .chart-foot { flex: 1 1 260px; min-width: 0; padding-bottom: 7px; }
+#compareDifferencePadding:empty, #compareDifferenceStatus:empty { display: none; }
 .compare-individual-details { margin-top: 16px; padding-top: 12px; border-top: 1px solid #dce7f2; }
 .compare-individual-details > summary { cursor: pointer; color: #365f80; font-size: 13px; font-weight: 800;
   min-height: 35px; }

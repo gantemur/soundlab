@@ -106,6 +106,37 @@
       windowCount: 1, paddedWindowCount: first < 0 || first + fftSize > samples.length ? 1 : 0 };
   }
 
+  // C2b: two recordings sampled at different rates need Hann windows matched in
+  // physical time, not merely the same number of samples. The window itself may
+  // have any integer length; zero-padding to a power-of-two FFT samples the
+  // *same* Fourier transform more densely but adds no resolving power.
+  function spectrumAtDuration(samples, sampleRate, centerSeconds, seconds) {
+    checkSamples(samples); checkRate(sampleRate);
+    if (!Number.isFinite(centerSeconds) || centerSeconds < 0 || centerSeconds > samples.length / sampleRate ||
+        !Number.isFinite(seconds) || seconds <= 0) invalid("Invalid matched-spectrum cursor or duration");
+    const windowSamples = Math.round(seconds * sampleRate);
+    if (windowSamples < 4 || windowSamples > 32768) invalid("Matched Hann window must contain 4–32,768 samples");
+    const fftSize = 2 ** Math.ceil(Math.log2(windowSamples * 2));
+    const real = new Float64Array(fftSize), imag = new Float64Array(fftSize);
+    const first = Math.round(centerSeconds * sampleRate) - Math.floor(windowSamples / 2);
+    let present = 0;
+    const windowSum = (windowSamples - 1) / 2; // Symmetric Hann coherent gain.
+    for (let i = 0; i < windowSamples; i++) {
+      const frame = first + i;
+      if (frame < 0 || frame >= samples.length) continue;
+      const weight = .5 - .5 * Math.cos(2 * Math.PI * i / (windowSamples - 1));
+      real[i] = checkedSample(samples[frame]) * weight;
+      present++;
+    }
+    fft.transform(real, imag);
+    const magnitudes = Float64Array.from({ length: fftSize / 2 + 1 }, (_, bin) =>
+      (bin === 0 || bin === fftSize / 2 ? 1 : 2) * Math.hypot(real[bin], imag[bin]) / windowSum);
+    return { magnitudes, binHz: sampleRate / fftSize, fftSize, windowSamples,
+      windowSeconds: windowSamples / sampleRate, requestedSeconds: seconds,
+      windowStart: first / sampleRate, windowEnd: (first + windowSamples) / sampleRate,
+      paddedSamples: windowSamples - present, fftPaddingSamples: fftSize - windowSamples };
+  }
+
   async function spectrumAverage(samples, sampleRate, startSeconds, endSeconds, fftSize = 4096, options = {}) {
     const { start, end } = range(samples, sampleRate, startSeconds, endSeconds);
     checkCancelled(options);
@@ -275,5 +306,5 @@
   }
 
   return Object.freeze({ FFT_SIZES, MAX_FRAMES, BLOCK_SIZE, AnalysisError,
-    spectrumAt, spectrumAverage, amplitudeDb, buildWaveformIndex, waveformEnvelope, measurements });
+    spectrumAt, spectrumAtDuration, spectrumAverage, amplitudeDb, buildWaveformIndex, waveformEnvelope, measurements });
 });

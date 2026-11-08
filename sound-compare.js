@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Tsogtgerel Gantumur
  * SPDX-License-Identifier: MIT
- * C1/C2/S081: two independent local PCM sources, linked inspection and spectral overlay.
+ * C1/C2: two independent local PCM sources, paired spectral inspection and listening.
  */
 (function (root, factory) {
   "use strict";
@@ -19,6 +19,7 @@
   const fmt = (value, digits = 2) => Number.isFinite(value) ? Number(value.toFixed(digits)).toString() : "—";
   const safeName = name => String(name || "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 180);
   const totalBytes = pcm => pcm?.channels?.reduce((total, channel) => total + channel.byteLength, 0) || 0;
+  const DIFFERENCE_FLOOR_DB = -90;
   // The overlay retains each FFT's own Hz/bin and Nyquist limit. A dB offset is
   // applied only to the optional display, never to the underlying PCM/spectrum.
   function overlayModel(slots, { maxHz = null, axis = "log", normalize = false } = {}) {
@@ -45,6 +46,61 @@
         windowMs: 1000 * spectrum.fftSize / item.pcm.sampleRate };
     });
     return { low, high, axis, normalize, traces };
+  }
+
+  // Match the two *physical Hann durations* to within one sample at each rate.
+  // The original C2a overlay continues to show native equal-sample windows;
+  // this separate comparison never changes the source or its native spectra.
+  function matchedSpectra(slots, fftSamples = 4096) {
+    const a = slots.A, b = slots.B;
+    if (!a?.pcm || !b?.pcm || !a.pcm.channels?.[a.channel] || !b.pcm.channels?.[b.channel]) return null;
+    if (![1024, 4096, 16384].includes(fftSamples)) return null;
+    const seconds = fftSamples / Math.max(a.pcm.sampleRate, b.pcm.sampleRate);
+    const build = slot => dsp.spectrumAtDuration(slot.pcm.channels[slot.channel], slot.pcm.sampleRate,
+      slot.cursor, seconds);
+    return { A: build(a), B: build(b), sampleRateA: a.pcm.sampleRate,
+      sampleRateB: b.pcm.sampleRate, seconds, fftSamples };
+  }
+
+  // Interpolate spectral *power* in Hz (never interpolate dB values or treat
+  // unequal bin numbers as matching frequencies). It is a display estimate,
+  // not phase-coherent subtraction or a transfer function.
+  function powerAt(spectrum, hz) {
+    if (!spectrum || !Number.isFinite(hz) || hz < 0 || hz >
+        (spectrum.magnitudes.length - 1) * spectrum.binHz) return null;
+    const position = hz / spectrum.binHz, lower = Math.floor(position);
+    const upper = Math.min(spectrum.magnitudes.length - 1, lower + 1), fraction = position - lower;
+    const a = spectrum.magnitudes[lower], b = spectrum.magnitudes[upper];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return (1 - fraction) * a * a + fraction * b * b;
+  }
+  function bestVisibleDb(spectrum, low, high) {
+    let peak = 0;
+    for (let i = Math.max(0, Math.ceil(low / spectrum.binHz));
+      i < spectrum.magnitudes.length && i * spectrum.binHz <= high; i++) {
+      peak = Math.max(peak, spectrum.magnitudes[i]);
+    }
+    return peak > 0 ? 20 * Math.log10(peak) : -Infinity;
+  }
+  function differenceModel(matched, { axis = "log", maxHz = null, normalize = false,
+    floorDb = DIFFERENCE_FLOOR_DB } = {}) {
+    if (!matched?.A || !matched?.B) return null;
+    const high = Math.min(matched.sampleRateA / 2, matched.sampleRateB / 2,
+      Number.isFinite(maxHz) && maxHz > 0 ? maxHz : Infinity);
+    const low = axis === "log" ? Math.min(20, high / 2) : 0;
+    if (!(high > low)) return null;
+    const aPeak = bestVisibleDb(matched.A, low, high), bPeak = bestVisibleDb(matched.B, low, high);
+    const peakOffset = normalize && Number.isFinite(aPeak) && Number.isFinite(bPeak) ? aPeak - bPeak : 0;
+    return { ...matched, axis, low, high, normalize, floorDb, aPeak, bPeak, peakOffset };
+  }
+  function differenceAt(model, hz) {
+    if (!model || !Number.isFinite(hz) || hz < model.low || hz > model.high) return null;
+    const powerA = powerAt(model.A, hz), powerB = powerAt(model.B, hz);
+    if (powerA === null || powerB === null) return null;
+    const dbA = powerA > 0 ? 10 * Math.log10(powerA) : -Infinity;
+    const dbB = powerB > 0 ? 10 * Math.log10(powerB) : -Infinity;
+    const valid = dbA >= model.floorDb && dbB >= model.floorDb;
+    return { hz, dbA, dbB, valid, delta: valid ? dbA - dbB - model.peakOffset : null };
   }
   const words = {
     en: {
@@ -80,7 +136,7 @@
       cursorInfo: "Cursor {time} s · source duration {duration} s · amplitude scale ±{scale}",
       spectrumInfo: "Hann {fft} · {bin} Hz/bin · strongest displayed bin {peak} Hz ({level} dBFS); not a pitch estimate",
       spectrumSilent: "Hann {fft} · {bin} Hz/bin · no significant peak",
-      overlayTitle: "Overlay spectra A/B", overlayIntro: "Compare the two spectra on one frequency axis, without resampling.",
+      overlayTitle: "Spectral comparison A/B", overlayIntro: "Choose a native spectral overlay or a matched-window level difference, without resampling the sound.",
       linkCursors: "Link inspection times (seconds)", normalizeOverlay: "Normalize each displayed spectral peak",
       overlayNote: "Native Hann windows use the same sample count but may span different times. Peak normalization affects only this overlay, not the source audio or the two separate spectra.",
       overlayWaiting: "Choose two sounds to compare their spectra.",
@@ -89,7 +145,22 @@
       overlayWindow: "{ms} ms Hann · {bin} Hz/bin · cursor {time} s",
       overlayUnavailable: "no source", overlayMissing: " · above {hz} Hz, only the higher-rate source has samples",
       overlayAria: "Two spectra with shared frequency and level axes",
-      disclaimer: "Native sample rates and durations may differ. Both spectra use fixed −100…0 dBFS without automatic level matching, time alignment or resampling. This is not an acoustic dB SPL measurement."
+      plotModes: "Spectral comparison views", overlayMode: "Overlay A/B", differenceMode: "Difference A−B",
+      differenceTitle: "Matched-window spectral difference", differenceIntro: "A positive dB difference means A has more spectral power than B at this frequency.",
+      differenceNormalize: "Compare shape (align matched spectral peaks)",
+      differenceProbeLabel: "Inspect frequency · Hz", differenceAria: "Signed spectral level difference A minus B in decibels",
+      differenceWaiting: "Choose two sounds to calculate the A−B difference.",
+      differenceInfo: "Shared band {low}–{high} Hz · paired Hann {ms} ms · A: {aSamples} samples at {aRate} Hz ({aBins} Hz/FFT bin) · B: {bSamples} samples at {bRate} Hz ({bBins} Hz/FFT bin)",
+      differenceNote: "Each source uses a Hann window of approximately equal real duration, centered on its own cursor. FFTs are zero-padded for sampling the frequency axis, not for added resolution. Squared amplitudes are linearly interpolated at matching Hz; values below −90 dBFS in either source are hidden, not assigned an artificial ratio. Curves stop at the lower Nyquist limit. This is not time alignment, phase subtraction, a transfer function or acoustic dB SPL.",
+      differenceAbsolute: "Absolute source levels (dBFS)", differenceRelative: "Peak-relative spectral shapes (display only)",
+      differencePadding: "Hann windows extend beyond a recording: {a} A samples and {b} B samples treated as silence; inspect farther from the edges for a complete window.",
+      differenceProbe: "{hz} Hz · A {a} dBFS · B {b} dBFS · A−B {delta} dB{mode}",
+      differenceProbeRelative: " (peak-relative)", differenceProbeBelow: "{hz} Hz · A {a} dBFS · B {b} dBFS · at least one source is below −90 dBFS; difference hidden.",
+      differenceProbeRange: "Enter a frequency inside the shared {low}–{high} Hz range.",
+      differenceNoBand: "There is no shared frequency range for these two recordings.",
+      differenceNoSignal: "No plotted frequency passes the −90 dBFS gate in both sounds. Try matching audible content or inspecting another time.",
+      differenceClipped: "The chart shows −60…+60 dB; the frequency probe reports values beyond the plotted limits.",
+      disclaimer: "The overlay shows native equal-sample Hann spectra at their original dBFS levels; A−B instead uses paired equal-duration windows and matched Hz values. No automatic time alignment or resampling of audio. This is not acoustic dB SPL."
     },
     mn: {
       title: "Хоёр авиаг харьцуулах", intro: "A ба B авиаг тусад нь сонгож, долгион, спектр болон сонсголыг харьцуулаарай.",
@@ -124,7 +195,7 @@
       cursorInfo: "Курсор {time} сек · урт {duration} сек · далайцын хуваарь ±{scale}",
       spectrumInfo: "Hann {fft} · алхам {bin} Гц · хамгийн хүчтэй зурвас {peak} Гц ({level} dBFS); нот тодорхойлохгүй",
       spectrumSilent: "Hann {fft} · алхам {bin} Гц · тод зурвас илрээгүй",
-      overlayTitle: "A/B спектрийг давхарлах", overlayIntro: "Сорьцлолтыг өөрчлөхгүйгээр нэг давтамжийн тэнхлэг дээр харьцуулна.",
+      overlayTitle: "A/B спектрийн харьцуулалт", overlayIntro: "Эх спектрүүдийг давхарлах эсвэл ижил хугацааны цонхоор ялгааг нь шинжилнэ. Эх авианы сорьцлолт өөрчлөгдөхгүй.",
       linkCursors: "Шинжлэх хугацааг (сек) холбох", normalizeOverlay: "Харагдах спектр бүрийн оргилыг нормчлох",
       overlayNote: "Hann цонхны сорьцын тоо ижил боловч хугацааны урт өөр байж болно. Оргилын нормчлол нь зөвхөн энэ давхар зурагт нөлөөлнө; эх авиа, тусдаа спектрүүд өөрчлөгдөхгүй.",
       overlayWaiting: "Хоёр авиа сонгож, спектрүүдийг харьцуулаарай.",
@@ -133,7 +204,22 @@
       overlayWindow: "Hann {ms} мс · {bin} Гц/алхам · курсор {time} сек",
       overlayUnavailable: "авиа байхгүй", overlayMissing: " · {hz} Гц-ээс дээш зөвхөн өндөр сорьцлолттой авиа",
       overlayAria: "Ижил давтамж, түвшний тэнхлэгтэй A/B спектр",
-      disclaimer: "Сорьцлох давтамж болон хугацаа өөр байж болно. Хоёр спектр тогтмол −100…0 dBFS хуваарьтай; дууны түвшин, хугацаа, сорьцлолтыг автоматаар тааруулахгүй. Акустик dB SPL хэмжилт биш."
+      plotModes: "Спектрийн харьцуулалтын хэлбэр", overlayMode: "A/B давхарлах", differenceMode: "Ялгаа A−B",
+      differenceTitle: "Ижил хугацааны цонхтой спектрийн ялгаа", differenceIntro: "Эерэг dB нь тухайн давтамжид A-ийн спектрийн чадал B-ээс ихийг заана.",
+      differenceNormalize: "Хэлбэрийг харьцуулах (спектрийн оргилуудыг тааруулах)",
+      differenceProbeLabel: "Шинжлэх давтамж · Гц", differenceAria: "A хасах B спектрийн түвшний тэмдэгтэй ялгаа, децибел",
+      differenceWaiting: "Спектрийн A−B ялгааг олохын тулд хоёр авиа сонгоорой.",
+      differenceInfo: "Хамтын зурвас {low}–{high} Гц · Hann {ms} мс · A: {aSamples} сорьц, {aRate} Гц ({aBins} Гц/FFT алхам) · B: {bSamples} сорьц, {bRate} Гц ({bBins} Гц/FFT алхам)",
+      differenceNote: "Хоёр авианы курсор бүрийн орчимд бараг ижил бодит хугацаатай Hann цонх авна. FFT-ийн тэгээр нөхөлт давтамжийн тэнхлэгийг нягтруулдаг ч ялгах чадварыг нэмэхгүй. Ижил Гц цэгт амплитудын квадратыг шугаман интерполяцлана. Аль нэг спектр −90 dBFS-ээс бага бол хиймэл харьцаа тооцохгүй. Доод Найквистийн давтамж дээр зогсоно. Хугацаа тааруулах, фазын ялгаа, дамжуулалтын функц эсвэл акустик dB SPL биш.",
+      differenceAbsolute: "Эх дохионы түвшин (dBFS)", differenceRelative: "Оргилд харьцуулсан спектрийн хэлбэр (зөвхөн зураг)",
+      differencePadding: "Hann цонх бичлэгийн хязгаараас гарчээ: A-ийн {a}, B-ийн {b} сорьцыг тэгээр нөхөв. Бүрэн цонх үзэхийн тулд курсорыг дотогш шилжүүлээрэй.",
+      differenceProbe: "{hz} Гц · A {a} dBFS · B {b} dBFS · A−B {delta} dB{mode}",
+      differenceProbeRelative: " (оргилд харьцуулсан)", differenceProbeBelow: "{hz} Гц · A {a} dBFS · B {b} dBFS · дор хаяж нэг нь −90 dBFS-ээс бага тул ялгааг нуув.",
+      differenceProbeRange: "Хамтын {low}–{high} Гц доторх давтамж оруулна уу.",
+      differenceNoBand: "Хоёр бичлэгт давхцах давтамжийн зурвас байхгүй.",
+      differenceNoSignal: "−90 dBFS босго давсан хамтын цэг алга. Ижил төстэй авиа эсвэл өөр хугацаа сонгоорой.",
+      differenceClipped: "Графикт −60…+60 dB харуулна; тусгай давтамжийн утга үүнээс гадуур байж болно.",
+      disclaimer: "Давхарласан зурагт эх сорьцлолттой, ижил тооны сорьцтой Hann спектрүүдийг dBFS түвшнээр харуулна. A−B ялгаанд ижил хугацааны цонх, ижил Гц цэгүүд ашиглана. Авианы хугацаа эсвэл сорьцлолтыг автоматаар тааруулахгүй. Акустик dB SPL биш."
     }
   };
 
@@ -148,6 +234,7 @@
       this.active = false; this.initialized = false; this.language = "mn";
       this.fftSize = 4096; this.axis = "log"; this.maxHz = 5000; this.volume = 1;
       this.linkCursors = false; this.normalizeOverlay = false;
+      this.spectralView = "overlay"; this.normalizeDifference = false; this.matchedCache = null;
       this.slots = Object.fromEntries(["A", "B"].map(key => [key, {
         pcm: null, source: null, index: null, channel: 0, cursor: .25, volume: .2,
         classId: examples.CATALOGUE.find(entry => entry.id === DEFAULTS[key]).classId,
@@ -209,12 +296,40 @@
         if (this.linkCursors) {
           const anchor = this.slots.A.pcm ? "A" : this.slots.B.pcm ? "B" : null;
           if (anchor) this.setCursor(anchor, this.slots[anchor].cursor);
-          else this.drawOverlay();
-        } else this.drawOverlay();
+          else this.drawSpectral();
+        } else this.drawSpectral();
       });
       this.$("compareNormalize").addEventListener("change", event => {
         this.normalizeOverlay = Boolean(event.target.checked);
         this.drawOverlay();
+      });
+      this.$("compareShowOverlay").addEventListener("click", () => this.setSpectralView("overlay"));
+      this.$("compareShowDifference").addEventListener("click", () => this.setSpectralView("difference"));
+      this.$("compareDifferenceNormalize").addEventListener("change", event => {
+        this.normalizeDifference = Boolean(event.target.checked);
+        this.drawDifference();
+      });
+      this.$("compareDifferenceHz").addEventListener("input", () => this.drawDifference());
+      this.$("compareDifferenceSpectrum").addEventListener("pointerdown", event => {
+        const model = this.currentDifferenceModel(), rect = event.target.getBoundingClientRect();
+        if (!model || rect.width < 20) return;
+        const fraction = clamp((event.clientX - rect.left - 44) / (rect.width - 58), 0, 1);
+        const hz = model.axis === "log" ? model.low * (model.high / model.low) ** fraction : model.high * fraction;
+        this.$("compareDifferenceHz").value = fmt(hz, 2);
+        this.drawDifference();
+      });
+      this.$("compareDifferenceSpectrum").addEventListener("keydown", event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        const model = this.currentDifferenceModel(); if (!model) return;
+        event.preventDefault();
+        const previous = Number(this.$("compareDifferenceHz").value);
+        const current = Number.isFinite(previous) && previous >= model.low && previous <= model.high ? previous : model.low;
+        const step = event.shiftKey ? 1 / 10 : 1 / 100;
+        const hz = event.key === "Home" ? model.low : event.key === "End" ? model.high :
+          model.axis === "log" ? current * (model.high / model.low) ** (event.key === "ArrowRight" ? step : -step) :
+            current + (event.key === "ArrowRight" ? 1 : -1) * model.high * step;
+        this.$("compareDifferenceHz").value = fmt(clamp(hz, model.low, model.high), 2);
+        this.drawDifference();
       });
       this.$("compareIndividualDetails").addEventListener("toggle", () => {
         if (this.$("compareIndividualDetails").open) {
@@ -288,15 +403,34 @@
         this.$(`compare${key}Spectrum`).setAttribute("aria-label", `${key}: ${this.text("visualTitle")} FFT`);
       }
       this.$("compareOverlaySpectrum").setAttribute("aria-label", this.text("overlayAria"));
+      this.$("compareDifferenceSpectrum").setAttribute("aria-label", this.text("differenceAria"));
       this.$("compareKindModes").setAttribute("aria-label", this.text("kindModes"));
+      this.$("compareSpectralModes").setAttribute("aria-label", this.text("plotModes"));
       this.render();
-      this.drawOverlay();
+      this.drawSpectral();
     }
     render() {
       for (const key of ["A", "B"]) this.renderSlot(key);
       this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
       this.$("compareLinkCursors").checked = this.linkCursors;
       this.$("compareNormalize").checked = this.normalizeOverlay;
+      this.$("compareDifferenceNormalize").checked = this.normalizeDifference;
+      this.syncSpectralView();
+    }
+    syncSpectralView() {
+      const difference = this.spectralView === "difference";
+      this.$("compareOverlayView").hidden = difference;
+      this.$("compareDifferenceView").hidden = !difference;
+      for (const [id, selected] of [["compareShowOverlay", !difference], ["compareShowDifference", difference]]) {
+        const button = this.$(id);
+        button.classList.toggle("selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      }
+    }
+    setSpectralView(view) {
+      this.spectralView = view === "difference" ? "difference" : "overlay";
+      this.syncSpectralView();
+      if (this.spectralView === "difference") this.drawDifference(); else this.drawOverlay();
     }
     renderSlot(key) {
       const s = this.slots[key], entry = examples.CATALOGUE.find(item => item.id === s.source?.exampleId);
@@ -535,11 +669,12 @@
       g.font = "11px system-ui, sans-serif"; g.lineWidth = 1;
       return { g, left: 44, right: width - 14, top: 18, bottom: height - 30, width, height };
     }
-    draw() { for (const key of ["A", "B"]) this.drawSlot(key, false); this.drawOverlay(); }
+    drawSpectral() { if (this.spectralView === "difference") this.drawDifference(); else this.drawOverlay(); }
+    draw() { for (const key of ["A", "B"]) this.drawSlot(key, false); this.drawSpectral(); }
     drawSlot(key, includeOverlay = true) {
       const s = this.slots[key], pcm = s.pcm;
       if (!pcm || !s.index || !this.active || s.busy) {
-        if (includeOverlay) this.drawOverlay();
+        if (includeOverlay) this.drawSpectral();
         return;
       }
       if (!s.spectrum || s.spectrum.fftSize !== this.fftSize) {
@@ -548,7 +683,7 @@
       this.drawWave(key);
       if (this.$("compareIndividualDetails").open) this.drawSpectrum(key);
       this.put(`compare${key}Measure`, this.text("measure", { peak: fmt(s.index.peak, 4), rms: fmt(s.index.rms, 4) }));
-      if (includeOverlay) this.drawOverlay();
+      if (includeOverlay) this.drawSpectral();
     }
     drawWave(key) {
       const s = this.slots[key], pcm = s.pcm, p = this.canvas(`compare${key}Wave`); if (!p) return;
@@ -672,6 +807,97 @@
         if (started) g.stroke();
       }
     }
+
+    currentDifferenceModel() {
+      const a = this.slots.A, b = this.slots.B;
+      if (!a.pcm || !b.pcm || a.busy || b.busy) return null;
+      const cache = this.matchedCache;
+      if (!cache || cache.aPcm !== a.pcm || cache.bPcm !== b.pcm ||
+          cache.aChannel !== a.channel || cache.bChannel !== b.channel ||
+          cache.aCursor !== a.cursor || cache.bCursor !== b.cursor || cache.fftSize !== this.fftSize) {
+        this.matchedCache = { aPcm: a.pcm, bPcm: b.pcm, aChannel: a.channel, bChannel: b.channel,
+          aCursor: a.cursor, bCursor: b.cursor, fftSize: this.fftSize,
+          matched: matchedSpectra(this.slots, this.fftSize) };
+      }
+      return differenceModel(this.matchedCache.matched, {
+        axis: this.axis, maxHz: this.maxHz, normalize: this.normalizeDifference
+      });
+    }
+    drawDifference() {
+      const model = this.currentDifferenceModel();
+      if (!model) {
+        this.put("compareDifferenceInfo", this.text("differenceWaiting"));
+        this.put("compareDifferenceProbe", "");
+        this.put("compareDifferencePadding", "");
+        this.put("compareDifferenceStatus", "");
+        return;
+      }
+      const { low, high, A, B, axis } = model;
+      this.put("compareDifferenceInfo", this.text("differenceInfo", {
+        low: fmt(low, 0), high: fmt(high, 0), ms: fmt(model.seconds * 1000, 2),
+        aSamples: A.windowSamples, bSamples: B.windowSamples,
+        aRate: model.sampleRateA, bRate: model.sampleRateB,
+        aBins: fmt(A.binHz, 2), bBins: fmt(B.binHz, 2)
+      }) + " · " + this.text(model.normalize ? "differenceRelative" : "differenceAbsolute"));
+      this.put("compareDifferencePadding", A.paddedSamples || B.paddedSamples ?
+        this.text("differencePadding", { a: A.paddedSamples, b: B.paddedSamples }) : "");
+      const probe = this.$("compareDifferenceHz");
+      probe.min = String(low); probe.max = String(high);
+      const hz = probe.value.trim() === "" ? NaN : Number(probe.value);
+      const inspected = differenceAt(model, hz);
+      const db = value => value === -Infinity ? "−∞" : fmt(value, 2);
+      this.put("compareDifferenceProbe", !inspected ? this.text("differenceProbeRange", {
+        low: fmt(low, 0), high: fmt(high, 0)
+      }) : inspected.valid ? this.text("differenceProbe", {
+        hz: fmt(hz, 2), a: db(inspected.dbA), b: db(inspected.dbB),
+        delta: fmt(inspected.delta, 2), mode: model.normalize ? this.text("differenceProbeRelative") : ""
+      }) : this.text("differenceProbeBelow", { hz: fmt(hz, 2),
+        a: db(inspected.dbA), b: db(inspected.dbB) }));
+      const p = this.canvas("compareDifferenceSpectrum"); if (!p) return;
+      const { g, left, right, top, bottom, height } = p;
+      const x = frequency => left + (right - left) * (axis === "log" ?
+        Math.log(Math.max(low, frequency) / low) / Math.log(high / low) : frequency / high);
+      const y = value => bottom - (clamp(value, -60, 60) + 60) / 120 * (bottom - top);
+      g.strokeStyle = "#dbe7ef"; g.fillStyle = "#56738d";
+      for (let level = -60; level <= 60; level += 20) {
+        g.beginPath(); g.moveTo(left, y(level)); g.lineTo(right, y(level));
+        g.strokeStyle = level === 0 ? "#8ba9b9" : "#dbe7ef"; g.stroke();
+        g.textAlign = "right"; g.fillText(level > 0 ? `+${level}` : String(level), left - 5, y(level) + 4);
+      }
+      g.fillStyle = "#56738d"; g.textAlign = "left"; g.fillText("A−B · dB", left + 8, top + 13);
+      const ticks = axis === "log" ? [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000]
+        .filter(value => value >= low && value <= high) : [0, high / 4, high / 2, high * .75, high];
+      let last = -Infinity;
+      for (const frequency of [...ticks, high]) {
+        const px = x(frequency);
+        if (px - last < 50 && frequency !== high) continue;
+        g.textAlign = "center"; g.fillText(frequency >= 1000 ? fmt(frequency / 1000, 1) + "k" : fmt(frequency, 0),
+          clamp(px, left + 15, right - 15), height - 7); last = px;
+      }
+      const count = Math.max(2, Math.floor(right - left));
+      let started = false, validCount = 0;
+      g.lineWidth = 1.8; g.strokeStyle = "#7c4bc2"; g.beginPath();
+      for (let i = 0; i <= count; i++) {
+        const fraction = i / count;
+        const frequency = axis === "log" ? low * (high / low) ** fraction : high * fraction;
+        const point = differenceAt(model, frequency);
+        if (!point?.valid) {
+          if (started) g.stroke();
+          g.beginPath(); started = false; continue;
+        }
+        const px = left + (right - left) * fraction, py = y(point.delta);
+        if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py);
+        validCount++;
+      }
+      if (started) g.stroke();
+      if (inspected) {
+        const px = x(hz);
+        g.strokeStyle = "#d17f20"; g.lineWidth = 1.1; g.beginPath();
+        g.moveTo(px, top); g.lineTo(px, bottom); g.stroke();
+      }
+      this.put("compareDifferenceStatus", validCount ? this.text("differenceClipped") : this.text("differenceNoSignal"));
+    }
   }
-  return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, totalBytes, overlayModel });
+  return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, DIFFERENCE_FLOOR_DB,
+    totalBytes, overlayModel, matchedSpectra, differenceModel, differenceAt });
 });
