@@ -60,6 +60,12 @@
         en: "A complete-form 1923 Charleston: instrumental opening, verse and twice-played 32-bar refrain, with original piano, walking bass and lively drums. About 2 minutes 12 seconds.",
         mn: "1923 оны Чарльстон: оршил, бадаг, 32 такттай дахилтыг хоёр удаа тоглоно. Шинэ төгөлдөр хуур, басс, бөмбөрийн найруулгатай; ойролцоогоор 2 минут 12 секунд."
       }) },
+    { id: "elChoclo", category: "popular", en: "El Choclo · Villoldo (complete tango)",
+      mn: "El Choclo · Вильольдо (бүтэн танго)",
+      description: Object.freeze({
+        en: "Villoldo's early tango, with its contrasting minor and major sections. Original tango-style piano, bass and restrained percussion accompany a reed melody; about two minutes.",
+        mn: "Вильольдогийн эртний танго: минор, мажор хэсгүүд ээлжилнэ. Үлээвэр зэмсгийн аялгуунд шинээр бичсэн төгөлдөр хуур, басс, зөөлөн цохилуур дагалдана; ойролцоогоор хоёр минут."
+      }) },
     { id: "chopin7", en: "Chopin · Prelude Op. 28 No. 7 (complete, 16 bars)",
       mn: "Шопен · Прелюд Op. 28 №7 (бүтэн, 16 такт)" },
     { id: "chopin20", en: "Chopin · Prelude Op. 28 No. 20 (complete, 13 bars)",
@@ -293,6 +299,139 @@
         abc: drumPatterns.toABC(patterns), patterns, patternBar: 1,
         patternId: drumPatterns.atBar(patterns, 1).pattern.id, textMode: "pattern", patternDraft: null,
         drumFeel: "light", drumTouch: "expressive" }
+    ];
+  }
+
+  // Villoldo's public-domain El Choclo (1903). The principal motifs and
+  // contrasting A-minor/A-major trio follow the early score; the melody is
+  // transposed and grace notes are omitted for our single-voice ABC subset.
+  // Historical score (1913): https://www.loc.gov/resource/music.musm1508-10019140/
+  // Cross-check: John Chambers, El Choclo ABC (2005), from the public-domain tune.
+  // https://abcnotation.com/tunePage?a=trillian.mit.edu/~jc/music/abc/Finland/program/20100626/20100626Tang/0000
+  // Repeats are written out explicitly. Our four-bar intro, piano, bass,
+  // percussion and eight-bar closing are new, not copied from a recording.
+  const EL_CHOCLO = Object.freeze({
+    tempo: 112, meter: "2/4", unit: "1/16", key: "Am",
+    intro: Object.freeze([
+      "A,2 E2 A2 c2", "E2 ^G2 B2 d2", "A2 c2 e2 f2", "E2 B2 z E E F"
+    ]),
+    introChords: Object.freeze(["Am", "E7", "Am", "E7"]),
+    a: Object.freeze({
+      bars: Object.freeze([
+        "F E E A A c c f", "f2 e2 z e e a", "a e e c c d d c", "c2 B2 z E E F",
+        "F E E ^G G B B f", "f2 e2 z e ^d e", "b ^g g e e =d d c", "B2 A2 z E E F",
+        "F E E A A c c f", "f2 e2 z e e a", "a e e ^c c e e g", "g2 f2 z F F f",
+        "f e e d d c c B", "B2 A A A c B A", "A2 ^G B B d c B", "A2 z3"
+      ]),
+      chords: Object.freeze(["Am", "Am", "Am", "E7", "E7", "E7", "E7", "Am",
+        "Am", "Am", "A7", "Dm", "Dm", "Am", "E7", "Am"])
+    }),
+    b: Object.freeze({
+      bars: Object.freeze([
+        "f f2 f g f e ^d", "f e2 B =d c B A", "c B2 F B A G ^F", "A2 G2 z E ^D E",
+        "d d2 d e d c B", "d2 c2 z c d c", "B A ^G A B c d ^d", "e2 z3"
+      ]),
+      chords: Object.freeze(["G7", "C", "G7", "C", "E7", "Am", "Dm", "E7"])
+    }),
+    c: Object.freeze({
+      // Explicit accidentals retain the historical A-major trio while the
+      // editor uses one K:Am header for all three sections.
+      bars: Object.freeze([
+        "A E z ^c A E A ^c", "d2 B2 z E d B", "^G E z ^G E ^G B d", "^c2 A2 z E ^c B",
+        "^A ^F ^E ^F ^G A B ^c", "e2 d2 z B ^A B", "^c2 B2 z A B A", "A2 ^G2 z E e ^c",
+        "A E z ^c A E A ^c", "d2 B2 z E d B", "^G E z ^G E ^G B d", "^c2 A2 z E ^c B",
+        "^A ^F ^E ^F ^G A B ^c", "e2 d2 z ^F d ^c", "^c B ^A B ^F =A ^G B", "A2 z3"
+      ]),
+      chords: Object.freeze(["A", "E7", "E7", "A", "F#7", "Bm", "B7", "E7",
+        "A", "E7", "E7", "A", "F#7", "Bm", ["B7", "E7"], "A"])
+    }),
+    coda: Object.freeze([
+      "F E E A A c c f", "f2 e2 z e e a", "a e e c c d d c", "c2 B2 z E E F",
+      "F E E ^G G B B f", "f2 e2 z e ^d e", "B2 A2 z ^G B B", "[A^ce]8"
+    ]),
+    codaChords: Object.freeze(["Am", "Am", "Am", "E7", "Am", "E7", "E7", "A"]),
+    harmony: Object.freeze({
+      Am: { chord: "[A,CE]", bass: "A,,", fifth: "E," },
+      E7: { chord: "[E,^G,B,D]", bass: "E,", fifth: "B," },
+      A7: { chord: "[A,^CEG]", bass: "A,,", fifth: "E," },
+      Dm: { chord: "[D,FA]", bass: "D,", fifth: "A," },
+      G7: { chord: "[G,BDF]", bass: "G,", fifth: "D," },
+      C: { chord: "[C,EG]", bass: "C,", fifth: "G," },
+      A: { chord: "[A,^CE]", bass: "A,,", fifth: "E," },
+      "F#7": { chord: "[^F,^A,^CE]", bass: "^F,", fifth: "^C," },
+      Bm: { chord: "[B,D^F]", bass: "B,,", fifth: "^F," },
+      B7: { chord: "[B,^D^FA]", bass: "B,,", fifth: "^F," }
+    })
+  });
+
+  function createElChoclo(language) {
+    const piece = EL_CHOCLO;
+    const melodyBars = [...piece.intro], progression = [...piece.introChords];
+    const sections = [
+      ["a", "E E F"], ["a", "G ^F G"], ["b", "G ^F G"],
+      ["b", "E e ^c"], ["c", "E e ^c"], ["c", "E E F"], ["a", "E E F"]
+    ];
+    for (const [sectionId, nextPickup] of sections) {
+      const section = piece[sectionId];
+      melodyBars.push(...section.bars.slice(0, -1), section.bars.at(-1) + " " + nextPickup);
+      progression.push(...section.chords);
+    }
+    melodyBars.push(...piece.coda);
+    progression.push(...piece.codaChords);
+    if (melodyBars.length !== 108 || progression.length !== 108) {
+      throw new Error("El Choclo arrangement must have 108 synchronized measures");
+    }
+    const names = language === "en" ?
+      ["El Choclo melody", "Tango piano", "Tango bass", "Light percussion"] :
+      ["El Choclo аялгуу", "Танго төгөлдөр хуур", "Танго басс", "Зөөлөн цохилуур"];
+    const pianoBars = progression.map((chordName, index) => {
+      const first = piece.harmony[Array.isArray(chordName) ? chordName[0] : chordName].chord;
+      const second = piece.harmony[Array.isArray(chordName) ? chordName[1] : chordName].chord;
+      if (index === progression.length - 1) return second + "8";
+      return index % 8 === 7 ? first + "2 z2 " + second + "2 z2" :
+        "z2 " + first + "2 z2 " + second + "2";
+    });
+    const bassBars = progression.map((chordName, index) => {
+      const chord = piece.harmony[Array.isArray(chordName) ? chordName[0] : chordName];
+      if (index === progression.length - 1) return chord.bass + "8";
+      if (Array.isArray(chordName)) return chord.bass + "4 " + piece.harmony[chordName[1]].bass + "4";
+      return index % 8 === 7 ? `${chord.bass}3 ${chord.fifth} ${chord.bass}2 ${chord.fifth}2` :
+        index % 4 === 2 ? `${chord.bass}4 ${chord.fifth}4` :
+          `${chord.bass}2 ${chord.fifth}2 ${chord.bass}2 ${chord.fifth}2`;
+    });
+    const drumBars = progression.map((_, index) => {
+      if (index === progression.length - 1) return "[Ce]2 z6";
+      if (index < 4) return "[CG]2 z2 [DE]2 G2";
+      if (index % 8 === 7) return "C2 G D [DE]2 G2";
+      if (index % 4 === 3) return "[CE]3 G [DE]2 G2";
+      return index % 2 ? "C2 G2 [DE]2 G2" : "[CG]2 z2 [DE]2 G2";
+    });
+    const provenance = "Instrumental reduction of Angel Gregorio Villoldo's public-domain " +
+      "El Choclo (1903); principal melodies and A-minor/A-major sections checked against " +
+      "the 1913 score. Ornamentation simplified, repeats expanded. The instrumental " +
+      "introduction, closing and all accompaniment parts are new Sound Lab work. Score: " +
+      "https://www.loc.gov/resource/music.musm1508-10019140/";
+    const melody = barsABC(1, "El Choclo - Villoldo melody (reduction)", piece.meter,
+      piece.unit, piece.tempo, piece.key, melodyBars, provenance);
+    const piano = barsABC(2, "El Choclo - original offbeat tango piano", piece.meter,
+      piece.unit, piece.tempo, piece.key, pianoBars, provenance);
+    const bass = barsABC(3, "El Choclo - original marcato and habanera bass", piece.meter,
+      piece.unit, piece.tempo, piece.key, bassBars, provenance);
+    const drumABC = barsABC(4, "El Choclo - original restrained tango percussion", piece.meter,
+      piece.unit, piece.tempo, "C clef=perc", drumBars, provenance);
+    const patterns = drumPatterns.fromABC(drumABC);
+    return [
+      { id: 1, name: names[0], instrument: "bayan", volume: 58,
+        mute: false, solo: false, abc: melody },
+      { id: 2, name: names[1], instrument: "piano", volume: 35,
+        mute: false, solo: false, abc: piano },
+      { id: 3, name: names[2], instrument: "triangle", volume: 27,
+        mute: false, solo: false, abc: bass },
+      { id: 4, name: names[3], instrument: "drums", volume: 18, mute: false, solo: false,
+        abc: drumPatterns.toABC(patterns), patterns, patternBar: 1,
+        patternId: drumPatterns.atBar(patterns, 1).pattern.id,
+        textMode: "pattern", patternDraft: null,
+        drumFeel: "straight", drumTouch: "expressive" }
     ];
   }
 
@@ -732,6 +871,7 @@
   function create(id, language = "mn") {
     if (Object.hasOwn(DRUM_SOLOS, id)) return createDrumSolo(id, language);
     if (id === "charleston") return createCharleston(language);
+    if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);
     if (id === "bella") return createBella(language);
     if (Object.hasOwn(SONGS, id)) return createSong(id, language);

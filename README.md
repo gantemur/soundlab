@@ -118,10 +118,11 @@ Try **Guitar · Pick and strum** under **Writing exercises**: a four-bar solo st
 ## Folk and historical song presets
 
 **Greensleeves**, **Daisy Bell** and **La Paloma** are available as editable
-Solo melodies and as Ensemble arrangements; **Charleston** is available as a
-complete-form Ensemble arrangement. Greensleeves is in **European folk
-songs**; Daisy Bell, La Paloma and Charleston are in **Historical popular songs**. In Many
-instruments, choose an arrangement and press **Load**, then **Play**.
+Solo melodies and as Ensemble arrangements; **Charleston** and **El Choclo**
+are complete-form Ensemble arrangements. Greensleeves is in **European folk
+songs**; Daisy Bell, La Paloma, Charleston and El Choclo are in
+**Historical popular songs**. In Many instruments, choose an arrangement and
+press **Load**, then **Play**.
 
 | Preset | Ensemble setting |
 | --- | --- |
@@ -129,8 +130,10 @@ instruments, choose an arrangement and press **Load**, then **Play**.
 | Daisy Bell | The complete 32-bar chorus, in G major and 3/4; flute, a bass–chord–chord guitar waltz, bass and quiet percussion (40 seconds) |
 | La Paloma | The complete opening melody section, 20 bars in C major and 2/4; violin, guitar, bass and a quiet habanera rhythm (25 seconds). The later refrain is omitted. |
 | Charleston | James P. Johnson / Cecil Mack, 1923: B-flat, 2/2, 8-bar instrumental opening, 16-bar verse and 32-bar refrain twice (88 bars, 132 seconds at 160 bpm). Clarinet lead, newly arranged syncopated piano, walking bass and editable linked dance drums. The melody is an educational reduction of the original score, not its printed piano arrangement. |
+| El Choclo | Ángel G. Villoldo, 1903: early tango in A minor with a contrasting A-major trio, four-bar introduction and eight-bar closing (108 bars, about 116 seconds at 112 bpm). Bayan-model reed lead, new offbeat piano chords, tango bass and quiet woodblock/snare/drum patterns. The melody has simplified ornaments and expanded repeats; accompaniment is original Sound Lab work, not a historical orchestration or recording. |
 
-The older three melodies are shared by Solo and Ensemble; Charleston is Ensemble-only. Each preset identifies its
+The older three melodies are shared by Solo and Ensemble; Charleston and
+El Choclo are Ensemble-only. Each preset identifies its
 historical edition, chosen section and adaptations in the Solo source note and
 ABC comments. The guitar and bass parts are new educational accompaniments;
 Daisy Bell and La Paloma also have editable, reusable drum patterns. Guitar

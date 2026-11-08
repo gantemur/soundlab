@@ -433,6 +433,21 @@ test("complete Charleston with over 1,024 events exports beyond 90 seconds and s
   assert.ok(f.contexts[0].graph.sources.length > 1024, "all notes and drum hits reach the render graph");
 });
 
+test("complete El Choclo exports every tango section beyond 90 seconds and survives project roundtrip", async () => {
+  const snapshot = arrangement(presets.create("elChoclo", "mn"));
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT, version: projects.VERSION,
+    title: "El Choclo", ...snapshot }));
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  assert.ok(output.duration > 115.7 && output.duration < 122,
+    "render includes all 108 measures and the ending's natural release");
+  assert.ok(output.bytes.length > 115 * 44100 * 2, "full performance is preserved in WAV");
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration,
+    "full-length WAV can be opened in the Analysis workspace");
+  assert.ok(f.contexts[0].graph.sources.length > 1024,
+    "melody, piano, bass and percussion all reach the render graph");
+});
+
 test("ties are single attacks and non-equal tuning reaches the scheduled oscillator frequency", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4- | C2 D2 |]";
   for (const tuning of ["equal", "pythagorean", "just"]) {

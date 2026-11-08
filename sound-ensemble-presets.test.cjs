@@ -59,7 +59,50 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 20);
+  assert.equal(presets.CATALOG.length, 21);
+});
+
+test("El Choclo is a complete contrasting minor/major tango with synchronized original parts", () => {
+  const catalog = presets.CATALOG.find(piece => piece.id === "elChoclo");
+  assert.equal(catalog.category, "popular");
+  assert.match(catalog.description.en, /tango/i);
+  for (const language of ["en", "mn"]) {
+    const tracks = presets.create("elChoclo", language);
+    assert.deepEqual(tracks.map(track => track.instrument), ["bayan", "piano", "triangle", "drums"]);
+    assert.equal(new Set(tracks.map(track => track.id)).size, 4);
+    assert.ok(tracks.slice(0, 3).every(track => track.abc.includes("1913")),
+      "sourced and newly arranged pitched parts retain the edition notice");
+    assert.ok(tracks[3].abc.includes("K:C clef=perc"),
+      "linked drum patterns preserve playable ABC when the pattern editor regenerates it");
+    assert.ok(tracks[0].abc.includes("^c") && tracks[0].abc.includes("^G"),
+      "A-major trio retains explicit sharps while K:Am is shared");
+    const { summary, prepared } = ensemble.parseTracks(tracks, "equal", temperament);
+    assert.equal(summary.totalBeats, 216);
+    assert.equal(summary.tempoQuarter, 112);
+    assert.ok(Math.abs(summary.totalBeats * 60 / summary.tempoQuarter - 115.714) < .001);
+    assert.ok(summary.eventCount > 1024);
+    assert.deepEqual(prepared.map(track => track.score.bars.length), [108, 108, 108, 108]);
+    assert.ok(prepared.every(track => track.score.totalBeats === 216));
+    assert.ok(prepared.every(track => track.score.bars.every(bar => bar.durationBeats === 2)));
+    const leadEvents = prepared[0].score.parts[0].events;
+    const minorPitch = leadEvents.find(event => event.type === "note" && event.bar === 5);
+    const majorPitch = leadEvents.find(event => event.type === "note" && event.bar === 53);
+    assert.ok(minorPitch && majorPitch, "lead melody reaches both contrasting sections");
+    assert.equal(tracks[3].drumFeel, "straight", "tango subdivides straight, not swing");
+    assert.equal(tracks[3].drumTouch, "expressive");
+    assert.equal(tracks[3].textMode, "pattern");
+    assert.ok(tracks[3].patterns.patterns.length < 10, "drum sections use linked reusable patterns");
+    assert.equal(drumPatterns.toABC(tracks[3].patterns), tracks[3].abc);
+    const hits = drums.scheduledEvents(drums.parse(tracks[3].abc), "straight", "expressive");
+    assert.ok(hits.some(hit => hit.drum === "woodblock") && hits.some(hit => hit.drum === "snare"));
+    assert.ok(hits.some(hit => hit.bar > 100), "percussion persists through the ending");
+  }
+  const first = presets.create("elChoclo", "mn");
+  first[0].abc = "edited";
+  first[3].patterns.patterns[0].name = "Private variation";
+  const fresh = presets.create("elChoclo", "mn");
+  assert.notEqual(fresh[0].abc, "edited");
+  assert.notEqual(fresh[3].patterns.patterns[0].name, "Private variation");
 });
 
 test("Charleston is a synchronized complete-form 1923 dance with editable original backing", () => {
