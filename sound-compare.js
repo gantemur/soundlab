@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Tsogtgerel Gantumur
  * SPDX-License-Identifier: MIT
- * C1/C2a: two independent local PCM sources, linked inspection and spectral overlay.
+ * C1/C2/S081: two independent local PCM sources, linked inspection and spectral overlay.
  */
 (function (root, factory) {
   "use strict";
@@ -57,7 +57,9 @@
       playA: "▶ Play A", playB: "▶ Play B", stopA: "Ⅱ Stop A", stopB: "Ⅱ Stop B",
       volume: "Listening volume", channel: "Analysis channel", settings: "Comparison settings",
       fftSize: "FFT window · samples", axis: "Frequency axis", linear: "Linear", log: "Logarithmic",
-      maxHz: "Upper frequency", nyquist: "Full range (Nyquist)", visualTitle: "Waveform & spectrum",
+      maxHz: "Upper frequency", nyquist: "Full range (Nyquist)", visualTitle: "Waveform",
+      individualSpectra: "Show individual spectra", individualSpectrum: "Spectrum",
+      individualHint: "Separate A/B spectra are supplementary; the overlay above is the main comparison.",
       cursor: "Inspection time · s", noSource: "Choose a source", loading: "Preparing sound…",
       ready: "Ready to compare.", stopped: "Stopped.", starting: "Preparing playback…",
       playing: "Playing", noAnalysis: "No Analysis sound is available to copy.",
@@ -99,7 +101,9 @@
       playA: "▶ A тоглуулах", playB: "▶ B тоглуулах", stopA: "Ⅱ A зогсоох", stopB: "Ⅱ B зогсоох",
       volume: "Сонсох дууны хэмжээ", channel: "Шинжлэх суваг", settings: "Харьцуулах тохиргоо",
       fftSize: "FFT цонхны урт · сорьц", axis: "Давтамжийн тэнхлэг", linear: "Шугаман", log: "Логарифмын",
-      maxHz: "Дээд давтамж", nyquist: "Бүх давтамж (Найквист)", visualTitle: "Долгион ба спектр",
+      maxHz: "Дээд давтамж", nyquist: "Бүх давтамж (Найквист)", visualTitle: "Долгионы хэлбэр",
+      individualSpectra: "Тус бүрийн спектрийг харах", individualSpectrum: "Спектр",
+      individualHint: "A ба B-ийн тусдаа спектрүүд нэмэлт лавлагаа болно; гол харьцуулалт дээд талын давхарласан зурагт байна.",
       cursor: "Шинжлэх хугацаа · сек", noSource: "Авиа сонгоно уу", loading: "Авиаг бэлтгэж байна…",
       ready: "Харьцуулахад бэлэн.", stopped: "Зогслоо.", starting: "Тоглуулахаар бэлтгэж байна…",
       playing: "Тоглож байна", noAnalysis: "Шинжлэх хэсэгт хуулах авиа алга.",
@@ -211,6 +215,11 @@
       this.$("compareNormalize").addEventListener("change", event => {
         this.normalizeOverlay = Boolean(event.target.checked);
         this.drawOverlay();
+      });
+      this.$("compareIndividualDetails").addEventListener("toggle", () => {
+        if (this.$("compareIndividualDetails").open) {
+          this.drawSpectrum("A"); this.drawSpectrum("B");
+        }
       });
       for (const id of ["compareFFT", "compareAxis", "compareMaxHz"]) this.$(id).addEventListener("change", () => {
         this.fftSize = Number(this.$("compareFFT").value);
@@ -536,7 +545,8 @@
       if (!s.spectrum || s.spectrum.fftSize !== this.fftSize) {
         s.spectrum = dsp.spectrumAt(pcm.channels[s.channel], pcm.sampleRate, s.cursor, this.fftSize);
       }
-      this.drawWave(key); this.drawSpectrum(key);
+      this.drawWave(key);
+      if (this.$("compareIndividualDetails").open) this.drawSpectrum(key);
       this.put(`compare${key}Measure`, this.text("measure", { peak: fmt(s.index.peak, 4), rms: fmt(s.index.rms, 4) }));
       if (includeOverlay) this.drawOverlay();
     }

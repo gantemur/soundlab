@@ -149,6 +149,10 @@ test("C2a keeps peer Analysis sub-tabs, moves Single source modes to its right c
   const compareResults = html.slice(html.indexOf('class="visuals compare-visuals"'), html.indexOf('id="analysisMicWorkspace"'));
   assert.match(compareResults, /id="compareAVisualTitle"[\s\S]*id="compareBVisualTitle"[\s\S]*class="panel chart-panel compare-overlay-panel"/);
   assert.match(compareResults, /id="compareLinkCursors"[\s\S]*id="compareNormalize"[\s\S]*id="compareOverlaySpectrum"/);
+  const singleCards = compareResults.slice(0, compareResults.indexOf('class="panel chart-panel compare-overlay-panel"'));
+  assert.doesNotMatch(singleCards, /id="compare[AB]Spectrum"/, "individual FFT charts leave the main A/B cards");
+  assert.match(compareResults, /id="compareIndividualDetails"[\s\S]*id="compareASpectrum"[\s\S]*id="compareBSpectrum"/);
+  assert.equal(f.get("compareIndividualDetails").open, undefined, "individual spectra start collapsed");
   assert.deepEqual(f.controller.slots.A.pcm, null);
   assert.deepEqual(f.controller.slots.B.pcm, null);
   assert.equal(f.owner.readyCalls, 0);
@@ -159,6 +163,8 @@ test("C2a keeps peer Analysis sub-tabs, moves Single source modes to its right c
   assert.equal(f.get("compareVolumeValue").textContent, "100%");
   assert.equal(f.get("compareAMic").textContent, "Microphone…");
   assert.equal(f.get("compareOverlayTitle").textContent, "Overlay spectra A/B");
+  assert.match(singleCards, /data-compare-i18n="visualTitle">Долгионы хэлбэр/);
+  assert.equal(f.get("compareIndividualDetails").tagName, "DETAILS");
   assert.equal(f.get("compareLinkCursors").checked, false);
   assert.equal(f.get("compareNormalize").checked, false);
   f.get("compareAMic").click(); f.get("compareBMic").click();
@@ -238,6 +244,8 @@ test("C1 compares modeled guitar A with microphone piano B at different rates an
   assert.equal(f.controller.slots.B.channel, 1);
   assert.equal(f.controller.slots.B.index.peak, 0);
   assert.ok(f.controller.slots.A.index.peak > .35);
+  f.get("compareIndividualDetails").open = true;
+  f.get("compareIndividualDetails").dispatch("toggle");
   assert.match(f.get("compareBSpectrumInfo").textContent, /Hann 4096/);
   assert.ok(f.draws.count > 50, "Both waveforms and spectra should draw");
   assert.equal(f.owner.readyCalls, 0, "analysis does not start audio");

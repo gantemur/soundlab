@@ -699,6 +699,16 @@ h1, h2, p { margin-top: 0; }
 .compare-plot-panel canvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
 .compare-overlay-panel { grid-column: 1 / -1; min-width: 0; }
 .compare-overlay-panel canvas { height: 250px; margin: 10px 0 4px; cursor: default; }
+.compare-individual-details { margin-top: 16px; padding-top: 12px; border-top: 1px solid #dce7f2; }
+.compare-individual-details > summary { cursor: pointer; color: #365f80; font-size: 13px; font-weight: 800;
+  min-height: 35px; }
+.compare-individual-details > .field-help { margin: 3px 0 12px; }
+.compare-individual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.compare-individual-card { min-width: 0; padding: 12px; border: 1px solid #d8e6ef;
+  background: #fbfdff; border-radius: 10px; }
+.compare-individual-card h3 { display: flex; gap: 8px; align-items: center; margin: 0; font-size: 13px; color: #2c5777; }
+.compare-individual-card .compare-letter-b { background: #a6653c; }
+.compare-overlay-panel .compare-individual-card canvas { height: 205px; }
 .compare-overlay-toolbar { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 12px; }
 .compare-option { display: inline-flex; align-items: center; gap: 9px; min-height: 38px; color: #355d7c;
   font-size: 12px; font-weight: 750; cursor: pointer; }
@@ -753,6 +763,13 @@ h1, h2, p { margin-top: 0; }
 .analysis-cursor-row input[type="range"] { grid-column: 1 / -1; min-height: 34px; }
 .analysis-selection-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 10px 0; }
 .analysis-selection-fields button { grid-column: 1 / -1; justify-self: start; }
+.analysis-selection-heading { margin: 13px 0 0; color: #315c7b; font-size: 13px; }
+.analysis-selection-hint { color: #54738c; font-size: 11px; line-height: 1.5; }
+.analysis-spectrum-mode-hint { margin: 6px 0 0; color: #506f86; line-height: 1.5; }
+.analysis-frequency-tools { margin: 11px 0 5px; }
+.analysis-frequency-window { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
+  margin: 10px 0 4px; max-width: 520px; }
+.analysis-frequency-window input { width: 100%; font-variant-numeric: tabular-nums; }
 .analysis-frequency-readout { display: grid; grid-template-columns: auto 100px minmax(0, 1fr); align-items: center; gap: 8px; color: #496c88; font-size: 12px; }
 .analysis-frequency-readout output { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .analysis-measurements { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 0 0; margin: 12px 0 0; border-top: 1px solid #dce7f2; }
@@ -760,6 +777,8 @@ h1, h2, p { margin-top: 0; }
 .analysis-measurements dd { margin: 5px 0 0; color: #295674; font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .analysis-warning { padding: 9px 12px; border-left: 3px solid #d38a26; background: #fff6e5; color: #82521d; font-size: 12px; margin: 12px 0 0; }
 @media (max-width: 630px) {
+  .compare-individual-grid { grid-template-columns: 1fr; }
+  .analysis-frequency-tools button { min-height: 39px; padding: 5px 8px; }
   .analysis-mic-settings { grid-template-columns: 1fr; }
   .analysis-frequency-readout { grid-template-columns: minmax(0, 1fr) 100px; }
   .analysis-frequency-readout output { grid-column: 1 / -1; }

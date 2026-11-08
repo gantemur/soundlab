@@ -231,6 +231,85 @@ test("Analysis is a lazy eighth tab with two compact source buttons and a separa
   assert.equal(c.pcm, old, "re-entering the tab does not regenerate the source");
 });
 
+test("S081 explains A/B selection and separates cursor-only FFT from the selected-power average", async () => {
+  const f = fixture(), c = f.controller;
+  const waveformPart = html.slice(html.indexOf('id="analysisWaveTitle"'), html.indexOf('id="analysisSpectrumTitle"'));
+  const spectrumPart = html.slice(html.indexOf('id="analysisSpectrumTitle"'), html.indexOf('id="analysisSpectroView"'));
+  assert.match(waveformPart, /id="analysisStart"[\s\S]*id="analysisEnd"[\s\S]*selectionEffect/);
+  assert.match(spectrumPart, /analysisSpectrumModeHint[\s\S]*id="analysisSpectrumZoomIn"[\s\S]*id="analysisSpectrumMin"/);
+  await f.load(pcm([Float32Array.from({ length: 32000 }, (_, i) =>
+    i < 16000 ? .5 * Math.sin(2 * Math.PI * 400 * i / 16000) : .2 * Math.sin(2 * Math.PI * 1000 * i / 16000))]));
+  c.setCursor(.5); await f.settle();
+  const local = c.spectrum;
+  assert.match(f.get("analysisSpectrumModeHint").textContent, /улбар шар курсорын/);
+  c.setSelection(1, 2); await f.settle();
+  assert.equal(c.spectrumMode, "local");
+  assert.equal(c.spectrum.magnitudes.length, local.magnitudes.length);
+  assert.equal(c.spectrum.magnitudes[100], local.magnitudes[100], "local FFT is unaffected by A/B");
+  f.get("analysisAverage").click(); await f.settle();
+  assert.match(f.get("analysisSpectrumModeHint").textContent, /A–B/);
+  const average = c.spectrum;
+  c.setSelection(0, 1); await f.settle();
+  assert.notEqual(c.spectrum, average, "average is recomputed when A/B moves");
+  assert.equal(f.owner.readyCalls, 0, "selection and FFT controls do not start audio");
+});
+
+test("S081 spectrum frequency zoom/pan/fit changes display coordinates, not FFT or PCM", async () => {
+  const f = fixture({ width: 365 }), c = f.controller;
+  await f.load(pcm([sine(2, 16000, .5, 440)]));
+  const spectrum = c.spectrum, original = c.pcm.channels[0].slice();
+  assert.equal(c.spectrumBounds().low, 0);
+  assert.equal(c.spectrumBounds().high, 8000);
+  f.get("analysisSpectrumMin").value = "420"; f.get("analysisSpectrumMin").dispatch("change");
+  f.get("analysisSpectrumMax").value = "460"; f.get("analysisSpectrumMax").dispatch("change");
+  assert.deepEqual([c.spectrumBounds().low, c.spectrumBounds().high], [420, 460]);
+  assert.equal(c.frequencyToFraction(440), .5);
+  assert.equal(c.spectrum, spectrum, "zoom never recomputes FFT");
+  assert.equal(f.get("analysisSpectrumFit").disabled, false);
+  c.spectrumPointer({ clientX: 20 + 50 + (365 - 66) * .75 });
+  close(c.frequency, 450, 1e-6);
+  f.get("analysisSpectrumZoomIn").click();
+  assert.ok(c.spectrumBounds().high - c.spectrumBounds().low < 40);
+  const beforePan = c.spectrumBounds();
+  f.get("analysisSpectrumPanLeft").click();
+  assert.ok(c.spectrumBounds().low < beforePan.low);
+  f.get("analysisSpectrumFit").click();
+  assert.deepEqual([c.spectrumBounds().low, c.spectrumBounds().high], [0, 8000]);
+  assert.equal(f.get("analysisSpectrumFit").disabled, true);
+  c.axis = "log"; c.renderControls(); c.drawSpectrum();
+  assert.ok(c.spectrumBounds().low > 0);
+  f.get("analysisSpectrumMin").value = "420"; f.get("analysisSpectrumMin").dispatch("change");
+  f.get("analysisSpectrumMax").value = "460"; f.get("analysisSpectrumMax").dispatch("change");
+  close(c.frequencyToFraction(Math.sqrt(420 * 460)), .5, 1e-10);
+  f.get("analysisSpectrumZoomIn").click();
+  assert.ok(c.spectrumBounds().high - c.spectrumBounds().low < 40,
+    "logarithmic zoom can narrow a musical pitch range below one semitone");
+  assert.equal(c.spectrum, spectrum);
+  assert.deepEqual(Array.from(c.pcm.channels[0]), Array.from(original));
+  assert.equal(f.owner.readyCalls, 0);
+  assert.ok(f.canvasCalls.count > 0, "frequency and waveform canvases still draw at phone width");
+});
+
+test("S081 440 + 444 Hz becomes two real FFT peaks with a longer Hann window, independent of zoom", () => {
+  const sampleRate = 44100, samples = Float32Array.from({ length: sampleRate * 3 }, (_, i) =>
+    .25 * (Math.sin(2 * Math.PI * 440 * i / sampleRate) + Math.sin(2 * Math.PI * 444 * i / sampleRate)));
+  const coarse = dsp.spectrumAt(samples, sampleRate, 1.5, 4096);
+  const fine = dsp.spectrumAt(samples, sampleRate, 1.5, 65536);
+  assert.ok(coarse.binHz > 10);
+  assert.ok(fine.binHz < 1);
+  const prominentPeaks = spectrum => {
+    const detected = [], m = spectrum.magnitudes;
+    for (let k = Math.ceil(420 / spectrum.binHz) + 1; k < Math.floor(460 / spectrum.binHz); k++) {
+      if (m[k] > .1 && m[k] > m[k - 1] && m[k] > m[k + 1]) detected.push(k * spectrum.binHz);
+    }
+    return detected;
+  };
+  assert.equal(prominentPeaks(coarse).length, 1, "coarse FFT merges two tones");
+  const peaks = prominentPeaks(fine);
+  assert.equal(peaks.length, 2);
+  close(peaks[0], 440, .2); close(peaks[1], 444, .2);
+});
+
 test("A2a spectrogram stays linked to waveform time, cursor, selection, channel and frequency without rescanning on pointer moves", async () => {
   const f = fixture({ width: 390 }), c = f.controller;
   await f.activate();

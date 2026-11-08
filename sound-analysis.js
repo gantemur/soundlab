@@ -43,8 +43,15 @@
       zoomIn: "+ Zoom", zoomOut: "− Zoom", fit: "Fit", panLeft: "Pan left", panRight: "Pan right",
       cursor: "Inspection cursor · s", cursorSlider: "Move the inspection cursor through the whole sound",
       selectionStart: "A · Selection start (s)", selectionEnd: "B · Selection end (s)", selectAll: "Select all",
+      selectionHeading: "Analysis interval · A–B",
+      selectionEffect: "A–B controls Play selection, peak/RMS measurements and Selection average. At cursor uses only the orange inspection cursor.",
       keyboardHelp: "←/→ moves the cursor (Shift: larger step). Use the start/end fields for exact selection. Inspection and playback positions are independent.",
       spectrum: "Frequency content", frequencyReadout: "Frequency · Hz",
+      cursorModeHint: "At cursor: the spectrum comes from the orange cursor's FFT window; A–B does not restrict this view.",
+      averageModeHint: "Selection average: FFT window powers are averaged over A–B. Change A–B to analyze a different interval.",
+      frequencyMin: "Start frequency · Hz", frequencyMax: "End frequency · Hz",
+      spectrumZoomLabel: "Spectrum frequency range", spectrumPanLeft: "Pan frequency left", spectrumPanRight: "Pan frequency right",
+      errorFrequency: "Enter a frequency range inside the available axis, with the end greater than the start.",
       spectrumNote: "Amplitude dB is relative to a unit-peak sample, not acoustic dB SPL. The average is a power average, not density per Hz.",
       selectedDuration: "Selected duration", peak: "Peak sample", rms: "RMS level",
       levelNote: "Measurements use the original samples in the selected channel and interval. Listening volume does not change them.",
@@ -107,8 +114,15 @@
       zoomIn: "+ Томруулах", zoomOut: "− Багасгах", fit: "Бүтнээр", panLeft: "Зүүн тийш", panRight: "Баруун тийш",
       cursor: "Шинжлэх курсор · сек", cursorSlider: "Бүтэн дууны дагуу шинжлэх курсор хөдөлгөх",
       selectionStart: "A · Хэсгийн эхлэл (сек)", selectionEnd: "B · Хэсгийн төгсгөл (сек)", selectAll: "Бүгдийг сонгох",
+      selectionHeading: "Шинжлэх хэсэг · A–B",
+      selectionEffect: "A–B хэсэг нь хэсгийг тоглуулах, оргил/RMS хэмжих болон «Хэсгийн дундаж» спектрт үйлчилнэ. «Курсор дээр» спектр зөвхөн улбар шар курсороос хамаарна.",
       keyboardHelp: "←/→ товчоор курсор хөдөлгөнө (Shift: том алхам). Эхлэл/төгсгөлийн тоон талбараар нарийн хэсэг сонгоно. Курсор ба тоглуулах байрлал тусдаа.",
       spectrum: "Давтамжийн бүрэлдэхүүн", frequencyReadout: "Давтамж · Гц",
+      cursorModeHint: "Курсор дээр: спектр нь улбар шар курсорын FFT цонхноос гарна. A–B хэсэг үүнийг хязгаарлахгүй.",
+      averageModeHint: "Хэсгийн дундаж: A–B доторх FFT цонхнуудын чадлыг дундажлана. A–B-г хөдөлгөж өөр хэсгийг шинжилнэ.",
+      frequencyMin: "Эхлэх давтамж · Гц", frequencyMax: "Төгсөх давтамж · Гц",
+      spectrumZoomLabel: "Спектрийн давтамжийн хүрээ", spectrumPanLeft: "Давтамжийг зүүн тийш шилжүүлэх", spectrumPanRight: "Давтамжийг баруун тийш шилжүүлэх",
+      errorFrequency: "Тэнхлэгийн боломжит хүрээнд эхлэх давтамжаас их төгсөх давтамж оруулна уу.",
       spectrumNote: "Амплитудын dB: 1 нэгж оргил сорьцтой харьцуулсан, акустик dB SPL биш. Дундаж нь чадлуудын дундаж; Гц тутмын нягт биш.",
       selectedDuration: "Сонгосон хугацаа", peak: "Оргил сорьц", rms: "RMS түвшин",
       levelNote: "Хэмжилт нь сонгосон суваг, хэсгийн эх сорьцод хамаарна. Сонсох чангыг өөрчлөхөд хэмжилт өөрчлөгдөхгүй.",
@@ -174,6 +188,7 @@
       this.viewStart = 0;
       this.viewSpan = 0;
       this.frequency = 440;
+      this.spectrumWindow = null; // Frequency DISPLAY only. FFT sample count stays independent.
       this.volume = .2;
       this.loadTicket = 0;
       this.analysisTicket = 0;
@@ -285,6 +300,8 @@
       });
       this.on("analysisAxis", "change", event => {
         this.axis = event.target.value === "log" ? "log" : "linear";
+        this.spectrumWindow = null; // A fitted axis is unambiguous across linear/log switches.
+        this.renderSpectrumWindow();
         this.renderMeasurements();
         this.drawSpectrum();
         this.scheduleSpectrogram();
@@ -321,6 +338,16 @@
       this.on("analysisStart", "change", event => this.setSelection(Number(event.target.value), this.end));
       this.on("analysisEnd", "change", event => this.setSelection(this.start, Number(event.target.value)));
       this.on("analysisSelectAll", "click", () => { if (this.pcm) this.setSelection(0, this.pcm.duration); });
+      this.on("analysisSpectrumZoomIn", "click", () => this.zoomSpectrum(.5));
+      this.on("analysisSpectrumZoomOut", "click", () => this.zoomSpectrum(2));
+      this.on("analysisSpectrumFit", "click", () => { this.spectrumWindow = null; this.renderSpectrumWindow(); this.drawSpectrum(); });
+      this.on("analysisSpectrumPanLeft", "click", () => this.panSpectrum(-1));
+      this.on("analysisSpectrumPanRight", "click", () => this.panSpectrum(1));
+      for (const id of ["analysisSpectrumMin", "analysisSpectrumMax"]) {
+        this.on(id, "change", () => {
+          this.setSpectrumWindow(Number(this.$("analysisSpectrumMin").value), Number(this.$("analysisSpectrumMax").value));
+        });
+      }
       this.on("analysisFrequency", "input", event => {
         if (!this.pcm || !Number.isFinite(Number(event.target.value))) return;
         this.frequency = clamp(Number(event.target.value), 0, this.pcm.sampleRate / 2);
@@ -434,6 +461,7 @@
         this.start = 0; this.end = pcm.duration;
         this.viewStart = 0; this.viewSpan = pcm.duration; this.position = 0;
         this.frequency = Math.min(440, pcm.sampleRate / 2);
+        this.spectrumWindow = null;
         this.measure = null; this.spectrum = null;
         this.spectroCache.clear();
         this.sourceBusy = false;
@@ -622,6 +650,67 @@
       this.viewStart = clamp(this.viewStart + direction * this.viewSpan / 2, 0, this.pcm.duration - this.viewSpan);
       this.drawWave(); this.scheduleSpectrogram();
     }
+    spectrumDomain() {
+      if (!this.pcm) return { low: 0, high: 22050 };
+      return { low: this.axis === "log" ? this.pcm.sampleRate / this.fftSize : 0,
+        high: this.pcm.sampleRate / 2 };
+    }
+    spectrumBounds() {
+      const domain = this.spectrumDomain();
+      if (!this.spectrumWindow) return domain;
+      const low = clamp(this.spectrumWindow.low, domain.low, domain.high);
+      const high = clamp(this.spectrumWindow.high, domain.low, domain.high);
+      return high > low ? { low, high } : domain;
+    }
+    spectrumCoordinate(frequency) {
+      return this.axis === "log" ? Math.log(Math.max(Number.MIN_VALUE, frequency)) : frequency;
+    }
+    spectrumFromCoordinate(coordinate) {
+      return this.axis === "log" ? Math.exp(coordinate) : coordinate;
+    }
+    spectrumMinimumWidth() {
+      return this.pcm ? 2 * this.pcm.sampleRate / this.fftSize : 1;
+    }
+    setSpectrumWindow(low, high) {
+      if (!this.pcm) return;
+      const domain = this.spectrumDomain();
+      if (!Number.isFinite(low) || !Number.isFinite(high) || low < domain.low || high > domain.high ||
+          high - low < Math.min(this.spectrumMinimumWidth(), domain.high - domain.low) - 1e-8) {
+        this.status("errorFrequency", true); this.renderSpectrumWindow(); return;
+      }
+      this.spectrumWindow = low <= domain.low && high >= domain.high ? null : { low, high };
+      this.renderSpectrumWindow(); this.drawSpectrum();
+    }
+    zoomSpectrum(factor) {
+      if (!this.pcm) return;
+      const domain = this.spectrumDomain(), view = this.spectrumBounds();
+      const fullStart = this.spectrumCoordinate(domain.low), fullEnd = this.spectrumCoordinate(domain.high);
+      const lo = this.spectrumCoordinate(view.low), hi = this.spectrumCoordinate(view.high);
+      const anchor = this.frequency >= view.low && this.frequency <= view.high ?
+        this.spectrumCoordinate(this.frequency) : (lo + hi) / 2;
+      // On a log axis the minimum span must be measured at the zoom anchor,
+      // not at the first FFT bin: 440 and 444 Hz must remain distinguishable.
+      const anchorHz = this.spectrumFromCoordinate(anchor), minimumHz = this.spectrumMinimumWidth();
+      const minSpan = Math.max(1e-10, this.spectrumCoordinate(Math.min(domain.high, anchorHz + minimumHz / 2)) -
+        this.spectrumCoordinate(Math.max(domain.low, anchorHz - minimumHz / 2)));
+      const span = clamp((hi - lo) * factor, minSpan, fullEnd - fullStart);
+      let start = clamp(anchor - span / 2, fullStart, fullEnd - span);
+      if (!Number.isFinite(start)) start = fullStart;
+      this.spectrumWindow = span >= fullEnd - fullStart - 1e-9 ? null :
+        { low: this.spectrumFromCoordinate(start), high: this.spectrumFromCoordinate(start + span) };
+      this.renderSpectrumWindow(); this.drawSpectrum();
+    }
+    panSpectrum(direction) {
+      if (!this.pcm) return;
+      const domain = this.spectrumDomain(), view = this.spectrumBounds();
+      const fullStart = this.spectrumCoordinate(domain.low), fullEnd = this.spectrumCoordinate(domain.high);
+      const lo = this.spectrumCoordinate(view.low), hi = this.spectrumCoordinate(view.high);
+      const shift = .4 * (hi - lo) * direction;
+      const start = clamp(lo + shift, fullStart, fullEnd - (hi - lo));
+      this.spectrumWindow = { low: this.spectrumFromCoordinate(start),
+        high: this.spectrumFromCoordinate(start + hi - lo) };
+      this.renderSpectrumWindow(); this.drawSpectrum();
+    }
     timeFromPointer(event) {
       const rect = this.$("analysisWaveCanvas").getBoundingClientRect();
       return this.viewStart + clamp((event.clientX - rect.left - 50) / Math.max(1, rect.width - 66), 0, 1) * this.viewSpan;
@@ -784,7 +873,8 @@
         ["analysisPanRight", "panRight"], ["analysisCursorSlider", "cursorSlider"],
         ["analysisWaveCanvas", "waveAria"], ["analysisSpectrumCanvas", "spectrumAria"],
         ["analysisSpectroCanvas", "spectroAria"], ["analysisViewModes", "chooseView"],
-        ["analysisKindModes", "chooseSection"]])
+        ["analysisKindModes", "chooseSection"], ["analysisSpectrumZoomTools", "spectrumZoomLabel"],
+        ["analysisSpectrumPanLeft", "spectrumPanLeft"], ["analysisSpectrumPanRight", "spectrumPanRight"]])
         this.$(id).setAttribute("aria-label", this.text(key));
       if (this.spectrogram) this.put("analysisSpectroStatus", this.text("spectroReady"));
       this.renderSource(); this.renderControls(); this.renderMeasurements(); this.renderPlayback(); this.draw();
@@ -825,7 +915,9 @@
       for (const id of ["analysisClass", "analysisExample", "analysisOpen", "analysisMicOpen"]) this.$(id).disabled = this.sourceBusy;
       for (const id of ["analysisPlay", "analysisPlaySelection", "analysisAtCursor", "analysisAverage",
         "analysisFFT", "analysisSpectroFFT", "analysisSpectroMaxHz", "analysisChannel", "analysisCursor", "analysisCursorSlider", "analysisStart", "analysisEnd",
-        "analysisZoomIn", "analysisZoomOut", "analysisFit", "analysisSelectAll", "analysisFrequency"])
+        "analysisZoomIn", "analysisZoomOut", "analysisFit", "analysisSelectAll", "analysisFrequency",
+        "analysisSpectrumZoomIn", "analysisSpectrumZoomOut", "analysisSpectrumFit", "analysisSpectrumPanLeft",
+        "analysisSpectrumPanRight", "analysisSpectrumMin", "analysisSpectrumMax"])
         this.$(id).disabled = !this.pcm || this.sourceBusy;
       this.$("analysisCancel").hidden = !this.sourceBusy && !this.analysisBusy && !this.spectroBusy;
       const spectroFailed = this.analysisView === "spectrogram" && !this.spectroBusy && !this.spectrogram &&
@@ -847,6 +939,8 @@
         this.$(id).setAttribute("aria-pressed", String(mode === this.spectrumMode));
         this.$(id).classList.toggle("selected", mode === this.spectrumMode);
       }
+      this.put("analysisSpectrumModeHint", this.text(this.spectrumMode === "local" ? "cursorModeHint" : "averageModeHint"));
+      this.renderSpectrumWindow();
       this.$("analysisStatus").classList.toggle("error", this.error);
       this.put("analysisStatus", this.text(this.statusKey) + (this.statusProgress === null ? "" : " " + Math.round(this.statusProgress * 100) + "%"));
       this.put("analysisVolumeValue", Math.round(this.volume * 100) + "%");
@@ -876,6 +970,20 @@
       }
       this.$("analysisFrequency").max = String(fs / 2);
       this.$("analysisFrequency").value = String(Number(this.frequency.toFixed(4)));
+    }
+    renderSpectrumWindow() {
+      const { low, high } = this.spectrumBounds(), domain = this.spectrumDomain();
+      for (const [id, value] of [["analysisSpectrumMin", low], ["analysisSpectrumMax", high]]) {
+        const input = this.$(id);
+        if (input !== this.document.activeElement) input.value = String(Number(value.toFixed(5)));
+        input.min = String(domain.low); input.max = String(domain.high);
+      }
+      this.$("analysisSpectrumFit").disabled = !this.pcm || this.sourceBusy || !this.spectrumWindow;
+      this.$("analysisSpectrumZoomOut").disabled = !this.pcm || this.sourceBusy || !this.spectrumWindow;
+      this.$("analysisSpectrumPanLeft").disabled = !this.pcm || this.sourceBusy || low <= domain.low + 1e-8;
+      this.$("analysisSpectrumPanRight").disabled = !this.pcm || this.sourceBusy || high >= domain.high - 1e-8;
+      this.$("analysisSpectrumZoomIn").disabled = !this.pcm || this.sourceBusy ||
+        high - low <= this.spectrumMinimumWidth() + 1e-8;
     }
     renderMeasurements() {
       const measure = this.measure, pcm = this.pcm, spectrum = this.spectrum;
@@ -1008,17 +1116,17 @@
       this.$("analysisPanRight").disabled = end >= this.pcm.duration - 1e-9 || this.sourceBusy;
     }
     frequencyToFraction(frequency) {
-      const max = this.pcm.sampleRate / 2;
-      if (this.axis !== "log") return frequency / max;
-      const min = this.pcm.sampleRate / this.fftSize;
-      return Math.log(Math.max(min, frequency) / min) / Math.log(max / min);
+      const { low, high } = this.spectrumBounds();
+      return (this.spectrumCoordinate(frequency) - this.spectrumCoordinate(low)) /
+        (this.spectrumCoordinate(high) - this.spectrumCoordinate(low));
     }
     spectrumPointer(event) {
       if (!this.pcm) return;
       const rect = this.$("analysisSpectrumCanvas").getBoundingClientRect();
       const fraction = clamp((event.clientX - rect.left - 50) / Math.max(1, rect.width - 66), 0, 1);
-      const max = this.pcm.sampleRate / 2, min = this.pcm.sampleRate / this.fftSize;
-      this.frequency = this.axis === "log" ? min * Math.pow(max / min, fraction) : max * fraction;
+      const { low, high } = this.spectrumBounds();
+      this.frequency = this.spectrumFromCoordinate(this.spectrumCoordinate(low) +
+        fraction * (this.spectrumCoordinate(high) - this.spectrumCoordinate(low)));
       this.$("analysisFrequency").value = String(Number(this.frequency.toFixed(3)));
       this.renderFrequency(); this.drawSpectrum();
     }
@@ -1037,21 +1145,45 @@
         ctx.fillText(String(value), left - 7, y(value) + 4);
       }
       ctx.textAlign = "left"; ctx.fillText("dB", left, 19);
-      const max = this.pcm.sampleRate / 2, min = this.pcm.sampleRate / this.fftSize;
-      const ticks = this.axis === "linear" ? [0, max / 4, max / 2, max * .75, max] :
-        Array.from({ length: 12 }, (_, i) => 10 ** (Math.floor(Math.log10(min)) + i)).filter(f => f >= min && f <= max);
+      const { low: min, high: max } = this.spectrumBounds();
+      const tickCount = width < 420 ? 3 : 5;
+      const approximateStep = (max - min) / (tickCount - 1);
+      const order = Math.pow(10, Math.floor(Math.log10(approximateStep)));
+      const step = [1, 2, 5, 10].map(factor => factor * order)
+        .find(value => value >= approximateStep - 1e-12) || 10 * order;
+      let ticks = [];
+      if (this.axis === "linear") {
+        const first = Math.ceil((min - 1e-9 * step) / step);
+        for (let i = first; i * step <= max + 1e-9 * step && ticks.length < 20; i++) ticks.push(i * step);
+      } else {
+        const exponentStart = Math.floor(Math.log10(min)), exponentEnd = Math.ceil(Math.log10(max));
+        for (let power = exponentStart; power <= exponentEnd; power++) {
+          for (const factor of [1, 2, 5]) {
+            const f = factor * Math.pow(10, power);
+            if (f >= min && f <= max) ticks.push(f);
+          }
+        }
+        if (ticks.length < 2) ticks = Array.from({ length: tickCount }, (_, i) =>
+          this.spectrumFromCoordinate(this.spectrumCoordinate(min) + i / (tickCount - 1) *
+            (this.spectrumCoordinate(max) - this.spectrumCoordinate(min))));
+      }
+      let lastTickX = -Infinity;
       for (let i = 0; i < ticks.length; i++) {
-        if (width < 420 && this.axis === "linear" && i % 2 === 1) continue;
         const xx = x(ticks[i]);
+        if (xx - lastTickX < 53 && i !== ticks.length - 1) continue;
+        if (i === ticks.length - 1 && xx - lastTickX < 47) continue;
+        lastTickX = xx;
         ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, bottom); ctx.stroke();
         ctx.textAlign = xx > right - 25 ? "right" : xx < left + 25 ? "left" : "center";
-        ctx.fillText(number(ticks[i], 1), xx, bottom + 19);
+        ctx.fillText(number(ticks[i], 2), xx, bottom + 19);
       }
       if (!this.spectrum) return;
       const magnitudes = this.spectrum.magnitudes;
       const columns = Math.max(1, Math.min(2048, Math.ceil(right - left)));
       const peaks = new Float64Array(columns); peaks.fill(-Infinity);
-      for (let k = this.axis === "log" ? 1 : 0; k < magnitudes.length; k++) {
+      const firstBin = Math.max(this.axis === "log" ? 1 : 0, Math.ceil(min / this.spectrum.binHz));
+      const lastBin = Math.min(magnitudes.length - 1, Math.floor(max / this.spectrum.binHz));
+      for (let k = firstBin; k <= lastBin; k++) {
         const column = clamp(Math.floor(this.frequencyToFraction(k * this.spectrum.binHz) * columns), 0, columns - 1);
         peaks[column] = Math.max(peaks[column], db(magnitudes[k]));
       }
@@ -1063,8 +1195,8 @@
         if (!began) { ctx.moveTo(xx, y(peaks[i])); began = true; } else ctx.lineTo(xx, y(peaks[i]));
       }
       ctx.stroke();
-      if (this.axis !== "log" || this.frequency > 0) {
-        const xx = clamp(x(this.frequency), left, right);
+      if (this.frequency >= min && this.frequency <= max) {
+        const xx = x(this.frequency);
         ctx.strokeStyle = "#cf7a22"; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
         ctx.beginPath(); ctx.moveTo(xx, top); ctx.lineTo(xx, bottom); ctx.stroke(); ctx.setLineDash([]);
       }

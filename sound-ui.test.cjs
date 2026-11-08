@@ -104,7 +104,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-export\.js\?v=s059"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
   assert.match(html, /src="sound-lab\.js\?v=s079"/);
-  assert.match(html, /src="sound-compare\.js\?v=s080"/);
+  assert.match(html, /src="sound-compare\.js\?v=s081"/);
   assert.ok(html.indexOf('src="sound-compare.js') < html.indexOf('src="sound-lab.js'));
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
@@ -113,7 +113,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   }
   for (const module of ["analysis-spectrogram", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=' +
-      (module === "analysis" ? "s080" : "s065") + '"'));
+      (module === "analysis" ? "s081" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
   assert.match(html, /src="sound-microphone\.js\?v=s078"/);
@@ -129,7 +129,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s080"/);
+  assert.match(html, /href="sound-lab\.css\?v=s081"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);

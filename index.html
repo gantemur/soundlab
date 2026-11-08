@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s080">
+  <link rel="stylesheet" href="sound-lab.css?v=s081">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -49,9 +49,9 @@
   <script src="sound-analysis-dsp.js?v=s058" defer></script>
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
-  <script src="sound-analysis.js?v=s080" defer></script>
+  <script src="sound-analysis.js?v=s081" defer></script>
   <script src="sound-microphone.js?v=s078" defer></script>
-  <script src="sound-compare.js?v=s080" defer></script>
+  <script src="sound-compare.js?v=s081" defer></script>
   <script src="sound-lab.js?v=s079" defer></script>
 </head>
 <body>
@@ -1783,11 +1783,13 @@
             <input id="analysisCursor" type="number" min="0" step="0.001" value="0.25">
             <input id="analysisCursorSlider" type="range" min="0" max="2" step="0.001" value="0.25">
           </div>
+          <h3 class="analysis-selection-heading" data-analysis-i18n="selectionHeading">Шинжлэх хэсэг · A–B</h3>
           <div class="analysis-selection-fields">
             <label class="analysis-field"><span data-analysis-i18n="selectionStart">A · Хэсгийн эхлэл (сек)</span><input id="analysisStart" type="number" min="0" step="0.001" value="0"></label>
             <label class="analysis-field"><span data-analysis-i18n="selectionEnd">B · Хэсгийн төгсгөл (сек)</span><input id="analysisEnd" type="number" min="0" step="0.001" value="2"></label>
             <button id="analysisSelectAll" type="button" class="analysis-secondary" data-analysis-i18n="selectAll">Бүгдийг сонгох</button>
           </div>
+          <p class="field-help analysis-selection-hint" data-analysis-i18n="selectionEffect">A–B хэсэг нь хэсгийг тоглуулах, оргил/RMS хэмжих болон «Хэсгийн дундаж» спектрт үйлчилнэ. «Курсор дээр» спектр зөвхөн улбар шар курсороос хамаарна.</p>
           <p id="analysisWaveHelp" class="field-help" data-analysis-i18n="keyboardHelp">←/→ товчоор курсор хөдөлгөнө (Shift: том алхам). Эхлэл/төгсгөлийн тоон талбараар нарийн хэсэг сонгоно. Курсор ба тоглуулах байрлал тусдаа.</p>
         </section>
         <section class="panel chart-panel" aria-labelledby="analysisSpectrumTitle">
@@ -1803,6 +1805,18 @@
           </div>
           <div id="analysisSpectrumView">
           <div class="chart-heading"><div><h2 id="analysisSpectrumTitle" data-analysis-i18n="spectrum">Давтамжийн бүрэлдэхүүн</h2><p id="analysisFFTInfo"></p></div></div>
+          <p id="analysisSpectrumModeHint" class="field-help analysis-spectrum-mode-hint"></p>
+          <div class="plot-tools analysis-frequency-tools" role="group" id="analysisSpectrumZoomTools" aria-label="Спектрийн давтамжийн хүрээ">
+            <button id="analysisSpectrumZoomIn" type="button" data-analysis-i18n="zoomIn">+ Томруулах</button>
+            <button id="analysisSpectrumZoomOut" type="button" data-analysis-i18n="zoomOut">− Багасгах</button>
+            <button id="analysisSpectrumFit" type="button" data-analysis-i18n="fit">Бүтнээр</button>
+            <button id="analysisSpectrumPanLeft" type="button" aria-label="Давтамжийг зүүн тийш шилжүүлэх">←</button>
+            <button id="analysisSpectrumPanRight" type="button" aria-label="Давтамжийг баруун тийш шилжүүлэх">→</button>
+          </div>
+          <div class="analysis-frequency-window">
+            <label class="analysis-field"><span data-analysis-i18n="frequencyMin">Эхлэх давтамж · Гц</span><input id="analysisSpectrumMin" type="number" min="0" step="any" value="0"></label>
+            <label class="analysis-field"><span data-analysis-i18n="frequencyMax">Төгсөх давтамж · Гц</span><input id="analysisSpectrumMax" type="number" min="0" step="any" value="22050"></label>
+          </div>
           <canvas id="analysisSpectrumCanvas" width="920" height="280" role="img" aria-describedby="analysisSpectrumReadout analysisSpectrumNote"></canvas>
           <div class="analysis-frequency-readout">
             <label for="analysisFrequency" data-analysis-i18n="frequencyReadout">Давтамж · Гц</label>
@@ -1889,7 +1903,7 @@
       </section>
       <div class="visuals compare-visuals">
         <section class="panel chart-panel compare-plot-panel" aria-labelledby="compareAVisualTitle">
-          <div class="chart-heading"><div><h2 id="compareAVisualTitle"><span class="compare-letter">A</span> <span data-compare-i18n="visualTitle">Долгион ба спектр</span></h2><p id="compareAMeasure"></p></div></div>
+          <div class="chart-heading"><div><h2 id="compareAVisualTitle"><span class="compare-letter">A</span> <span data-compare-i18n="visualTitle">Долгионы хэлбэр</span></h2><p id="compareAMeasure"></p></div></div>
           <div class="compare-listening-toolbar">
             <button type="button" id="compareAPlay" class="analysis-primary" data-compare-i18n="playA">▶ A тоглуулах</button>
             <label class="analysis-field compare-listening-volume"><span>A · <span data-compare-i18n="volume">Сонсох дууны хэмжээ</span> <output id="compareAVolumeValue">20%</output></span><input id="compareAVolume" type="range" min="0" max="100" step="1" value="20"></label>
@@ -1900,11 +1914,9 @@
           <div class="compare-cursor-row"><label for="compareACursor" data-compare-i18n="cursor">Шинжлэх хугацаа · сек</label>
             <input id="compareACursor" type="range" min="0" max="1" step="any" value="0.25"></div>
           <p id="compareACursorInfo" class="chart-foot"></p>
-          <canvas id="compareASpectrum" width="580" height="200" role="img" aria-describedby="compareASpectrumInfo"></canvas>
-          <p id="compareASpectrumInfo" class="chart-foot"></p>
         </section>
         <section class="panel chart-panel compare-plot-panel" aria-labelledby="compareBVisualTitle">
-          <div class="chart-heading"><div><h2 id="compareBVisualTitle"><span class="compare-letter">B</span> <span data-compare-i18n="visualTitle">Долгион ба спектр</span></h2><p id="compareBMeasure"></p></div></div>
+          <div class="chart-heading"><div><h2 id="compareBVisualTitle"><span class="compare-letter">B</span> <span data-compare-i18n="visualTitle">Долгионы хэлбэр</span></h2><p id="compareBMeasure"></p></div></div>
           <div class="compare-listening-toolbar">
             <button type="button" id="compareBPlay" class="analysis-primary" data-compare-i18n="playB">▶ B тоглуулах</button>
             <label class="analysis-field compare-listening-volume"><span>B · <span data-compare-i18n="volume">Сонсох дууны хэмжээ</span> <output id="compareBVolumeValue">20%</output></span><input id="compareBVolume" type="range" min="0" max="100" step="1" value="20"></label>
@@ -1915,8 +1927,6 @@
           <div class="compare-cursor-row"><label for="compareBCursor" data-compare-i18n="cursor">Шинжлэх хугацаа · сек</label>
             <input id="compareBCursor" type="range" min="0" max="1" step="any" value="0.25"></div>
           <p id="compareBCursorInfo" class="chart-foot"></p>
-          <canvas id="compareBSpectrum" width="580" height="200" role="img" aria-describedby="compareBSpectrumInfo"></canvas>
-          <p id="compareBSpectrumInfo" class="chart-foot"></p>
         </section>
         <section class="panel chart-panel compare-overlay-panel" aria-labelledby="compareOverlayTitle">
           <div class="chart-heading"><div><h2 id="compareOverlayTitle" data-compare-i18n="overlayTitle">Хоёр спектрийг давхарлан харах</h2><p data-compare-i18n="overlayIntro">Нэг давтамжийн тэнхлэг дээр A ба B-ийн эх спектрийг давхарлана.</p></div></div>
@@ -1928,6 +1938,22 @@
           <canvas id="compareOverlaySpectrum" width="1080" height="280" role="img" aria-describedby="compareOverlayInfo compareOverlayNote"></canvas>
           <p id="compareOverlayInfo" class="chart-foot" aria-live="off"></p>
           <p id="compareOverlayNote" class="field-help" data-compare-i18n="overlayNote">Тус бүрийн 4096 сорьцтой Hann цонх нь өөр хугацааны урттай байж болно. Нормчлол зөвхөн давхарласан зурагт нөлөөлнө; эх авиа, хоёр үндсэн спектр өөрчлөгдөхгүй.</p>
+          <details class="compare-individual-details" id="compareIndividualDetails">
+            <summary data-compare-i18n="individualSpectra">Тус бүрийн спектрийг харах</summary>
+            <p class="field-help" data-compare-i18n="individualHint">A ба B-ийн тусдаа спектрүүд нэмэлт лавлагаа болно; гол харьцуулалт дээд талын давхарласан зурагт байна.</p>
+            <div class="compare-individual-grid">
+              <div class="compare-individual-card">
+                <h3><span class="compare-letter">A</span> <span data-compare-i18n="individualSpectrum">Спектр</span></h3>
+                <canvas id="compareASpectrum" width="580" height="200" role="img" aria-describedby="compareASpectrumInfo"></canvas>
+                <p id="compareASpectrumInfo" class="chart-foot"></p>
+              </div>
+              <div class="compare-individual-card">
+                <h3><span class="compare-letter compare-letter-b">B</span> <span data-compare-i18n="individualSpectrum">Спектр</span></h3>
+                <canvas id="compareBSpectrum" width="580" height="200" role="img" aria-describedby="compareBSpectrumInfo"></canvas>
+                <p id="compareBSpectrumInfo" class="chart-foot"></p>
+              </div>
+            </div>
+          </details>
         </section>
       </div>
     </div>
