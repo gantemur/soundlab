@@ -192,7 +192,7 @@
   const UI = Object.freeze({
     en: {
       mode: "Compose", phase: "07 · Write a melody", title: "Make a melody",
-      intro: "Write a short ABC score, choose one instrument and hear it follow your notes. No sound plays until you press Play.",
+      intro: "Write an ABC score, choose an instrument and hear it follow your notes. No sound plays until you press Play.",
       example: "Example score", exampleCustom: "Saved / edited score", exampleFirst: "First melody", exampleRests: "Notes and rests",
       exampleWaltz: "Waltz in G", exampleMinor: "Minor tune",
       exampleStrum: "Guitar · Pick and strum (4 bars)",
@@ -228,14 +228,14 @@
       just: "Just · C-centred", tuningHint: "The same written notes can sound different in another tuning. The just preset is centred on C; enharmonic spellings share a key in C1.",
       volume: "Volume", score: "ABC score", load: "Open .abc / .txt file",
       scoreHint: "C D E G = quarter notes when L:1/4. C2 lasts twice as long; z is a rest; [CEG] sounds a three-note chord. Uppercase C is middle C; lowercase c is one octave higher.",
-      limitsHint: "Up to 32 bars, 256 notes/rests and 90 seconds. A short first bar is a pickup; C2-C joins equal pitches into one held note, including across a barline.",
+      limitsHint: "Complete pieces are welcome: there is no bar, event or 90-second score cutoff. A short first bar is a pickup; C2-C ties equal pitches, including across a barline.",
       source: "Score source", suggested: "Suggested instrument",
       play: "▶ Play", pause: "Ⅱ Pause", resume: "▶ Resume", stop: "■ Stop",
       staff: "Score and playhead", staffHint: "The highlighted note follows the modeled sound. A rest is shown as a small block; the note names remain visible below the staff.",
       ready: "Ready. Edit the melody or press Play.", starting: "Starting the instrument…",
       playing: "Playing the score.", paused: "Paused. Press Resume to continue.",
       stopped: "Stopped. Play starts from the beginning.", done: "The melody finished.",
-      loadError: "Choose a small text score (.abc or .txt, up to 8 KB).",
+      loadError: "Choose a text score (.abc or .txt, up to 1 MiB).",
       noAudio: "Sound could not start. Check the browser's audio settings.",
       parseError: "Score error", rangeError: "Note outside the selected instrument's range",
       bar: "Bar", rest: "Rest", notes: "notes", bars: "bars", seconds: "sec",
@@ -244,7 +244,7 @@
     },
     mn: {
       mode: "Ая зохиох", phase: "07 · Ая зохиох", title: "Аялгуу зохиох",
-      intro: "ABC тэмдэглэгээгээр богино ая бичиж, нэг хөгжмөөр тоглуулаарай. «Тоглуулах»-ыг дарахаас өмнө дуу гарахгүй.",
+      intro: "ABC тэмдэглэгээгээр ая бичиж, нэг хөгжмөөр тоглуулаарай. «Тоглуулах»-ыг дарахаас өмнө дуу гарахгүй.",
       example: "Жишээ ая", exampleCustom: "Хадгалсан / зассан нот", exampleFirst: "Энгийн аялгуу", exampleRests: "Нот ба завсарлага",
       exampleWaltz: "Соль мажор вальс", exampleMinor: "Минор аялгуу",
       exampleStrum: "Гитар · Цохих/татах (4 такт)",
@@ -281,14 +281,14 @@
       just: "Цэвэр · До төвтэй", tuningHint: "Ижил нотыг өөр хөгөөр тоглуулахад өндөр нь бага зэрэг өөрчлөгдөнө. Цэвэр хувилбар нь До төвтэй; C1-д диез ба бемол ижил товчлуурт хамаарна.",
       volume: "Дууны хэмжээ", score: "ABC нотын бичиг", load: ".abc / .txt файл нээх",
       scoreHint: "L:1/4 үед C D E G нь дөрөвт нотууд; C2 нь хоёр дахин урт, z нь завсарлага, [CEG] нь зэрэг эгшиглэх гурван нот. Том C нь До4, жижиг c нь До5.",
-      limitsHint: "32 такт, 256 нот/завсарлага, 90 секунд хүртэл. Эхний такт дутуу байж болно; C2-C нь ижил өндөртэй нотуудыг залгуулна. Тактын зураасыг давуулан залгуулж болно.",
+      limitsHint: "Бүтэн зохиол бичиж болно: такт, нотны тоо болон 90 секундын хязгаар байхгүй. Эхний такт дутуу байж болно; C2-C нь ижил өндөртэй нотуудыг тактын зураас давуулан холбоно.",
       source: "Нотын эх сурвалж", suggested: "Санал болгох зэмсэг",
       play: "▶ Тоглуулах", pause: "Ⅱ Түр зогсоох", resume: "▶ Үргэлжлүүлэх", stop: "■ Зогсоох",
       staff: "Нотын мөр ба тоглуулах тэмдэг", staffHint: "Тоглож буй нот тодорно. Завсарлагыг жижиг дөрвөлжнөөр, нотын нэрийг доор нь харуулна.",
       ready: "Бэлэн. Аяыг өөрчлөх эсвэл тоглуулаарай.", starting: "Зэмсгийг бэлдэж байна…",
       playing: "Аялгуу тоглож байна.", paused: "Түр зогслоо. Үргэлжлүүлж болно.",
       stopped: "Зогслоо. Дахин тоглуулахад эхнээсээ эхэлнэ.", done: "Аялгуу дууслаа.",
-      loadError: "8 КБ-аас бага хэмжээтэй .abc эсвэл .txt файл сонгоно уу.",
+      loadError: "1 МиБ-аас бага хэмжээтэй .abc эсвэл .txt файл сонгоно уу.",
       noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу.",
       parseError: "Нотын бичгийн алдаа", rangeError: "Нотын өндөр сонгосон зэмсгийн хүрээнээс хэтэрлээ",
       bar: "Такт", rest: "Завсарлага", notes: "нот", bars: "такт", seconds: "сек",
@@ -312,10 +312,7 @@
     else if (/^L:/.test(msg)) translated = "L:1/4 эсвэл L:1/8 гэх мэт нотын уртыг бичээрэй";
     else if (/^M:/.test(msg)) translated = "M:4/4 эсвэл M:3/4 гэх мэт хэмжээг бичээрэй";
     else if (/^K:/.test(msg)) translated = "K:C, K:G, K:Am зэрэг одоогоор дэмжигдсэн хөг сонгоно уу";
-    else if (/^The score must contain/.test(msg)) translated = "Ая 1–256 нот/завсарлагаас бүрдэж, 90 секундээс хэтрэхгүй байх ёстой";
-    else if (/32 bars|Maximum 32/.test(msg)) translated = "Ая 32 тактаас хэтрэхгүй байх ёстой";
-    else if (/Maximum 256 notes/.test(msg)) translated = "Хамгийн ихдээ 256 нот/завсарлага байж болно";
-    else if (/Maximum 256 quarter/.test(msg)) translated = "Ая 256 дөрөвт цохилтоос хэтрэхгүй байх ёстой";
+    else if (/1 MiB editor safety budget/.test(msg)) translated = "ABC бичвэр 1 МиБ-аас хэтэрсэн байна";
     else if (/tie|Tie|Ties/.test(msg)) translated = "Холбоосоор зөвхөн ижил өндөртэй залгаа нотуудыг холбоно. Завсарлага эсвэл төгсгөлийн хоосон холбоос байж болохгүй";
     else translated = msg;
     return label + ": " + prefix + translated;
@@ -520,14 +517,14 @@
     async loadFile(file) {
       if (!file) return;
       this.player.stop();
-      if (!/\.(abc|txt)$/i.test(file.name) || file.size > 8192 || file.size === 0) {
+      if (!/\.(abc|txt)$/i.test(file.name) || file.size > abc.MAX_SOURCE_CHARACTERS || file.size === 0) {
         this.$("composeStatus").textContent = this.t("loadError");
         this.$("composeStatus").classList.toggle("error", true);
         return;
       }
       try {
         const content = await file.text();
-        if (content.length > 8192) throw new RangeError("Oversized score");
+        if (content.length > abc.MAX_SOURCE_CHARACTERS) throw new RangeError("Oversized score");
         this.$("composeText").value = content;
         this.parseScore();
       } catch (_) {
@@ -645,12 +642,22 @@
     highlight(beat) {
       if (!this.score) return;
       const events = this.score.parts[0].events;
-      let index = events.findIndex(event => event.startBeat <= beat + 1e-6 &&
-        beat < event.startBeat + event.durationBeats - 1e-6);
+      // A long composition may contain thousands of notes. The playhead is
+      // updated every audio tick; search logarithmically and touch only the
+      // previous/current note nodes instead of walking the entire staff.
+      let low = 0, high = events.length;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (events[middle].startBeat <= beat + 1e-6) low = middle + 1;
+        else high = middle;
+      }
+      let index = low - 1;
+      if (index >= 0 && beat >= events[index].startBeat + events[index].durationBeats - 1e-6) index = -1;
       if (beat >= this.score.totalBeats - 1e-6) index = -1;
       if (index === this.lastHighlighted) return;
+      this.noteGroups[this.lastHighlighted]?.node.classList.toggle("active", false);
       this.lastHighlighted = index;
-      this.noteGroups.forEach(({ node }, i) => node.classList.toggle("active", i === index));
+      this.noteGroups[index]?.node.classList.toggle("active", true);
       const event = events[index];
       this.$("composeNow").textContent = event ?
         this.t("bar") + " " + (event.bar - (this.score.bars[0].pickup ? 1 : 0)) + " · " +

@@ -48,7 +48,7 @@
   }
   const FLAM_GAP_SECONDS = .032;
   const ROLL_STROKES = Object.freeze([.68, .82, .74, 1]);
-  const MAX_HITS = 512;
+  const MAX_SOURCE_CHARACTERS = 1024 * 1024;
   class DrumABCError extends Error {
     constructor(message, line = null, column = null) {
       super(message); this.name = "DrumABCError"; this.line = line; this.column = column;
@@ -92,7 +92,9 @@
     return Math.min(1, +(velocity * weight * fourBarCycle).toFixed(5));
   }
   function parse(source) {
-    if (typeof source !== "string" || source.length > 8192) throw new DrumABCError("Drum ABC must fit in 8,192 characters");
+    if (typeof source !== "string" || source.length > MAX_SOURCE_CHARACTERS) {
+      throw new DrumABCError("Drum ABC exceeds the 1 MiB editor safety budget");
+    }
     const lines = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n");
     const headers = {}, bodyLines = [], mapped = new Set();
     let keyFound = false, musicStarted = false, channel = false;
@@ -131,12 +133,12 @@
       meter, unitBeats, tempoQuarter, bars: [], totalBeats: 0,
       parts: [{ id: "drums", instrument: "drums", events: [] }] };
     const events = result.parts[0].events;
-    let beat = 0, barStart = 0, bar = 1, closed = false, hitsCount = 0;
+    let beat = 0, barStart = 0, bar = 1, closed = false;
     let tripletRemaining = 0;
     const finishBar = (isLast, line) => {
       if (tripletRemaining) throw new DrumABCError("Finish all three triplet notes before the bar line", line);
       const length = beat - barStart;
-      if (bar > scoreModel.MAX_BARS || length < 1e-8 || length > meter.quarterBeats + 1e-7 ||
+      if (length < 1e-8 || length > meter.quarterBeats + 1e-7 ||
           (bar !== 1 && !isLast && Math.abs(length - meter.quarterBeats) > 1e-7)) {
         throw new DrumABCError("Bar " + bar + " must contain " + meter.quarterBeats + " quarter beats (except a pickup/final bar)", line);
       }
@@ -206,10 +208,6 @@
         if (durationBeats > 32) throw new DrumABCError("Drum step exceeds 32 quarter beats", line, at + 1);
         events.push({ type: hits.length ? "drum-step" : "rest", startBeat: beat, durationBeats, bar, hits });
         beat += durationBeats;
-        hitsCount += hits.length;
-        if (hitsCount > MAX_HITS || events.length > 512 || beat > scoreModel.MAX_BEATS + 1e-7) {
-          throw new DrumABCError("Drum score limit: 512 hits/steps or 256 quarter beats", line, at + 1);
-        }
       }
     }
     if (tripletRemaining) throw new DrumABCError("Unfinished (3 triplet: write three notes or rests");
@@ -224,13 +222,13 @@
         score.parts.length !== 1 || !Array.isArray(score.parts[0].events) ||
         !Number.isFinite(score.tempoQuarter) || score.tempoQuarter < 30 || score.tempoQuarter > 320 ||
         !score.meter || !Number.isFinite(score.meter.quarterBeats) || !Array.isArray(score.bars) ||
-        score.bars.length < 1 || score.bars.length > 32 || !Number.isFinite(score.totalBeats) ||
-        score.totalBeats <= 0 || score.totalBeats > 256 || score.totalBeats * 60 / score.tempoQuarter > 90) {
-      throw new DrumABCError("Invalid percussion score or 90-second/32-bar limit exceeded");
+        score.bars.length < 1 || !Number.isFinite(score.totalBeats) ||
+        score.totalBeats <= 0 || !Number.isFinite(score.totalBeats * 60 / score.tempoQuarter)) {
+      throw new DrumABCError("Invalid percussion score or playback duration");
     }
     const events = score.parts[0].events;
-    let beat = 0, hits = 0;
-    if (!events.length || events.length > 512) throw new DrumABCError("Drum score must contain 1–512 steps");
+    let beat = 0;
+    if (!events.length) throw new DrumABCError("Drum score needs at least one step");
     for (const event of events) {
       if (!event || !["drum-step", "rest"].includes(event.type) ||
           Math.abs(event.startBeat - beat) > 1e-7 || !Number.isFinite(event.durationBeats) ||
@@ -244,11 +242,11 @@
             (hit.hand !== undefined && !["R", "L"].includes(hit.hand))) {
           throw new DrumABCError("Unknown or duplicate drum/strength/technique");
         }
-        used.add(hit.drum); hits++;
+        used.add(hit.drum);
       }
       beat += event.durationBeats;
     }
-    if (hits > MAX_HITS || Math.abs(beat - score.totalBeats) > 1e-7) throw new DrumABCError("Percussion score exceeds hit or timing limits");
+    if (Math.abs(beat - score.totalBeats) > 1e-7) throw new DrumABCError("Percussion score timing mismatch");
     return score;
   }
   function swungBeat(beat, barStart, ratio) {
@@ -297,11 +295,23 @@
     // The bounded list is derived after swing/flam timing, so seeking and WAV
     // use identical transitions without modifying the underlying ABC score.
     const hats = sounding.filter(hit => Object.hasOwn(HAT_PEDAL_POSITIONS, hit.drum));
-    for (const hit of hats) if (hit.drum !== "hat") {
+    // Look forward only over the finite physical lifetime of a cymbal. At
+    // 12 seconds this exceeds every synthesized hat tail by a wide margin;
+    // work therefore scales with local hat density, not total song length.
+    const maxPedalBeat = 12 * score.tempoQuarter / 60;
+    for (let index = 0; index < hats.length; index++) {
+      const hit = hats[index];
+      if (hit.drum === "hat") continue;
       let openness = HAT_PEDAL_POSITIONS[hit.drum];
       const changes = [];
-      for (const next of hats) {
-        if (next === hit || next.startBeat < hit.startBeat - 1e-8) continue;
+      let firstSameTime = index;
+      while (firstSameTime > 0 && hats[firstSameTime - 1].startBeat >= hit.startBeat - 1e-8) {
+        firstSameTime--;
+      }
+      for (let nextIndex = firstSameTime; nextIndex < hats.length; nextIndex++) {
+        const next = hats[nextIndex];
+        if (next === hit) continue;
+        if (next.startBeat > hit.startBeat + maxPedalBeat) break;
         const nextOpenness = HAT_PEDAL_POSITIONS[next.drum];
         if (nextOpenness === openness) continue;
         changes.push({ beat: next.startBeat, openness: nextOpenness });
@@ -362,12 +372,17 @@
     // Preserve the source's notated rhythmic durations wherever the grid did
     // not add an intervening onset. Only the edited beat is split when needed.
     const original = score.parts?.[0]?.events || [];
+    const boundariesByBar = new Map();
+    if (score.bars) for (const event of original) {
+      const sourceBar = score.bars[event.bar - 1];
+      if (!sourceBar) continue;
+      if (!boundariesByBar.has(event.bar)) boundariesByBar.set(event.bar, []);
+      boundariesByBar.get(event.bar).push(Math.round((event.startBeat - sourceBar.startBeat) * 4));
+    }
     const lines = bars.map((bar, i) => {
       const sourceBar = score.bars?.[i];
       const boundaries = new Set([0, bar.cells.length]);
-      if (sourceBar) for (const event of original) {
-        if (event.bar === sourceBar.number) boundaries.add(Math.round((event.startBeat - sourceBar.startBeat) * 4));
-      }
+      if (sourceBar) for (const step of boundariesByBar.get(sourceBar.number) || []) boundaries.add(step);
       bar.cells.forEach((cell, step) => { if (Object.keys(cell).length) boundaries.add(step); });
       const indices = [...boundaries].sort((a, b) => a - b);
       const notation = indices.slice(0, -1).map((start, j) => {
@@ -409,7 +424,7 @@
       return Math.abs(steps - Math.round(steps)) <= 1e-7 ? Math.round(steps) : NaN;
     };
     const totalSteps = gridSteps(totalBeats);
-    if (!Number.isInteger(totalSteps) || totalSteps <= 0 || totalSteps > 1024) throw new DrumABCError("Cannot make a drum groove for this length");
+    if (!Number.isSafeInteger(totalSteps) || totalSteps <= 0) throw new DrumABCError("Cannot make a drum groove for this length");
     const stepsPerBar = gridSteps(meter.quarterBeats);
     if (!Number.isInteger(stepsPerBar) || stepsPerBar <= 0) throw new DrumABCError("Automatic drum groove needs sixteenth-note-aligned meters");
     if (!barDurations) {
@@ -419,7 +434,7 @@
       barDurations = Array.from({ length: totalSteps / stepsPerBar }, () => meter.quarterBeats);
     }
     const barSteps = Array.isArray(barDurations) ? barDurations.map(gridSteps) : [];
-    if (!barSteps.length || barSteps.length > 32 ||
+    if (!barSteps.length ||
         barSteps.reduce((sum, steps) => sum + steps, 0) !== totalSteps ||
         barSteps.some(steps => !Number.isInteger(steps) || steps <= 0 || steps > stepsPerBar)) {
       throw new DrumABCError("Invalid bar durations for generated percussion");
@@ -441,6 +456,6 @@
   return Object.freeze({ DRUMS, VELOCITIES, ARTICULATIONS, HANDS, FEELS, TOUCHES,
     HAT_PEDAL_POSITIONS, hatPedalRelease,
     FLAM_GAP_SECONDS, ROLL_STROKES,
-    MAX_HITS, DrumABCError, parse, validate,
+    MAX_SOURCE_CHARACTERS, DrumABCError, parse, validate,
     scheduledEvents, gridOf, fromGrid, toggleGridHit, groove });
 });

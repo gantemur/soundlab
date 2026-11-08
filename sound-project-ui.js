@@ -33,7 +33,7 @@
       versionError: "This project uses an unsupported file version. Your current work is unchanged.",
       invalidError: "The project file is incomplete or damaged. Your current work is unchanged.",
       readError: "The file could not be read. Your current work is unchanged.",
-      saveError: "The project file could not be prepared. Each ABC score or pattern draft must be at most 8,192 characters; check the project name and settings too. Your work is unchanged.",
+      saveError: "The project file could not be prepared. Each ABC score or pattern draft has a 1 MiB text safety budget; check the project name and settings too. Your work is unchanged.",
       saveSizeError: "This project exceeds the {max} MiB file limit. Reduce the project before saving; your work is unchanged.",
       restoreError: "The project could not be opened. Please try again."
     },
@@ -58,7 +58,7 @@
       versionError: "Төслийн файлын энэ хувилбарыг одоогоор дэмжихгүй. Одоогийн ажил өөрчлөгдөөгүй.",
       invalidError: "Төслийн файл дутуу эсвэл гэмтсэн байна. Одоогийн ажил өөрчлөгдөөгүй.",
       readError: "Файлыг уншиж чадсангүй. Одоогийн ажил өөрчлөгдөөгүй.",
-      saveError: "Төслийн файлыг бэлдэж чадсангүй. ABC нот эсвэл загварын ноорог тус бүр 8192-оос ихгүй тэмдэгттэй байх ёстой; төслийн нэр, тохиргоог мөн шалгана уу. Одоогийн ажил өөрчлөгдөөгүй.",
+      saveError: "Төслийн файлыг бэлдэж чадсангүй. ABC нот болон загварын ноорог тус бүр 1 МиБ хүртэл бичвэртэй байж болно; төслийн нэр, тохиргоог мөн шалгана уу. Одоогийн ажил өөрчлөгдөөгүй.",
       saveSizeError: "Төсөл {max} МиБ файлын хязгаараас хэтэрлээ. Хадгалахын өмнө хэмжээг нь багасгана уу; одоогийн ажил өөрчлөгдөөгүй.",
       restoreError: "Төслийг нээж чадсангүй. Дахин оролдоно уу."
     }

@@ -89,19 +89,19 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-scales\.js\?v=s031"/);
   assert.match(html, /src="sound-limit5\.js\?v=s036"/);
   assert.match(html, /src="sound-temperaments\.js\?v=s036"/);
-  assert.match(html, /src="sound-score\.js\?v=s051"/);
-  assert.match(html, /src="sound-abc\.js\?v=s051"/);
+  assert.match(html, /src="sound-score\.js\?v=s087"/);
+  assert.match(html, /src="sound-abc\.js\?v=s087"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
-  assert.match(html, /src="sound-drum-abc\.js\?v=s074"/);
-  assert.match(html, /src="sound-drum-patterns\.js\?v=s072"/);
-  assert.match(html, /src="sound-score-player\.js\?v=s074"/);
-  assert.match(html, /src="sound-compose\.js\?v=s066"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=s074"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=s074"/);
-  assert.match(html, /src="sound-project\.js\?v=s072"/);
-  assert.match(html, /src="sound-project-ui\.js\?v=s057"/);
-  assert.match(html, /src="sound-wav\.js\?v=s056"/);
-  assert.match(html, /src="sound-export\.js\?v=s059"/);
+  assert.match(html, /src="sound-drum-abc\.js\?v=s087"/);
+  assert.match(html, /src="sound-drum-patterns\.js\?v=s087"/);
+  assert.match(html, /src="sound-score-player\.js\?v=s087"/);
+  assert.match(html, /src="sound-compose\.js\?v=s087"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=s087"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=s087"/);
+  assert.match(html, /src="sound-project\.js\?v=s087"/);
+  assert.match(html, /src="sound-project-ui\.js\?v=s087"/);
+  assert.match(html, /src="sound-wav\.js\?v=s087"/);
+  assert.match(html, /src="sound-export\.js\?v=s087"/);
   assert.match(html, /src="sound-export-ui\.js\?v=s064"/);
   assert.match(html, /src="sound-lab\.js\?v=s079"/);
   assert.match(html, /src="sound-compare\.js\?v=s085"/);
@@ -109,12 +109,12 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-analysis-examples\.js\?v=s065"/);
   for (const module of ["wave-reader", "analysis-dsp"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=' +
-      (module === "analysis-dsp" ? "s082" : "s058") + '"'));
+      (module === "analysis-dsp" ? "s082" : "s087") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
   for (const module of ["analysis-spectrogram", "analysis"]) {
     assert.match(html, new RegExp('src="sound-' + module + '\\.js\\?v=' +
-      (module === "analysis" ? "s081" : "s065") + '"'));
+      (module === "analysis" ? "s087" : "s065") + '"'));
     assert.ok(html.indexOf('src="sound-' + module + '.js') < html.indexOf('src="sound-lab.js'));
   }
   assert.match(html, /src="sound-microphone\.js\?v=s078"/);

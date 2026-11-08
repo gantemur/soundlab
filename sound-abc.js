@@ -18,6 +18,8 @@
   const SHARPS = "FCGDAEB";
   const FLATS = "BEADGCF";
   const HEADERS = Object.freeze(["X", "T", "M", "L", "Q", "K"]);
+  // A file-size protection for the browser, not a musical bar or duration limit.
+  const MAX_SOURCE_CHARACTERS = 1024 * 1024;
 
   class ABCError extends Error {
     constructor(message, line = null, column = null) {
@@ -92,8 +94,8 @@
   }
 
   function parse(source) {
-    if (typeof source !== "string" || source.length > 8192) {
-      throw new ABCError("The ABC text must be no longer than 8,192 characters");
+    if (typeof source !== "string" || source.length > MAX_SOURCE_CHARACTERS) {
+      throw new ABCError("The ABC text exceeds the 1 MiB editor safety budget");
     }
     const headers = {}, bodyLines = [];
     let musicStarted = false, keyFound = false;
@@ -133,7 +135,6 @@
     let carried = {}, pendingTie = null, lastToken = null;
     const finishBar = (isLast, line) => {
       const length = startBeat - barStart;
-      if (bar > scoreModel.MAX_BARS) throw new ABCError("Maximum 32 bars", line);
       if (length < 1e-8) throw new ABCError("Empty bar " + bar, line);
       if (length > meter.quarterBeats + 1e-7 ||
           (bar !== 1 && !isLast && Math.abs(length - meter.quarterBeats) > 1e-7)) {
@@ -210,9 +211,7 @@
             pitches, abc: body.slice(startIndex, i) };
           events.push(event);
           lastToken = event;
-          if (events.length > scoreModel.MAX_EVENTS) throw new ABCError("Maximum 256 notes/rests", line);
           startBeat += durationBeats;
-          if (startBeat > scoreModel.MAX_BEATS + 1e-7) throw new ABCError("Maximum 256 quarter beats", line);
           continue;
         }
         const startIndex = i;
@@ -265,9 +264,7 @@
         }
         events.push(event);
         lastToken = event;
-        if (events.length > scoreModel.MAX_EVENTS) throw new ABCError("Maximum 256 notes/rests", line);
         startBeat += durationBeats;
-        if (startBeat > scoreModel.MAX_BEATS + 1e-7) throw new ABCError("Maximum 256 quarter beats", line);
       }
     }
     if (pendingTie) throw new ABCError("A tie must continue to another note", pendingTie.line, pendingTie.column);
@@ -279,5 +276,5 @@
     return score;
   }
 
-  return Object.freeze({ ABCError, parse, parseKey });
+  return Object.freeze({ MAX_SOURCE_CHARACTERS, ABCError, parse, parseKey });
 });

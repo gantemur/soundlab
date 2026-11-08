@@ -17,11 +17,12 @@
   "use strict";
 
   const SAMPLE_RATE = 44100;
-  const MAX_SECONDS = 93;
   // A cap on retained mono PCM sample buffers, including shared held noise.
-  // Native oscillators/filters, PeriodicWaves and rendering output are separate
-  // allocations; the event and duration limits bound their count and size.
+  // Native oscillators/filters and PeriodicWaves are separate allocations.
   const MAX_BUFFER_BYTES = 128 * 1024 * 1024;
+  // Limit peak offline rendering memory by actual output bytes, not an arbitrary
+  // piece duration. This permits many minutes of music on mobile browsers.
+  const MAX_RENDER_PCM_BYTES = 256 * 1024 * 1024;
   const PEAK_LIMIT = .98;
   const END_PAD_SECONDS = .02;
   const yieldTask = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -52,10 +53,10 @@
       throw new Error("Offline export must not open a live audio context");
     } };
     const Player = project.mode === "solo" ? playerModel.Player : playerModel.EnsemblePlayer;
-    // Every event can need at most one buffer. Keeping that many cache slots
-    // prevents regeneration of evicted buffers still held by future sources.
+    // A fixed-size cache bounds simultaneous retained instrument timbres;
+    // it does not limit the number of score events.
     const synth = new Player({ ...models, contextOwner: owner,
-      bufferCacheLimit: playerModel.MAX_ENSEMBLE_EVENTS, maxBufferBytes: MAX_BUFFER_BYTES,
+      bufferCacheLimit: playerModel.MAX_BUFFER_CACHE, maxBufferBytes: MAX_BUFFER_BYTES,
       strictBufferFrames: true });
     if (project.mode === "solo") {
       synth.configure({ ...content, score: abc.parse(content.abc) });
@@ -65,10 +66,9 @@
       // Validate every part, even a muted one. Export never hides bad drafts.
       synth.configure({ tracks, tuning: content.tuning });
     }
-    if (synth.playEvents.length > playerModel.MAX_ENSEMBLE_EVENTS) limit("Audio export supports at most 1,024 events");
     const spb = scoreModel.secondsPerBeat(synth.score);
     let end = synth.score.totalBeats * spb;
-    if (!Number.isFinite(end) || end <= 0 || end > scoreModel.MAX_SECONDS) limit("The score must fit within 90 seconds");
+    if (!Number.isFinite(end) || end <= 0) limit("The score has an invalid playback length");
     const schedule = [], specs = new Map();
     let bufferBytes = 0, sharedBytes = 0;
     for (const event of synth.playEvents) {
@@ -89,8 +89,8 @@
       schedule.push({ event, at, endsAt });
     }
     const frames = Math.ceil((end + END_PAD_SECONDS) * SAMPLE_RATE);
-    if (!Number.isSafeInteger(frames) || frames <= 0 || frames > MAX_SECONDS * SAMPLE_RATE) {
-      limit("The score and its instrument release tails must fit within 93 seconds");
+    if (!Number.isSafeInteger(frames) || frames <= 0 || frames * 4 > MAX_RENDER_PCM_BYTES) {
+      limit("This recording exceeds the 256 MiB offline PCM memory budget on this device; export a shorter selection or use a larger-memory renderer");
     }
     // Reserve the one shared excitation-noise buffer before transient models
     // allocate their caches. Both allocation paths fit the same memory cap.
@@ -170,7 +170,8 @@
       // Preserve the chosen mix. Only reduce an overloaded mix as one whole;
       // quiet arrangements are never normalized upward and parts are not remixed.
       const gain = peak > PEAK_LIMIT ? PEAK_LIMIT / peak : 1;
-      const bytes = wav.encodeWav([samples], SAMPLE_RATE, { maxSeconds: MAX_SECONDS, gain });
+      const bytes = wav.encodeWav([samples], SAMPLE_RATE,
+        { maxSeconds: Math.ceil(plan.frames / SAMPLE_RATE), gain });
       return { bytes, duration: plan.frames / SAMPLE_RATE, sampleRate: SAMPLE_RATE, peak, gain };
     } catch (error) {
       if (error instanceof ExportError) throw error;
@@ -178,5 +179,6 @@
     } finally { dispose(plan); }
   }
 
-  return Object.freeze({ SAMPLE_RATE, MAX_SECONDS, MAX_BUFFER_BYTES, PEAK_LIMIT, ExportError, render });
+  return Object.freeze({ SAMPLE_RATE, MAX_BUFFER_BYTES, MAX_RENDER_PCM_BYTES,
+    PEAK_LIMIT, ExportError, render });
 });

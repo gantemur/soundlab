@@ -392,7 +392,7 @@ test("solo field domains, lengths, booleans and finite numbers are strict", () =
   const mutations = [
     value => { value.title = "x".repeat(121); },
     value => { value.mode = "single"; },
-    value => { value.content.abc = "x".repeat(8193); },
+    value => { value.content.abc = "x".repeat(1024 * 1024 + 1); },
     value => { value.content.abc = null; },
     value => { value.content.instrument = "drums"; },
     value => { value.content.tuning = "unknown"; },
@@ -425,7 +425,7 @@ test("ensemble IDs, settings, track counts and references are strict", () => {
     value => { value.content.tracks[0].solo = "false"; },
     value => { value.content.tracks[0].name = "x".repeat(41); },
     value => { value.content.editor.gridBar = 0; },
-    value => { value.content.editor.gridBar = 33; },
+    value => { value.content.editor.gridBar = Number.MAX_SAFE_INTEGER; },
     value => { value.content.editor.gridStep = "16"; },
     value => { value.content.editor.gridStrength = "soft"; },
     value => { value.content.tuning = "unknown"; }
@@ -506,7 +506,7 @@ test("pattern drafts cannot point to another pattern or hide outside the pattern
     track => { track.patternDraft.id = 999; },
     track => { track.textMode = "full"; },
     track => { track.patterns = null; },
-    track => { track.patternDraft.text = "x".repeat(8193); },
+    track => { track.patternDraft.text = "x".repeat(1024 * 1024 + 1); },
     track => { track.patternDraft.error = "x".repeat(513); },
     track => { track.patternDraft.error = { message: "bad" }; }
   ]) {
@@ -515,7 +515,7 @@ test("pattern drafts cannot point to another pattern or hide outside the pattern
   }
 });
 
-test("the file cap accommodates four full libraries of 64 large unused pattern definitions", () => {
+test("the file cap accommodates four large libraries and more than 64 pattern definitions", () => {
   const bars = Array.from({ length: 4 }, () => ({ cells: Array.from({ length: 96 }, (_, i) =>
     i < 32 ? { kick: .55, snare: 1 } : { kick: .8 }) }));
   const source = {
@@ -538,10 +538,11 @@ test("the file cap accommodates four full libraries of 64 large unused pattern d
   assert.equal(result.content.tracks[3].patterns.patterns.length, 64);
   assert.equal(result.content.tracks[3].patterns.patterns[63].bars[3].cells.length, 96);
   assert.deepEqual(result.content.tracks[3].patterns.patterns[63].bars[3].cells[0], { kick: .55, snare: 1 });
-  source.patterns.push({ id: 65, name: "too many", bars: copy(bars) });
+  source.patterns.push({ id: 65, name: "More patterns", bars: copy(bars) });
   source.nextId = 66;
   tracks[0].patterns = source;
-  rejected(arrangement(tracks));
+  const sixtyFive = codec.decode(codec.encode(arrangement(tracks)));
+  assert.equal(sixtyFive.content.tracks[0].patterns.patterns.length, 65);
 });
 
 test("file limits count UTF-8 bytes before JSON parsing, including non-ASCII padding", () => {

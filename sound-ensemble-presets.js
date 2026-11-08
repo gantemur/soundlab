@@ -54,6 +54,12 @@
       mn: "Daisy Bell · Дейкр (32 такттай дахилт)" },
     { id: "paloma", category: "popular", en: "La Paloma · Iradier (opening melody)",
       mn: "La Paloma · Ирадиер (эхний аялгуу)" },
+    { id: "charleston", category: "popular", en: "Charleston · Johnson (complete dance)",
+      mn: "Charleston · Жонсон (бүтэн бүжгийн аялгуу)",
+      description: Object.freeze({
+        en: "A complete-form 1923 Charleston: instrumental opening, verse and twice-played 32-bar refrain, with original piano, walking bass and lively drums. About 2 minutes 12 seconds.",
+        mn: "1923 оны Чарльстон: оршил, бадаг, 32 такттай дахилтыг хоёр удаа тоглоно. Шинэ төгөлдөр хуур, басс, бөмбөрийн найруулгатай; ойролцоогоор 2 минут 12 секунд."
+      }) },
     { id: "chopin7", en: "Chopin · Prelude Op. 28 No. 7 (complete, 16 bars)",
       mn: "Шопен · Прелюд Op. 28 №7 (бүтэн, 16 такт)" },
     { id: "chopin20", en: "Chopin · Prelude Op. 28 No. 20 (complete, 13 bars)",
@@ -182,6 +188,113 @@
       "C,4 G,4", "A,4 E,4", "F,4 C4", "G,4 C,4"
     ])
   });
+
+  // Complete-form instrumental reduction based directly on the 1923 sheet
+  // music (including its refrain and repeat).  Ornamentation and the vocal
+  // verse are simplified for Sound Lab's one-voice ABC parser.  The opening,
+  // piano comping, walking bass, and percussion are our own arrangements.
+  // Source: https://s9.imslp.org/files/imglnks/usimg/9/90/IMSLP880807-PMLP1385673-mack-johnson_charleston.pdf
+  const CHARLESTON = Object.freeze({
+    tempo: 160, meter: "2/2", unit: "1/8", key: "Bb",
+    intro: Object.freeze([
+      "z2 G2 B2 d2", "z G B d2 B2 G", "z2 B2 A2 G2", "z G B d B G F2",
+      "G2 z G2 B3", "B A G F G A B2", "c2 B2 A2 G2", "^F2 A2 c2 d2"
+    ]),
+    verse: Object.freeze([
+      "G G2 G G2 F2", "d c d d2 G2 G", "c3 d c3 d", "G6 z2",
+      "G G2 G G2 F2", "d d2 d2 G3", "z A G ^F F G A B", "A4 A z c2",
+      "c2 A2 A2 c2", "d A2 d d4", "c2 c2 A3 B", "B2 G2 B2 A2",
+      "c2 c2 A2 d2", "c2 c2 d2 A2", "c2 B2 A2 G2", "A B2 c3 z2"
+    ]),
+    refrain: Object.freeze([
+      "G2 z G G4", "^G2 z ^G ^G4", "B2 z B2 ^G B2", "d2 z B B4",
+      "G2 z d d4", "G2 z d d4", "G2 z B B4", "A c A G G A G _G",
+      "A2 z A A4", "^A2 z ^A ^A4", "G2 z G G ^G G2", "d2 z d d4",
+      "z A A A A G F2", "z G G G G A ^F2", "z A A A A G ^F2", "z A A A A G =F2",
+      "A2 z A A4", "^A2 z ^A ^A4", "G2 z G G ^F G2", "d2 z G G z G G",
+      "G2 z d2 ^c d2", "G2 z d d4", "G2 z B B2 B2", "A A A G G2 F2",
+      "d2 z d d4", "z c2 c2 B c2", "d2 z d d4", "z B c B c4",
+      "G2 z G G4", "z F G A A G F2", "B8", "B2 z2 z4"
+    ]),
+    introChords: Object.freeze(["Bb", "Bb", "F7", "F7", "Eb", "F7", "Bb", "D7"]),
+    verseChords: Object.freeze(["Gm", "Gm6", "Cm", "D7", "Gm", "Gm7", "Gm6", "Gm6",
+      "A7", "D", "F7", "Bb", "D7", "Gm", "C7", "F7"]),
+    refrainChords: Object.freeze(["Bb", "D7", "G7", "F7", "C7", "F7", "Gm7", "Gdim",
+      "Bb", "D7", "G7", "C9", "F", "A7", "D7", "F7", "Bb", "D7", "G7", "G7",
+      "C7", "F7", "Gm7", "F7", "Gm", "Bb", "Eb", "C7", "Gm7", "F7", "Bb7", "Bb"]),
+    harmony: Object.freeze({
+      Bb: { chord: "[B,DF]", bass: "B,", fifth: "F," },
+      Bb7: { chord: "[B,DF_A]", bass: "B,", fifth: "F," },
+      D7: { chord: "[D,^FAc]", bass: "D,", fifth: "A," },
+      G7: { chord: "[G,=BDF]", bass: "G,", fifth: "D," },
+      F7: { chord: "[F,AC_E]", bass: "F,", fifth: "C" },
+      C7: { chord: "[C,EGB]", bass: "C,", fifth: "G," },
+      Gm7: { chord: "[G,BDF]", bass: "G,", fifth: "D," },
+      Gm: { chord: "[G,BD]", bass: "G,", fifth: "D," },
+      Gm6: { chord: "[G,B=E]", bass: "G,", fifth: "D," },
+      Gdim: { chord: "[G,B_D_E]", bass: "G,", fifth: "D," },
+      C9: { chord: "[C,EGBd]", bass: "C,", fifth: "G," },
+      F: { chord: "[F,AC]", bass: "F,", fifth: "C" },
+      A7: { chord: "[A,^CEG]", bass: "A,", fifth: "E," },
+      D: { chord: "[D,^FA]", bass: "D,", fifth: "A," },
+      Cm: { chord: "[C,_EG]", bass: "C,", fifth: "G," },
+      Eb: { chord: "[_E,GB]", bass: "E,", fifth: "B," }
+    })
+  });
+
+  function createCharleston(language) {
+    const piece = CHARLESTON;
+    const melodyBars = [...piece.intro, ...piece.verse, ...piece.refrain,
+      ...piece.refrain.slice(0, -1), "d2 z2 B4"];
+    const progression = [...piece.introChords, ...piece.verseChords,
+      ...piece.refrainChords, ...piece.refrainChords];
+    if (melodyBars.length !== 88 || progression.length !== 88) {
+      throw new Error("Charleston arrangement must contain 88 synchronized measures");
+    }
+    const pianoBars = progression.map((name, index) => {
+      const chord = piece.harmony[name].chord;
+      return index === progression.length - 1 ? chord + "8" :
+        "z " + chord + "2 z " + chord + " z " + chord + "2";
+    });
+    const bassBars = progression.map((name, index) => {
+      const { bass, fifth } = piece.harmony[name];
+      return index === progression.length - 1 ? bass + "8" :
+        index % 4 === 3 ? `${bass}2 ${fifth}2 ${bass} ${fifth} ${bass}2` :
+          `${bass}2 ${fifth}2 ${bass}2 ${fifth}2`;
+    });
+    const drumBars = progression.map((name, index) => {
+      if (index === progression.length - 1) return "[Ce]2 z6";
+      if (index < 8) return index % 4 === 3 ? "[CE] E [DE] E [CE] E [DF] E" :
+        "[CE] E [DE] E [CE] E [DE] E";
+      if (index % 8 === 7) return "[CE] E [DE] E [CE] A [Dc] [De]";
+      if (index % 4 === 3) return "[CE] E [DE] E [CE] E [DF] E";
+      return "[CE] E [DE] E [CE] E [DE] E";
+    });
+    const provenance = "Melody reduction from Cecil Mack and James P. Johnson, Charleston " +
+      "(1923 public-domain score); the instrumental introduction, piano comping, bass and drums " +
+      "are new Sound Lab parts. Verse and 32-bar refrain (twice) with a final cadence. Source: " +
+      "https://s9.imslp.org/files/imglnks/usimg/9/90/IMSLP880807-PMLP1385673-mack-johnson_charleston.pdf";
+    const melody = barsABC(1, "Charleston - melodic reduction (1923)", piece.meter,
+      piece.unit, piece.tempo, piece.key, melodyBars, provenance);
+    const piano = barsABC(2, "Charleston - original syncopated piano accompaniment",
+      piece.meter, piece.unit, piece.tempo, piece.key, pianoBars, provenance);
+    const bass = barsABC(3, "Charleston - original walking bass", piece.meter,
+      piece.unit, piece.tempo, piece.key, bassBars, provenance);
+    const percussion = barsABC(4, "Charleston - original drum kit", piece.meter,
+      piece.unit, piece.tempo, "C clef=perc", drumBars, provenance);
+    const patterns = drumPatterns.fromABC(percussion);
+    const names = language === "en" ? ["Charleston melody", "Syncopated piano", "Walking bass", "Dance drums"] :
+      ["Чарльстоны аялгуу", "Төгөлдөр хуурын хэмнэл", "Алхах басс", "Бүжгийн бөмбөр"];
+    return [
+      { id: 1, name: names[0], instrument: "clarinet", volume: 58, mute: false, solo: false, abc: melody },
+      { id: 2, name: names[1], instrument: "piano", volume: 38, mute: false, solo: false, abc: piano },
+      { id: 3, name: names[2], instrument: "triangle", volume: 30, mute: false, solo: false, abc: bass },
+      { id: 4, name: names[3], instrument: "drums", volume: 28, mute: false, solo: false,
+        abc: drumPatterns.toABC(patterns), patterns, patternBar: 1,
+        patternId: drumPatterns.atBar(patterns, 1).pattern.id, textMode: "pattern", patternDraft: null,
+        drumFeel: "light", drumTouch: "expressive" }
+    ];
+  }
 
   const CHOPIN_SOURCE = Object.freeze({
     chopin7: "https://github.com/MutopiaProject/MutopiaProject/blob/master/ftp/ChopinFF/O28/Chop-28-7/Chop-28-7-lys/chopin_prelude_op28_no7.ly",
@@ -618,6 +731,7 @@
 
   function create(id, language = "mn") {
     if (Object.hasOwn(DRUM_SOLOS, id)) return createDrumSolo(id, language);
+    if (id === "charleston") return createCharleston(language);
     if (id === "guitarStrum") return createGuitarStrum(language);
     if (id === "bella") return createBella(language);
     if (Object.hasOwn(SONGS, id)) return createSong(id, language);

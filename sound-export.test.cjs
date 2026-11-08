@@ -5,6 +5,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const exporter = require("./sound-export.js");
+const waveReader = require("./sound-wave-reader.js");
 const players = require("./sound-score-player.js");
 const abc = require("./sound-abc.js");
 const drumABC = require("./sound-drum-abc.js");
@@ -73,7 +74,7 @@ function fixture(options = {}) {
       contexts.push(this);
       assert.equal(arguments.length, 3);
       assert.equal(channels, 1); assert.equal(sampleRate, 44100);
-      assert.ok(Number.isSafeInteger(length) && length > 0 && length <= 93 * sampleRate);
+      assert.ok(Number.isSafeInteger(length) && length > 0 && length * 4 <= exporter.MAX_RENDER_PCM_BYTES);
       if (options.constructorError) throw new Error(options.constructorError);
       if (options.missingRenderer) this.startRendering = undefined;
     }
@@ -405,20 +406,31 @@ test("the current raw snapshot is cloned before the first asynchronous yield", a
   }
 });
 
-test("invalid ABC, muted invalid parts, unfinished empty pattern drafts and playback limits fail before a context exists", async () => {
+test("invalid ABC, muted invalid parts and unfinished empty pattern drafts fail before a context exists", async () => {
   const drumText = percussion(), linked = patterns.fromABC(drumText);
   const draft = track(1, "drums", drumText, { patterns: linked, patternBar: 1,
     patternId: linked.sequence[0].id, textMode: "pattern",
     patternDraft: { id: linked.sequence[0].id, text: "", error: "draft" } });
-  const tooLong = "M:6/4\nL:1/4\nQ:1/4=120\nK:C\n" + Array(32).fill("C6").join(" | ") + " |]";
-  const dense = "M:4/4\nL:1/8\nQ:1/4=320\nK:C\n" + Array(32).fill(Array(8).fill("[CEG]").join(" ")).join(" | ") + " |]";
-  for (const snapshot of [solo({ abc: "" }), solo({ abc: "unfinished" }), solo({ abc: tooLong }),
-    arrangement([track(1), track(2, "piano", "bad draft", { mute: true })]), arrangement([draft]),
-    arrangement([track(1, "piano", dense), track(2, "piano", dense)])]) {
+  for (const snapshot of [solo({ abc: "" }), solo({ abc: "unfinished" }),
+    arrangement([track(1), track(2, "piano", "bad draft", { mute: true })]), arrangement([draft])]) {
     const f = fixture();
     await assert.rejects(exporter.render(snapshot, f.deps), error => error instanceof exporter.ExportError && error.code === "invalid");
     assert.equal(f.contexts.length, 0); assert.equal(f.modelCalls.length, 0);
   }
+});
+
+test("complete Charleston with over 1,024 events exports beyond 90 seconds and survives project roundtrip", async () => {
+  const tracks = presets.create("charleston", "mn");
+  const snapshot = arrangement(tracks);
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT, version: projects.VERSION,
+    title: "Charleston", ...snapshot }));
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  assert.ok(output.duration > 132 && output.duration < 140, "natural tails extend the complete 132-second form");
+  assert.ok(output.bytes.length > 132 * 44100 * 2, "WAV contains all 88 bars plus the release tail");
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration,
+    "a full-length exported WAV can be loaded back into Analysis");
+  assert.ok(f.contexts[0].graph.sources.length > 1024, "all notes and drum hits reach the render graph");
 });
 
 test("ties are single attacks and non-equal tuning reaches the scheduled oscillator frequency", async () => {

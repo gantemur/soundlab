@@ -892,7 +892,7 @@ test("six-note strums on dense short notes remain bounded and finish within half
   const body = Array.from({ length: 128 }, () => "[CEGceg]/64").join(" ");
   const part = abc.parse("M:4/4\nL:1/4\nQ:1/4=320\nK:C\n" + body + " |]");
   const notes = playerModel.scheduledEvents(part, 0, { mode: "alternate", spacingMs: 60 });
-  assert.equal(notes.length, 768, "A strum adds no extra voices to the bounded score");
+  assert.equal(notes.length, 768, "A strum adds no extra voices beyond the written chord tones");
   for (let i = 0; i < 128; i++) {
     const written = part.parts[0].events[i], chord = notes.slice(i * 6, i * 6 + 6);
     assert.equal(chord[0].startBeat, written.startBeat);
@@ -906,7 +906,8 @@ test("six-note strums on dense short notes remain bounded and finish within half
   assert.ok(notes.every((note, index) => index === 0 || note.startBeat >= notes[index - 1].startBeat));
   const tracks = [1, 2].map(id => ({ id, score: part, instrument: "guitar", volume: 30,
     guitar: { mode: "down", spacingMs: 60 } }));
-  assert.throws(() => playerModel.validateEnsemble(tracks), /1024/, "Ensemble voice-count limit still applies");
+  assert.doesNotThrow(() => playerModel.validateEnsemble(tracks),
+    "Complete scores may contain more than 1,024 scheduled voices");
 });
 
 test("long guitar sweeps schedule on the audio clock with the original pluck gain and voice count", async t => {

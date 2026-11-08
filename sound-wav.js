@@ -1,6 +1,6 @@
 /* SPDX-FileCopyrightText: 2026 Tsogtgerel Gantumur
  * SPDX-License-Identifier: MIT
- * Bounded mono PCM16 WAV packing, shared by recording and offline export.
+ * Mono PCM16 WAV packing, shared by bounded live recording and full-score export.
  */
 (function (root, factory) {
   "use strict";
@@ -12,6 +12,9 @@
 
   const MAX_SECONDS = 93;
   const MAX_BLOCKS = 65536;
+  // WAV's classic RIFF chunks use 32-bit byte counts. Beyond this, RF64 or
+  // streaming export is required; it is an actual file-format limit.
+  const MAX_DATA_BYTES = 0xffffffff - 36;
   const typedArrayPrototype = Object.getPrototypeOf(Float32Array.prototype);
   const typedArrayName = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag).get;
   const typedArrayLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "length").get;
@@ -37,7 +40,7 @@
     const maxSeconds = options.maxSeconds === undefined ? MAX_SECONDS : options.maxSeconds;
     const gain = options.gain === undefined ? 1 : options.gain;
     const nonFinite = options.nonFinite === undefined ? "reject" : options.nonFinite;
-    if (!Number.isFinite(maxSeconds) || maxSeconds <= 0 || maxSeconds > MAX_SECONDS ||
+    if (!Number.isFinite(maxSeconds) || maxSeconds <= 0 ||
         !Number.isFinite(gain) || gain < 0 || gain > 1 || !["reject", "silence"].includes(nonFinite)) {
       throw new RangeError("Invalid WAV duration, attenuation or sample policy");
     }
@@ -46,7 +49,9 @@
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i], length = lengthOf(block);
       frames += length;
-      if (frames > maxFrames) throw new RangeError("Audio exceeds maximum WAV length");
+      if (!Number.isSafeInteger(frames) || frames > maxFrames || frames * 2 > MAX_DATA_BYTES) {
+        throw new RangeError("Audio exceeds maximum requested WAV length or RIFF format capacity");
+      }
       checked.push({ block, length });
     }
     // Fail visibly on invalid rendered audio, before allocating the output.

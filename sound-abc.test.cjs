@@ -295,22 +295,14 @@ test("the score model rejects broken, orphaned and nonboolean tie metadata", () 
   }
 });
 
-test("larger scores stay bounded by bars, notated events, beats and 90 seconds", () => {
+test("complete scores can exceed former bar, event, beat and 90-second cutoffs", () => {
   const fullBars = count => Array(count).fill("C4").join(" | ") + " |]";
-  const thirtyTwo = abc.parse(piece(fullBars(32)));
-  assert.equal(thirtyTwo.bars.length, 32);
-  assert.equal(thirtyTwo.totalBeats, 128);
-  assert.throws(() => abc.parse(piece(fullBars(33))), /Maximum 32 bars/);
+  const longPiece = abc.parse(piece(fullBars(200), { tempo: "1/4=80" }));
+  assert.equal(longPiece.bars.length, 200);
+  assert.equal(longPiece.totalBeats, 800);
+  assert.equal(longPiece.totalBeats * score.secondsPerBeat(longPiece), 600);
   const eightNotes = "C D E F G A B c";
-  const atEventLimit = Array(32).fill(eightNotes).join(" | ") + " |]";
-  assert.equal(abc.parse(piece(atEventLimit, { unit: "1/8" })).parts[0].events.length, 256);
-  assert.throws(() => abc.parse(piece(atEventLimit.replace(eightNotes, "C/ C/ D E F G A B c"),
-    { unit: "1/8" })), /Maximum 256 notes\/rests/);
-  const atBeatLimit = Array(21).fill("C12").join(" | ") + " | C4 |]";
-  assert.equal(abc.parse(piece(atBeatLimit, { meter: "12/4", tempo: "1/4=320" })).totalBeats, 256);
-  assert.throws(() => abc.parse(piece(atBeatLimit.replace("C4 |]", "C5 |]"),
-    { meter: "12/4", tempo: "1/4=320" })), /Maximum 256 quarter beats/);
-  const ninetySeconds = abc.parse(piece(fullBars(30), { tempo: "1/4=80" }));
-  assert.equal(ninetySeconds.totalBeats * score.secondsPerBeat(ninetySeconds), 90);
-  assert.throws(() => abc.parse(piece(fullBars(30), { tempo: "1/4=79" })), /90 seconds/);
+  const dense = abc.parse(piece(Array(140).fill(eightNotes).join(" | ") + " |]", { unit: "1/8" }));
+  assert.equal(dense.parts[0].events.length, 1120);
+  assert.equal(score.validate(dense).totalBeats, 560);
 });

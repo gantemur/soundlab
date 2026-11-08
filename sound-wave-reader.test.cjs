@@ -63,7 +63,7 @@ function altered(bytes, change) {
 }
 
 test("the reader exposes fixed local-file bounds and an allocation-free header inspection", () => {
-  assert.equal(reader.MAX_SECONDS, 120);
+  assert.equal(reader.MAX_SECONDS, undefined, "file-size budgets replace the duration cutoff");
   assert.equal(reader.MAX_INPUT_BYTES, 32 * 1024 * 1024);
   assert.equal(reader.MAX_DECODED_BYTES, 64 * 1024 * 1024);
   const info = reader.inspect(fixture({ values: [[-32768, 0, 32767]], sampleRate: 16000 }));
@@ -249,11 +249,11 @@ test("missing or ambiguous audio/format chunks and malformed extensions fail vis
   assert.throws(() => reader.inspect(riff([["fmt ", extension], ["data", data]])), errorCode("unsupported"));
 });
 
-test("encoded, decoded, duration and metadata-work limits are enforced before PCM allocation", () => {
+test("encoded, decoded and metadata-work limits are enforced without an audio-duration cutoff", () => {
   assert.throws(() => reader.inspect(new Uint8Array(reader.MAX_INPUT_BYTES + 1)), errorCode("limit"));
   const durationEdge = fixture({ sampleRate: 1, frames: 120 });
   assert.equal(reader.inspect(durationEdge).duration, 120);
-  assert.throws(() => reader.inspect(fixture({ sampleRate: 1, frames: 121 })), errorCode("limit"));
+  assert.equal(reader.inspect(fixture({ sampleRate: 1, frames: 3600 })).duration, 3600);
   const frames = reader.MAX_DECODED_BYTES / 4;
   assert.equal(reader.inspect(fixture({ bits: 8, sampleRate: 384000, frames })).decodedBytes,
     reader.MAX_DECODED_BYTES);
@@ -308,7 +308,7 @@ test("browser module uses no audio APIs and rejects structural/bounds errors bef
   const api = context.SoundLabWaveReader;
   assert.equal(api.inspect(fixture()).frames, 1);
   assert.equal(allocations, 0);
-  for (const bytes of [new Uint8Array(10), fixture({ frames: 121, sampleRate: 1 })]) {
+  for (const bytes of [new Uint8Array(10), fixture().subarray(0, 43)]) {
     await assert.rejects(api.decode(bytes, { yieldTask: noWait }), error => /invalid|limit/.test(error.code));
   }
   await assert.rejects(api.decode(fixture(), { isCancelled: () => true }), error => error.code === "cancelled");
@@ -341,7 +341,7 @@ test("deterministic malformed-header mutations do not leak native range errors o
       const bytes = base.slice(); bytes[index] = value;
       try {
         const result = await decode(bytes);
-        assert.ok(result.frames > 0 && result.duration <= reader.MAX_SECONDS);
+        assert.ok(result.frames > 0 && Number.isFinite(result.duration));
         assert.ok(result.channels.every(channel => channel.every(Number.isFinite)));
       } catch (error) {
         assert.ok(error instanceof reader.WaveReadError, `offset ${index}: ${error}`);

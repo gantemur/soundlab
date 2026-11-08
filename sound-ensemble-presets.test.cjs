@@ -59,7 +59,30 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 19);
+  assert.equal(presets.CATALOG.length, 20);
+});
+
+test("Charleston is a synchronized complete-form 1923 dance with editable original backing", () => {
+  for (const language of ["en", "mn"]) {
+    const tracks = presets.create("charleston", language);
+    assert.deepEqual(tracks.map(track => track.instrument), ["clarinet", "piano", "triangle", "drums"]);
+    assert.equal(tracks.length, 4);
+    assert.ok(tracks.slice(0, 3).every(track => track.abc.includes("1923")));
+    const { summary, prepared } = ensemble.parseTracks(tracks, "equal", temperament);
+    assert.equal(summary.totalBeats, 352);
+    assert.equal(summary.tempoQuarter, 160);
+    assert.equal(summary.totalBeats * 60 / summary.tempoQuarter, 132,
+      "88 bars of 2/2 at 160 bpm last well past 90 seconds");
+    assert.ok(summary.eventCount > 1024);
+    assert.deepEqual(prepared.map(track => track.score.bars.length), [88, 88, 88, 88]);
+    assert.deepEqual(prepared.map(track => track.score.totalBeats), [352, 352, 352, 352]);
+    assert.equal(tracks[3].textMode, "pattern");
+    assert.ok(tracks[3].patterns.patterns.length < 10, "repeating drum phrases reuse definitions");
+    assert.equal(drumPatterns.toABC(tracks[3].patterns), tracks[3].abc);
+    const hits = drums.scheduledEvents(drums.parse(tracks[3].abc), "light", "expressive");
+    assert.ok(hits.some(hit => hit.drum === "snare") && hits.some(hit => hit.drum === "kick"));
+    assert.ok(hits.some(hit => hit.bar > 80), "drums continue through the final refrain");
+  }
 });
 
 test("D1 drum-only compositions contain eight synchronized bars and editable linked patterns", () => {

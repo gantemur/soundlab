@@ -571,7 +571,7 @@
   }
 
   const MAX_PARTS = 4;
-  const MAX_ENSEMBLE_EVENTS = 1024;
+  const MAX_BUFFER_CACHE = 1024;
   function validateEnsemble(tracks, tuning = "equal", temperamentModel) {
     if (!Array.isArray(tracks) || tracks.length < 1 || tracks.length > MAX_PARTS ||
         !scoreModel.TUNINGS.includes(tuning)) throw new RangeError("Use 1–4 tracks and a supported tuning");
@@ -605,8 +605,8 @@
         }
       }
     }
-    if (events > MAX_ENSEMBLE_EVENTS || totalBeats * scoreModel.secondsPerBeat(first) > 90) {
-      throw new RangeError("Ensemble is limited to 1024 events and 90 seconds");
+    if (!Number.isSafeInteger(events) || !Number.isFinite(totalBeats * scoreModel.secondsPerBeat(first))) {
+      throw new RangeError("The ensemble duration or event count is invalid");
     }
     return { tempoQuarter: first.tempoQuarter, meter: first.meter, totalBeats, eventCount: events };
   }
@@ -735,6 +735,6 @@
 
   return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES,
     AHEAD_SECONDS, HAT_CHOKE_SECONDS,
-    MAX_PARTS, MAX_ENSEMBLE_EVENTS,
+    MAX_PARTS, MAX_BUFFER_CACHE,
     noteFrequency, instrumentRange, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

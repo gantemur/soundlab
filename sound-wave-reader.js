@@ -10,7 +10,6 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const MAX_SECONDS = 120;
   const MAX_INPUT_BYTES = 32 * 1024 * 1024;
   const MAX_DECODED_BYTES = 64 * 1024 * 1024;
   const MAX_SAMPLE_RATE = 384000;
@@ -133,9 +132,7 @@
     const frames = audio.dataBytes / format.blockAlign;
     const duration = frames / format.sampleRate;
     const decodedBytes = frames * format.channelCount * Float32Array.BYTES_PER_ELEMENT;
-    if (!Number.isSafeInteger(frames) || frames > MAX_SECONDS * format.sampleRate) {
-      fail("limit", "The WAV audio exceeds 120 seconds");
-    }
+    if (!Number.isSafeInteger(frames) || !Number.isFinite(duration)) fail("limit", "Invalid WAV frame count");
     if (!Number.isSafeInteger(decodedBytes) || decodedBytes > MAX_DECODED_BYTES) {
       fail("limit", "The decoded WAV samples exceed 64 MiB");
     }
@@ -203,6 +200,6 @@
     return { ...info, channels, peak, fullScaleSamples };
   }
 
-  return Object.freeze({ MAX_SECONDS, MAX_INPUT_BYTES, MAX_DECODED_BYTES,
+  return Object.freeze({ MAX_INPUT_BYTES, MAX_DECODED_BYTES,
     MAX_SAMPLE_RATE, MAX_CHUNKS, CHUNK_FRAMES, WaveReadError, inspect, decode });
 });

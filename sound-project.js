@@ -15,10 +15,10 @@
 
   const FORMAT = "soundlab-project";
   const VERSION = 1;
-  // Unused, editable pattern definitions are also saved. Their bounded grids
-  // can be substantially larger than the expanded, 8,192-character ABC song.
+  // Unused, editable pattern definitions are also saved. These can be larger
+  // than the expanded ABC song; only file-size budgets bound collection size.
   const MAX_BYTES = 16 * 1024 * 1024;
-  const MAX_TEXT = 8192;
+  const MAX_TEXT = 1024 * 1024;
   const MAX_ERROR = 512;
   const MAX_ID = Number.MAX_SAFE_INTEGER - 1;
   const DRUM_IDS = drums.DRUMS.map(drum => drum.id);
@@ -125,7 +125,7 @@
       number: number(value.number, path + ".number", 0, MAX_ID, true),
       meter: { numerator, denominator, quarterBeats },
       tempoQuarter: number(value.tempoQuarter, path + ".tempoQuarter", 30, 320),
-      barDurations: list(value.barDurations, path + ".barDurations", 1, scoreModel.MAX_BARS).map((duration, i) => {
+      barDurations: list(value.barDurations, path + ".barDurations", 1, MAX_BYTES).map((duration, i) => {
         number(duration, path + ".barDurations[" + i + "]", .25, quarterBeats + 1e-7);
         if (!same(duration * 4, Math.round(duration * 4))) invalid(path + ".barDurations", "bars must fit sixteenth-note cells");
         return duration;
@@ -133,12 +133,14 @@
       patterns: [], sequence: [], nextId: number(value.nextId, path + ".nextId", 1, MAX_ID, true)
     };
     const ids = new Set();
-    project.patterns = list(value.patterns, path + ".patterns", 1, 64).map((source, i) => {
+    let largestPatternId = 0;
+    project.patterns = list(value.patterns, path + ".patterns", 1, MAX_BYTES).map((source, i) => {
       const at = path + ".patterns[" + i + "]";
       record(source, at, ["id", "name", "bars"]);
       const id = number(source.id, at + ".id", 1, MAX_ID, true);
       if (ids.has(id)) invalid(at + ".id", "duplicate pattern ID");
       ids.add(id);
+      largestPatternId = Math.max(largestPatternId, id);
       const bars = list(source.bars, at + ".bars", 1, 4);
       if (![1, 2, 4].includes(bars.length)) invalid(at + ".bars", "patterns contain 1, 2 or 4 bars");
       return { id, name: patternName(source.name, at + ".name"),
@@ -154,8 +156,8 @@
           }) };
         }) };
     });
-    if (project.nextId <= Math.max(...ids)) invalid(path + ".nextId", "must follow every pattern ID");
-    project.sequence = list(value.sequence, path + ".sequence", 1, scoreModel.MAX_BARS).map((slot, i) => {
+    if (project.nextId <= largestPatternId) invalid(path + ".nextId", "must follow every pattern ID");
+    project.sequence = list(value.sequence, path + ".sequence", 1, MAX_BYTES).map((slot, i) => {
       const at = path + ".sequence[" + i + "]";
       record(slot, at, ["id", "offset"]);
       const id = number(slot.id, at + ".id", 1, MAX_ID, true);
@@ -206,7 +208,7 @@
     result.textMode = "full";
     result.patternDraft = null;
     if (own(value, "textMode")) choice(value.textMode, path + ".textMode", ["full", "pattern"]);
-    if (own(value, "patternBar")) number(value.patternBar, path + ".patternBar", 1, 32, true);
+    if (own(value, "patternBar")) number(value.patternBar, path + ".patternBar", 1, MAX_ID, true);
     if (own(value, "patternId")) number(value.patternId, path + ".patternId", 1, MAX_ID, true);
     if (own(value, "patterns") && value.patterns !== null) {
       if (result.instrument !== "drums") invalid(path + ".patterns", "only drum tracks use linked patterns");
@@ -265,7 +267,7 @@
         ["gridBar", "gridStep", "gridStrength"]);
       project.content = { tuning: choice(source.tuning, path + ".tuning", scoreModel.TUNINGS),
         tracks, selectedId, nextId, editor: {
-          gridBar: number(source.editor.gridBar, path + ".editor.gridBar", 1, 32, true),
+          gridBar: number(source.editor.gridBar, path + ".editor.gridBar", 1, MAX_ID, true),
           gridStep: choice(source.editor.gridStep, path + ".editor.gridStep", [8, 16]),
           gridStrength: choice(source.editor.gridStrength, path + ".editor.gridStrength", STRENGTHS),
           gridArticulation: choice(own(source.editor, "gridArticulation") ? source.editor.gridArticulation : "plain",

@@ -61,6 +61,8 @@ test("the shared encoder accepts long exports without increasing the recorder ca
   assert.equal(bytes.length, 44 + frames * 2);
   assert.equal(new DataView(bytes.buffer).getInt16(bytes.length - 2, true), 16384);
   assert.throws(() => wav.encodeWav([samples], sampleRate, { maxSeconds: 15 }), RangeError);
+  const long = new Float32Array(132 * sampleRate);
+  assert.equal(wav.encodeWav([long], sampleRate, { maxSeconds: 133 }).length, 44 + long.length * 2);
 });
 
 test("maximum length is bounded before output allocation and includes the exact endpoint", () => {
@@ -108,7 +110,7 @@ test("rates, arrays and options are validated before packing", () => {
   for (const blocks of [null, {}, new Float32Array(1), "samples"]) {
     assert.throws(() => wav.encodeWav(blocks, 44100), RangeError);
   }
-  for (const maxSeconds of [0, -.01, 93.01, NaN, Infinity, "15", null]) {
+  for (const maxSeconds of [0, -.01, NaN, Infinity, "15", null]) {
     assert.throws(() => wav.encodeWav([], 44100, { maxSeconds }), RangeError);
   }
   for (const options of [null, [], "options", 1, { unknown: true }]) {

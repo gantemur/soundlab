@@ -31,25 +31,25 @@
   <script src="sound-temperaments.js?v=s036" defer></script>
   <script src="sound-harmonics.js" defer></script>
   <script src="sound-noise.js" defer></script>
-  <script src="sound-wav.js?v=s056" defer></script>
+  <script src="sound-wav.js?v=s087" defer></script>
   <script src="sound-recorder.js?v=s057" defer></script>
-  <script src="sound-score.js?v=s051" defer></script>
-  <script src="sound-abc.js?v=s051" defer></script>
-  <script src="sound-drum-abc.js?v=s074" defer></script>
-  <script src="sound-drum-patterns.js?v=s072" defer></script>
-  <script src="sound-score-player.js?v=s074" defer></script>
-  <script src="sound-compose.js?v=s066" defer></script>
-  <script src="sound-ensemble-presets.js?v=s074" defer></script>
-  <script src="sound-ensemble.js?v=s074" defer></script>
-  <script src="sound-project.js?v=s072" defer></script>
-  <script src="sound-project-ui.js?v=s057" defer></script>
-  <script src="sound-export.js?v=s059" defer></script>
+  <script src="sound-score.js?v=s087" defer></script>
+  <script src="sound-abc.js?v=s087" defer></script>
+  <script src="sound-drum-abc.js?v=s087" defer></script>
+  <script src="sound-drum-patterns.js?v=s087" defer></script>
+  <script src="sound-score-player.js?v=s087" defer></script>
+  <script src="sound-compose.js?v=s087" defer></script>
+  <script src="sound-ensemble-presets.js?v=s087" defer></script>
+  <script src="sound-ensemble.js?v=s087" defer></script>
+  <script src="sound-project.js?v=s087" defer></script>
+  <script src="sound-project-ui.js?v=s087" defer></script>
+  <script src="sound-export.js?v=s087" defer></script>
   <script src="sound-export-ui.js?v=s064" defer></script>
-  <script src="sound-wave-reader.js?v=s058" defer></script>
+  <script src="sound-wave-reader.js?v=s087" defer></script>
   <script src="sound-analysis-dsp.js?v=s082" defer></script>
   <script src="sound-analysis-spectrogram.js?v=s065" defer></script>
   <script src="sound-analysis-examples.js?v=s065" defer></script>
-  <script src="sound-analysis.js?v=s081" defer></script>
+  <script src="sound-analysis.js?v=s087" defer></script>
   <script src="sound-microphone.js?v=s078" defer></script>
   <script src="sound-compare.js?v=s085" defer></script>
   <script src="sound-lab.js?v=s079" defer></script>
@@ -1489,7 +1489,7 @@
         </div>
         <div class="field-group compose-score-editor">
           <label class="field-title" for="composeText" data-compose-i18n="score">ABC нотын бичиг</label>
-          <textarea id="composeText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-describedby="composeScoreHint"></textarea>
+          <textarea id="composeText" rows="9" spellcheck="false" maxlength="1048576" autocapitalize="off" autocomplete="off" aria-describedby="composeScoreHint"></textarea>
           <p id="composeScoreHint" class="field-help" data-compose-i18n="scoreHint">L:1/4 үед C D E G нь дөрөвт нотууд; C2 нь хоёр дахин урт, z нь завсарлага.</p>
           <p class="field-help" data-compose-i18n="limitsHint">32 такт, 256 нот/завсарлага, 90 секунд хүртэл. Эхний такт дутуу байж болно; C2-C нь ижил өндөртэй нотуудыг залгуулна.</p>
           <label class="compose-file-button" for="composeLoad" data-compose-i18n="load">.abc / .txt файл нээх</label>
@@ -1557,6 +1557,7 @@
               <optgroup label="Хуучны нийтийн дуунууд" data-ensemble-group-i18n="presetPopular">
                 <option value="daisy">Daisy Bell · Дейкр (32 такттай дахилт)</option>
                 <option value="paloma">La Paloma · Ирадиер (эхний аялгуу)</option>
+                <option value="charleston">Charleston · Жонсон (бүтэн бүжгийн аялгуу)</option>
               </optgroup>
               <optgroup label="Орос ардын болон түүхэн дуунууд" data-ensemble-group-i18n="presetRussian">
                 <option value="korobeiniki">Коробейники · ардын дуу (16 такт)</option>
@@ -1637,7 +1638,7 @@
               </div>
               <p id="ensemblePatternMessage" class="field-help" role="status" aria-live="polite"></p>
             </section>
-            <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="8192" autocapitalize="off" autocomplete="off" aria-labelledby="ensembleEditorTitle" aria-describedby="ensembleHelp"></textarea>
+            <textarea id="ensembleText" rows="9" spellcheck="false" maxlength="1048576" autocapitalize="off" autocomplete="off" aria-labelledby="ensembleEditorTitle" aria-describedby="ensembleHelp"></textarea>
             <p class="field-help" id="ensembleHelp" data-ensemble-i18n="help">Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. M: хэмжээ ба Q: хурд ижил байх ёстой.</p>
             <p class="field-help" id="ensembleDrumHint" data-ensemble-i18n="drumHelp" hidden>C–G үндсэн таван зэмсэг; A–g бусад цохилуур. Хагас нээлттэй цан өмнөх нээлттэй цанг аажмаар намдаана.</p>
             <label class="compose-file-button" for="ensembleLoad" data-ensemble-i18n="import">.abc / .txt файл нээх</label>

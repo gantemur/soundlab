@@ -58,7 +58,7 @@
   }
   function expanded(project) {
     if (project.sequence.length !== project.barDurations.length ||
-        project.sequence.length < 1 || project.sequence.length > 32) throw new Error("Invalid drum arrangement length");
+        project.sequence.length < 1) throw new Error("Invalid drum arrangement length");
     return project.sequence.map((slot, index) => {
       const { pattern } = atBar(project, index + 1);
       const cells = pattern.bars[slot.offset].cells;
@@ -88,7 +88,7 @@
     const next = copy(project), target = getPattern(next, id);
     target.bars = bars.map(bar => ({ cells: copy(bar.cells) }));
     if (name !== undefined) target.name = name;
-    toABC(next); // Refuse to exceed parser, hit, or song-length limits.
+    toABC(next); // Validate the complete score, including its edit.
     return next;
   }
   function updatePatternABC(project, id, text) {
@@ -108,7 +108,6 @@
     return updatePatternABC(project, id, text);
   }
   function nextPattern(project, bars, name) {
-    if (project.patterns.length >= 64) throw new Error("Limit of 64 drum patterns reached");
     const id = project.nextId++;
     const pattern = { id, name: name || letterName(project.patterns.length), bars: copy(bars) };
     project.patterns.push(pattern);

@@ -54,7 +54,7 @@
       score: "ABC for the selected track", import: "Open .abc / .txt", timeline: "Shared timeline",
       inspect: "Notes in each track; the gold line marks the current beat.",
       help: "Edit one track at a time; the other tracks remain in place. Different keys are allowed, but every track needs the same M: and Q:.",
-      limits: "Up to 4 tracks, 1,024 note/drum events combined and 90 seconds. Multi-voice ABC import is not yet supported.",
+      limits: "Up to 4 tracks, with no fixed score-length or event-count cutoff. Playback and export support complete pieces; multi-voice ABC syntax is not yet supported.",
       drumHelp: "Drum ABC: C–G original kit; A floor tom, B mid tom, c high tom, d ride, e crash, f rimshot, g half-open hi-hat. [CE] plays simultaneous hits. !ghost!, !p!, !accent! change strength and timbre; !flam! adds a soft grace hit, !roll! plays four strokes. !R!/!L! mark the playing hand (flam = main hand, roll = first hand). (3 begins a triplet; edit off-grid triplets in text. A later half-open hat progressively dampens an open tail; a closed hat chokes both.",
       grid: "Drum grid · optional editor", gridHint: "A cell toggles a hit. Set strength, technique and optional R/L hand; the same markings appear in ABC. In flams the other hand plays the grace hit; in rolls hands alternate.",
       gridBar: "Bar", gridStep: "Spacing", gridStrength: "Hit strength", gridGhost: "Ghost", gridSoft: "Soft", gridNormal: "Normal", gridAccent: "Accent",
@@ -73,7 +73,7 @@
       patternsTextError: "Correct the pattern ABC before changing patterns: ",
       patternsNotGrid: "This ABC uses rhythms outside the sixteenth-note grid; it stays editable as text.",
       now: "Beat", selected: "Selected", maxTracks: "Four tracks is the current maximum.",
-      minTracks: "Keep at least one track.", fileError: "Choose a .abc / .txt score up to 8 KB.",
+      minTracks: "Keep at least one track.", fileError: "Choose a .abc / .txt score up to 1 MiB.",
       error: "Score error", trackError: "Track", noAudio: "Sound could not start. Check audio settings." },
     mn: { heading: "Олон хөгжим тоглуулах", intro: "Бүгд нэг хэмнэлтэй. Хөгжим сонговол нотыг нь засна; тоглуулахад дуугүй болгоогүй бүгд дуугарна. «Ганцаар» нэгийг сонсгоно.",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын", just: "Цэвэр · До төвтэй",
@@ -99,7 +99,7 @@
       score: "Сонгосон хөгжмийн ABC нот", import: ".abc / .txt файл нээх", timeline: "Нэгдсэн цагийн шугам",
       inspect: "Мөр бүрийн нотууд; шар зураас нь тоглож буй цохилт.",
       help: "Нэг хөгжмийн нотыг засахад бусдынх хэвээр байна. Хөг өөр байж болно, харин M: хэмжээ ба Q: хурд ижил байх ёстой.",
-      limits: "4 хүртэл мөр, нийт 1024 нот/цохилт, 90 секунд. Олон хоолойтой ABC-г дараа нэмж болно.",
+      limits: "4 хүртэл мөртэй бүтэн зохиол тоглуулж, гаргаж болно; нот, цохилтын тоо болон 90 секундын хязгаар байхгүй. Олон хоолойтой ABC бичлэгийг хараахан дэмжихгүй.",
       drumHelp: "Бөмбөрийн ABC: C–G үндсэн тав, A суурь том, B дунд том, c өндөр том, d райд, e крэш, f хүрээтэй цохилт, g хагас нээлттэй цан. [CE] зэрэг цохилт. !ghost!, !p!, !accent! нь хүч ба дууны өнгийг; !flam! нь урьтал сул цохилт, !roll! нь 4 цохилтыг заана. !R!/!L! нь баруун/зүүн гарыг заана (фламд гол гар, роллд эхний гар). (3 нь триоль эхлүүлнэ. Хагас нээлттэй цан өмнөх нээлттэй цанг аажим, хаалттай цан хоёуланг нь хурдан дарна.",
       grid: "Бөмбөрийн тор · хүсвэл нээх", gridHint: "Нүдээр цохилт нэмэхдээ хүч, арга болон R/L гарыг сонгоно. Фламын урьтал цохилтыг нөгөө гар, роллын цохилтуудыг хоёр гар ээлжлэн тоглоно.",
       gridBar: "Такт", gridStep: "Алхам", gridStrength: "Цохилтын хүч", gridGhost: "Маш зөөлөн", gridSoft: "Зөөлөн", gridNormal: "Энгийн", gridAccent: "Хүчтэй",
@@ -118,7 +118,7 @@
       patternsTextError: "Өөр загварт шилжихээс өмнө ABC алдааг засна уу: ",
       patternsNotGrid: "ABC-д арван зургаатын торонд багтахгүй хэмнэл байна. Эх бичиг хэвээр үлдэнэ.",
       now: "Цохилт", selected: "Сонгосон", maxTracks: "Одоогоор дээд тал нь дөрвөн хөгжим.",
-      minTracks: "Ядаж нэг хөгжмийг үлдээнэ.", fileError: "8 КБ-аас бага .abc эсвэл .txt файл сонгоно уу.",
+      minTracks: "Ядаж нэг хөгжмийг үлдээнэ.", fileError: "1 МиБ-аас бага .abc эсвэл .txt файл сонгоно уу.",
       error: "Нотын алдаа", trackError: "Хөгжим", noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу." }
   });
   const DEFAULTS = Object.freeze([
@@ -634,7 +634,11 @@
           const parsed = isDrum ? drums.parse(track.abc) : abc.parse(track.abc);
           const events = isDrum ? drums.scheduledEvents(parsed, track.drumFeel, track.drumTouch) : playerModel.scheduledEvents(parsed, 0,
             track.instrument === "guitar" ? track.guitar : undefined);
-          for (const event of events) {
+          // Keep the overview responsive for long full scores: subsample only
+          // visual ticks, never the actual playback or saved note events.
+          const stride = Math.max(1, Math.ceil(events.length / 2500));
+          for (let i = 0; i < events.length; i += stride) {
+            const event = events[i];
             const note = this.make("span", isDrum ? "ensemble-note ensemble-drum-hit" : "ensemble-note", undefined, lane);
             note.style.left = (100 * event.startBeat / max) + "%";
             note.style.width = isDrum ? ".8%" : Math.max(.45, 100 * event.durationBeats / max) + "%";
@@ -811,12 +815,12 @@
     isPlaying() { return ["playing", "starting"].includes(this.player.status); }
     async loadFile(file) {
       if (!file) return;
-      if (!/\.(abc|txt)$/i.test(file.name) || file.size === 0 || file.size > 8192) {
+      if (!/\.(abc|txt)$/i.test(file.name) || file.size === 0 || file.size > abc.MAX_SOURCE_CHARACTERS) {
         this.setStatus(this.t("fileError"), true); return;
       }
       try {
         const data = await file.text();
-        if (data.length > 8192) throw new RangeError("Oversized ABC file");
+        if (data.length > abc.MAX_SOURCE_CHARACTERS) throw new RangeError("Oversized ABC file");
         const track = this.selected();
         track.abc = data;
         track.patterns = null;

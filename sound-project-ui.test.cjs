@@ -313,9 +313,9 @@ test("Save errors explain text and file-size bounds without discarding the prepa
   app.$("projectName").value = "Prepared melody";
   app.controller.save();
   const previousUrl = app.$("projectDownload").href;
-  app.work.solo.abc = "C".repeat(8193);
+  app.work.solo.abc = "C".repeat(1024 * 1024 + 1);
   assert.equal(app.controller.save(), false);
-  assert.match(app.$("projectStatus").textContent, /8,192 characters/);
+  assert.match(app.$("projectStatus").textContent, /1 MiB/);
   assert.equal(app.$("projectDownload").href, previousUrl);
   app.controller.capture = () => { throw new project.ProjectError("size", "Oversized project"); };
   assert.equal(app.controller.save(), false);

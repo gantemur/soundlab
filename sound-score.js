@@ -12,10 +12,6 @@
   const LETTER_OFFSETS = Object.freeze({ C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 });
   const MIN_NOTE_HZ = 110;
   const MAX_NOTE_HZ = 880;
-  const MAX_BARS = 32;
-  const MAX_EVENTS = 256;
-  const MAX_BEATS = 256;
-  const MAX_SECONDS = 90;
   const TUNINGS = Object.freeze(["equal", "pythagorean", "just"]);
   const mod = (value, n) => ((value % n) + n) % n;
 
@@ -62,13 +58,13 @@
         !score.meter || !Number.isFinite(score.meter.quarterBeats) ||
         score.meter.quarterBeats <= 0) throw new RangeError("Invalid score structure");
     const events = score.parts[0].events;
-    if (!Array.isArray(score.bars) || !score.bars.length || score.bars.length > MAX_BARS ||
-        !events.length || events.length > MAX_EVENTS ||
+    if (!Array.isArray(score.bars) || !score.bars.length || !events.length ||
+        !Number.isSafeInteger(score.bars.length) || !Number.isSafeInteger(events.length) ||
         !Number.isFinite(score.totalBeats) || score.totalBeats <= 0 ||
-        score.totalBeats > MAX_BEATS || score.totalBeats * secondsPerBeat(score) > MAX_SECONDS) {
-      throw new RangeError("The score must contain 1–256 events, at most 32 bars and 256 quarter beats, and fit within 90 seconds");
+        !Number.isFinite(score.totalBeats * secondsPerBeat(score))) {
+      throw new RangeError("A score needs valid bars, events and finite playback duration");
     }
-    let cursor = 0, previous = null, soundingNotes = 0;
+    let cursor = 0, previous = null;
     for (const event of events) {
       if (!event || !["note", "chord", "rest"].includes(event.type) ||
           !Number.isFinite(event.startBeat) || Math.abs(event.startBeat - cursor) > 1e-7 ||
@@ -84,7 +80,6 @@
           throw new RangeError("A chord needs 2–6 distinct pitched notes");
         }
       }
-      soundingNotes += event.type === "chord" ? event.pitches.length : event.type === "note" ? 1 : 0;
       if (["tieToNext", "tieFromPrevious"].some(flag =>
         event[flag] !== undefined && typeof event[flag] !== "boolean") ||
           (event.type !== "note" && (event.tieToNext || event.tieFromPrevious)) ||
@@ -100,13 +95,12 @@
       cursor += event.durationBeats;
       previous = event;
     }
-    if (soundingNotes > 768) throw new RangeError("Maximum 768 sounding notes per score");
     if (previous.tieToNext) throw new RangeError("A tie must continue to another note");
     if (Math.abs(cursor - score.totalBeats) > 1e-7) throw new RangeError("Score duration mismatch");
     return score;
   }
 
-  return Object.freeze({ LETTER_OFFSETS, MIN_NOTE_HZ, MAX_NOTE_HZ, MAX_BARS, MAX_EVENTS,
-    MAX_BEATS, MAX_SECONDS, TUNINGS, pitchNumber, pitchName, frequency, secondsPerBeat,
+  return Object.freeze({ LETTER_OFFSETS, MIN_NOTE_HZ, MAX_NOTE_HZ,
+    TUNINGS, pitchNumber, pitchName, frequency, secondsPerBeat,
     validate });
 });
