@@ -116,6 +116,19 @@
     return { hz, dbA, dbB, rawA, rawB, amplitudeA, amplitudeB,
       valid: true, floorLimited, delta };
   }
+  // Shared time t follows A. Sound B is heard at native source time t + tau;
+  // positive tau skips B's initial samples, negative tau delays its entrance.
+  // Scheduling uses AudioBufferSourceNode offsets, not modified/resampled PCM.
+  function sharedDuration(durationA, durationB, tau = 0) {
+    if (![durationA, durationB, tau].every(Number.isFinite)) return 0;
+    return Math.max(0, durationA, durationB - tau);
+  }
+  function sharedStart(duration, time, tau = 0) {
+    if (!(duration > 0) || !Number.isFinite(time) || !Number.isFinite(tau) || time < 0) return null;
+    const localTime = time + tau;
+    if (localTime >= duration) return null;
+    return { delay: Math.max(0, -localTime), offset: Math.max(0, localTime) };
+  }
   const words = {
     en: {
       title: "Compare two sounds", intro: "Choose A and B independently; compare waveforms, spectra and listening.",
@@ -126,6 +139,15 @@
       open: "Open WAV…", mic: "Microphone…", fromAnalysis: "Use current Analysis sound",
       playA: "▶ Play A", playB: "▶ Play B", stopA: "Ⅱ Stop A", stopB: "Ⅱ Stop B",
       volume: "Listening volume", channel: "Analysis channel", settings: "Comparison settings",
+      syncTitle: "Compare by listening", syncIntro: "One timeline for A and B. Switch sources without restarting, or hear both together.",
+      syncModes: "Shared listening modes", syncModeA: "A", syncModeB: "B", syncModeBoth: "Together",
+      syncPlay: "▶ Play", syncPause: "Ⅱ Pause", syncPosition: "Shared playback position",
+      syncTime: "{time} / {duration} s", syncOffset: "B time offset τ · s", syncOffsetReset: "Reset offset",
+      syncOffsetHelp: "At shared time t, B plays at t + τ. Positive τ skips B's beginning; negative τ delays B. No phase alignment.",
+      syncReady: "Choose A, B or Together, then play.", syncStarting: "Preparing aligned playback…",
+      syncPlaying: "Playing {mode}. Switch modes without restarting.", syncPaused: "Paused at {time} s.",
+      syncError: "Shared playback could not start; both sources remain available for analysis.",
+      syncMixHint: "Uses the separate A/B volume sliders and master volume. Together mixes each at half gain for headroom. Blue waveform markers show the shared playhead; orange markers remain inspection cursors.",
       fftSize: "FFT window · samples", axis: "Frequency axis", linear: "Linear", log: "Logarithmic",
       maxHz: "Upper frequency", nyquist: "Full range (Nyquist)", visualTitle: "Waveform",
       individualSpectra: "Show individual spectra", individualSpectrum: "Spectrum",
@@ -151,7 +173,7 @@
       spectrumInfo: "Hann {fft} · {bin} Hz/bin · strongest displayed bin {peak} Hz ({level} dBFS); not a pitch estimate",
       spectrumSilent: "Hann {fft} · {bin} Hz/bin · no significant peak",
       overlayTitle: "Spectral comparison A/B", overlayIntro: "Overlay the spectra, subtract their amplitudes, or inspect their level ratio without resampling the sound.",
-      linkCursors: "Link inspection times (seconds)", normalizeOverlay: "Normalize each displayed spectral peak",
+      linkCursors: "Link inspection times (using B offset)", normalizeOverlay: "Normalize each displayed spectral peak",
       overlayNote: "Native Hann windows use the same sample count but may span different times. Peak normalization affects only this overlay, not the source audio or the two separate spectra.",
       overlayWaiting: "Choose two sounds to compare their spectra.",
       overlayInfo: "{scale} · A: {a} · B: {b}{missing}",
@@ -167,8 +189,8 @@
       differenceProbeLabel: "Inspect frequency · Hz", differenceAria: "Continuous signed difference of spectral amplitudes A minus B", ratioAria: "Continuous spectral level ratio A over B in decibels",
       differenceWaiting: "Choose two sounds to calculate the A−B difference.",
       differenceInfo: "Shared band {low}–{high} Hz · paired Hann {ms} ms · A: {aSamples} samples at {aRate} Hz ({aBins} Hz/FFT bin) · B: {bSamples} samples at {bRate} Hz ({bBins} Hz/FFT bin)",
-      differenceNote: "Each source uses a centered Hann window of approximately equal real duration. Squared amplitudes are interpolated at matching Hz, then square-rooted before subtraction; no low-level points are removed. FFT zero-padding samples the axis more densely but adds no physical resolution. This subtracts spectral magnitudes, NOT complex Fourier transforms or waveforms. No time alignment, phase subtraction or acoustic dB SPL.",
-      ratioNote: "This view subtracts decibel levels, equivalently 10 log₁₀(PA/PB). A −90 dB floor is applied to EACH amplitude (after optional peak normalization) before taking the logarithm, so the plotted ratio is continuous and finite. Near silence it is floor-limited, not a precise physical ratio; both inaudible components approach zero difference. No time alignment, phase subtraction, transfer function or acoustic dB SPL.",
+      differenceNote: "Each source uses a centered Hann window of approximately equal real duration. Squared amplitudes are interpolated at matching Hz, then square-rooted before subtraction; no low-level points are removed. FFT zero-padding samples the axis more densely but adds no physical resolution. This subtracts spectral magnitudes, NOT complex Fourier transforms or waveforms. Manual offset affects linked inspection times, not phase alignment or acoustic dB SPL.",
+      ratioNote: "This view subtracts decibel levels, equivalently 10 log₁₀(PA/PB). A −90 dB floor is applied to EACH amplitude (after optional peak normalization) before taking the logarithm, so the plotted ratio is continuous and finite. Near silence it is floor-limited, not a precise physical ratio; both inaudible components approach zero difference. Manual offset does not imply phase alignment, a transfer function or acoustic dB SPL.",
       differenceAbsolute: "Original spectral amplitudes (linear units)", differenceRelative: "Peak-relative spectral shapes (display only)",
       ratioAbsolute: "Original spectral levels with −90 dBFS floor", ratioRelative: "Peak-relative levels with −90 dB floor",
       differencePadding: "Hann windows extend beyond a recording: {a} A samples and {b} B samples treated as silence; inspect farther from the edges for a complete window.",
@@ -179,7 +201,7 @@
       differenceNoBand: "There is no shared frequency range for these two recordings.",
       differenceContinuous: "The vertical amplitude scale fits this pair; the line includes every frequency in the shared band.",
       ratioClipped: "The chart shows −90…+90 dB (clipped); the frequency probe is not clipped. Floor-limited ratios are only indicative.",
-      disclaimer: "The overlay shows native equal-sample Hann spectra at their original dBFS levels. Difference A−B subtracts paired-window magnitudes, while Level ratio uses their dB ratio with a floor. No automatic time alignment or resampling of audio. This is not acoustic dB SPL."
+      disclaimer: "The overlay shows native equal-sample Hann spectra at their original dBFS levels. Difference A−B subtracts paired-window magnitudes, while Level ratio uses their dB ratio with a floor. Manual B offset affects shared playback and linked cursors; there is no automatic or phase alignment, or resampling of audio. This is not acoustic dB SPL."
     },
     mn: {
       title: "Хоёр авиаг харьцуулах", intro: "A ба B авиаг тусад нь сонгож, долгион, спектр болон сонсголыг харьцуулаарай.",
@@ -190,6 +212,15 @@
       open: "WAV нээх…", mic: "Микрофон…", fromAnalysis: "Шинжлэх хэсгийн авиаг авах",
       playA: "▶ A тоглуулах", playB: "▶ B тоглуулах", stopA: "Ⅱ A зогсоох", stopB: "Ⅱ B зогсоох",
       volume: "Сонсох дууны хэмжээ", channel: "Шинжлэх суваг", settings: "Харьцуулах тохиргоо",
+      syncTitle: "Харьцуулж сонсох", syncIntro: "A ба B-д нэг хугацааны тэнхлэг хэрэглэнэ. Дахин эхлүүлэхгүйгээр A/B-г сольж эсвэл хамт сонсоно.",
+      syncModes: "Нэгдсэн сонсох горим", syncModeA: "A", syncModeB: "B", syncModeBoth: "Хамт",
+      syncPlay: "▶ Тоглуулах", syncPause: "Ⅱ Түр зогсоох", syncPosition: "Нэгдсэн тоглуулах байрлал",
+      syncTime: "{time} / {duration} сек", syncOffset: "B-ийн хугацааны зөрүү τ · сек", syncOffsetReset: "Зөрүүг тэглэх",
+      syncOffsetHelp: "Нэгдсэн t мөчид B-ийн t + τ мөчийг сонсоно. Эерэг τ B-ийн эхийг алгасна; сөрөг τ B-г хойшлуулна. Фазыг тааруулахгүй.",
+      syncReady: "A, B эсвэл Хамт горим сонгоод тоглуулаарай.", syncStarting: "Тааруулсан авиануудыг бэлтгэж байна…",
+      syncPlaying: "{mode} горимоор сонсож байна. Дахин эхлүүлэхгүйгээр сольж болно.", syncPaused: "{time} сек дээр түр зогслоо.",
+      syncError: "Нэгдсэн сонсголыг эхлүүлж чадсангүй; хоёр авианы шинжилгээ хэвээр.",
+      syncMixHint: "A/B-ийн өөрийн хэмжээ болон нийт хэмжээг хэрэглэнэ. Хамт сонсоход хоёр сувгийн хэмжээг тус бүрд нь хагаслаж нөөц үлдээнэ. Хөх шугам нь нэгдсэн тоглуулах, улбар шар нь шинжлэх курсор.",
       fftSize: "FFT цонхны урт · сорьц", axis: "Давтамжийн тэнхлэг", linear: "Шугаман", log: "Логарифмын",
       maxHz: "Дээд давтамж", nyquist: "Бүх давтамж (Найквист)", visualTitle: "Долгионы хэлбэр",
       individualSpectra: "Тус бүрийн спектрийг харах", individualSpectrum: "Спектр",
@@ -215,7 +246,7 @@
       spectrumInfo: "Hann {fft} · алхам {bin} Гц · хамгийн хүчтэй зурвас {peak} Гц ({level} dBFS); нот тодорхойлохгүй",
       spectrumSilent: "Hann {fft} · алхам {bin} Гц · тод зурвас илрээгүй",
       overlayTitle: "A/B спектрийн харьцуулалт", overlayIntro: "Спектрүүдийг давхарлах, далайцуудыг хасах эсвэл түвшний харьцааг харах боломжтой. Эх авианы сорьцлолт өөрчлөгдөхгүй.",
-      linkCursors: "Шинжлэх хугацааг (сек) холбох", normalizeOverlay: "Харагдах спектр бүрийн оргилыг нормчлох",
+      linkCursors: "Шинжлэх хугацааг (B-ийн зөрүүгээр) холбох", normalizeOverlay: "Харагдах спектр бүрийн оргилыг нормчлох",
       overlayNote: "Hann цонхны сорьцын тоо ижил боловч хугацааны урт өөр байж болно. Оргилын нормчлол нь зөвхөн энэ давхар зурагт нөлөөлнө; эх авиа, тусдаа спектрүүд өөрчлөгдөхгүй.",
       overlayWaiting: "Хоёр авиа сонгож, спектрүүдийг харьцуулаарай.",
       overlayInfo: "{scale} · A: {a} · B: {b}{missing}",
@@ -231,8 +262,8 @@
       differenceProbeLabel: "Шинжлэх давтамж · Гц", differenceAria: "A хасах B спектрийн далайцын тасралтгүй тэмдэгтэй ялгаа", ratioAria: "A ба B спектрийн түвшний тасралтгүй харьцаа, децибел",
       differenceWaiting: "Спектрийн A−B ялгааг олохын тулд хоёр авиа сонгоорой.",
       differenceInfo: "Хамтын зурвас {low}–{high} Гц · Hann {ms} мс · A: {aSamples} сорьц, {aRate} Гц ({aBins} Гц/FFT алхам) · B: {bSamples} сорьц, {bRate} Гц ({bBins} Гц/FFT алхам)",
-      differenceNote: "Хоёр авианы курсорын орчимд бараг ижил бодит хугацаатай Hann цонх авна. Ижил Гц цэгт далайцын квадратыг интерполяцлан язгуур авч, далайцуудыг хасна; сул утгыг нуухгүй. FFT-ийн тэгээр нөхөлт давтамжийг нягтруулах ч ялгах чадварыг нэмэхгүй. Энэ нь комплекс Фурье хувиргалтууд эсвэл долгионуудыг хассан хэрэг БИШ. Хугацаа, фаз тааруулахгүй; акустик dB SPL биш.",
-      ratioNote: "Энэ харагдацад децибел түвшнүүдийг хасна: 10 log₁₀(PA/PB). Логарифм авахын өмнө хоёр далайц бүрд −90 дБ босго (оргилд нормчилсон бол түүний дараа) хэрэглэснээр муруй тасралтгүй болно. Маш сул авиа дахь харьцаа босгоор хязгаарлагдсан, нарийн физик хэмжилт биш; хоёулаа сул бол ялгаа тэгт дөхнө. Хугацаа, фаз тааруулахгүй; дамжуулалтын функц эсвэл акустик dB SPL биш.",
+      differenceNote: "Хоёр авианы курсорын орчимд бараг ижил бодит хугацаатай Hann цонх авна. Ижил Гц цэгт далайцын квадратыг интерполяцлан язгуур авч, далайцуудыг хасна; сул утгыг нуухгүй. FFT-ийн тэгээр нөхөлт давтамжийг нягтруулах ч ялгах чадварыг нэмэхгүй. Энэ нь комплекс Фурье хувиргалтууд эсвэл долгионуудыг хассан хэрэг БИШ. Гарын зөрүү зөвхөн холбосон курсорт үйлчилнэ; фаз тааруулахгүй, акустик dB SPL биш.",
+      ratioNote: "Энэ харагдацад децибел түвшнүүдийг хасна: 10 log₁₀(PA/PB). Логарифм авахын өмнө хоёр далайц бүрд −90 дБ босго (оргилд нормчилсон бол түүний дараа) хэрэглэснээр муруй тасралтгүй болно. Маш сул авиа дахь харьцаа босгоор хязгаарлагдсан, нарийн физик хэмжилт биш; хоёулаа сул бол ялгаа тэгт дөхнө. Гарын зөрүү нь фаз тааруулалт, дамжуулалтын функц эсвэл акустик dB SPL биш.",
       differenceAbsolute: "Эх спектрийн далайц (шугаман нэгж)", differenceRelative: "Оргилд харьцуулсан спектрийн хэлбэр (зөвхөн зураг)",
       ratioAbsolute: "Эх спектрийн түвшин, −90 dBFS босготой", ratioRelative: "Оргилд харьцуулсан түвшин, −90 дБ босготой",
       differencePadding: "Hann цонх бичлэгийн хязгаараас гарчээ: A-ийн {a}, B-ийн {b} сорьцыг тэгээр нөхөв. Бүрэн цонх үзэхийн тулд курсорыг дотогш шилжүүлээрэй.",
@@ -243,7 +274,7 @@
       differenceNoBand: "Хоёр бичлэгт давхцах давтамжийн зурвас байхгүй.",
       differenceContinuous: "Босоо далайцын хуваарь энэ хосод таарна; хамтын бүх давтамжийн утгыг холбов.",
       ratioClipped: "Графикт −90…+90 дБ (хязгаарласан); тоон утга хязгааргүй. Сул дохионы харьцаа зөвхөн ойролцоо.",
-      disclaimer: "Давхарласан зурагт эх сорьцлолттой, ижил сорьцын тоотой Hann спектрүүдийн dBFS түвшнийг харуулна. Ялгаа A−B нь ижил хугацааны далайцуудыг хасна; Түвшний харьцаа нь босготой дБ харьцаа юм. Авианы хугацаа, сорьцлолтыг автоматаар тааруулахгүй. Акустик dB SPL биш."
+      disclaimer: "Давхарласан зурагт эх сорьцлолттой, ижил сорьцын тоотой Hann спектрүүдийн dBFS түвшнийг харуулна. Ялгаа A−B нь ижил хугацааны далайцуудыг хасна; Түвшний харьцаа нь босготой дБ харьцаа юм. Гарын B зөрүү нь нэгдсэн сонсгол, холбосон курсорт үйлчилнэ; автоматаар, фазаар тааруулахгүй, авиаг дахин сорьцлохгүй. Акустик dB SPL биш."
     }
   };
 
@@ -265,6 +296,8 @@
         exampleId: DEFAULTS[key], ticket: 0, busy: false, status: "ready", error: false, audioBuffer: null
       }]));
       this.voice = null; this.playingKey = null; this.playbackTicket = 0; this.startingKey = null;
+      this.syncMode = "A"; this.syncOffset = 0; this.syncPosition = 0;
+      this.syncVoice = null; this.syncStarting = false; this.syncStatus = "syncReady";
       for (const key of ["A", "B"]) {
         this.$(`compare${key}Class`).addEventListener("change", event => {
           const state = this.slots[key], category = event.target.value;
@@ -288,6 +321,7 @@
           s.volume = clamp(Number(event.target.value) || 0, 0, 100) / 100;
           this.put(`compare${key}VolumeValue`, Math.round(s.volume * 100) + "%");
           if (this.voice && this.playingKey === key) this.updateListeningGain();
+          if (this.syncVoice) this.updateSyncGains();
         });
         this.$(`compare${key}Channel`).addEventListener("change", event => {
           const s = this.slots[key];
@@ -313,8 +347,27 @@
       this.$("compareVolume").addEventListener("input", event => {
         this.volume = clamp(Number(event.target.value) || 0, 0, 100) / 100;
         if (this.voice) this.updateListeningGain();
+        if (this.syncVoice) this.updateSyncGains();
         this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
       });
+      for (const mode of ["A", "B", "Both"]) {
+        this.$(`compareSyncMode${mode}`).addEventListener("click", () => this.setSyncMode(mode === "Both" ? "both" : mode));
+      }
+      this.$("compareSyncPlay").addEventListener("click", () => { void this.playShared(); });
+      this.$("compareSyncSeek").addEventListener("input", event => {
+        this.put("compareSyncTime", this.text("syncTime", {
+          time: fmt(Number(event.target.value), 2), duration: fmt(this.syncDuration(), 2)
+        }));
+      });
+      this.$("compareSyncSeek").addEventListener("change", event => {
+        void this.seekShared(Number(event.target.value));
+      });
+      this.$("compareSyncOffset").addEventListener("input", event => {
+        this.$("compareSyncOffsetNumber").value = fmt(Number(event.target.value), 2);
+      });
+      this.$("compareSyncOffset").addEventListener("change", event => this.setSyncOffset(Number(event.target.value)));
+      this.$("compareSyncOffsetNumber").addEventListener("change", event => this.setSyncOffset(Number(event.target.value)));
+      this.$("compareSyncOffsetReset").addEventListener("click", () => this.setSyncOffset(0));
       this.$("compareLinkCursors").addEventListener("change", event => {
         this.linkCursors = Boolean(event.target.checked);
         if (this.linkCursors) {
@@ -431,11 +484,16 @@
       this.$("compareDifferenceSpectrum").setAttribute("aria-label", this.text(this.spectralView === "ratio" ? "ratioAria" : "differenceAria"));
       this.$("compareKindModes").setAttribute("aria-label", this.text("kindModes"));
       this.$("compareSpectralModes").setAttribute("aria-label", this.text("plotModes"));
+      this.$("compareSyncModes").setAttribute("aria-label", this.text("syncModes"));
+      this.$("compareSyncSeek").setAttribute("aria-label", this.text("syncPosition"));
+      this.$("compareSyncOffset").setAttribute("aria-label", this.text("syncOffset"));
+      this.$("compareSyncOffsetNumber").setAttribute("aria-label", this.text("syncOffset"));
       this.render();
       this.drawSpectral();
     }
     render() {
       for (const key of ["A", "B"]) this.renderSlot(key);
+      this.renderShared();
       this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
       this.$("compareLinkCursors").checked = this.linkCursors;
       this.$("compareNormalize").checked = this.normalizeOverlay;
@@ -500,6 +558,99 @@
       this.$(`compare${key}Channel`).disabled = s.busy;
     }
 
+    syncDuration() {
+      return sharedDuration(this.slots.A.pcm?.duration || 0, this.slots.B.pcm?.duration || 0, this.syncOffset);
+    }
+    currentSyncPosition() {
+      if (!this.syncVoice) return this.syncPosition;
+      const voice = this.syncVoice;
+      return clamp(voice.position + Math.max(0, voice.context.currentTime - voice.startTime), 0, this.syncDuration());
+    }
+    renderShared() {
+      const ready = this.active && ["A", "B"].every(key => this.slots[key].pcm && !this.slots[key].busy);
+      const duration = this.syncDuration(), time = this.currentSyncPosition();
+      for (const mode of ["A", "B", "both"]) {
+        const button = this.$(`compareSyncMode${mode === "both" ? "Both" : mode}`), selected = this.syncMode === mode;
+        button.disabled = !ready;
+        button.classList.toggle("selected", selected);
+        button.setAttribute("aria-pressed", String(selected));
+      }
+      const playing = Boolean(this.syncVoice || this.syncStarting);
+      this.$("compareSyncPlay").disabled = !ready;
+      this.$("compareSyncPlay").setAttribute("aria-pressed", String(playing));
+      this.put("compareSyncPlay", this.text(playing ? "syncPause" : "syncPlay"));
+      const seek = this.$("compareSyncSeek");
+      seek.disabled = !ready;
+      seek.max = String(Math.max(.01, duration));
+      seek.value = String(time);
+      this.put("compareSyncTime", this.text("syncTime", { time: fmt(time, 2), duration: fmt(duration, 2) }));
+      this.$("compareSyncOffset").value = String(clamp(this.syncOffset, -2, 2));
+      this.$("compareSyncOffsetNumber").value = String(this.syncOffset);
+      this.put("compareSyncStatus", this.text(this.syncStarting ? "syncStarting" :
+        this.syncVoice ? "syncPlaying" : this.syncStatus, {
+        mode: this.text(this.syncMode === "both" ? "syncModeBoth" : `syncMode${this.syncMode}`), time: fmt(time, 2)
+      }));
+    }
+    setSyncMode(mode) {
+      if (!["A", "B", "both"].includes(mode)) return;
+      this.syncMode = mode;
+      if (this.syncVoice) this.updateSyncGains();
+      this.renderShared();
+    }
+    setSyncOffset(value) {
+      if (!Number.isFinite(value)) return;
+      const offset = Math.round(clamp(value, -30, 30) * 100) / 100;
+      if (offset === this.syncOffset) { this.renderShared(); return; }
+      const wasPlaying = Boolean(this.syncVoice || this.syncStarting);
+      const position = this.currentSyncPosition();
+      this.syncOffset = offset;
+      if (this.linkCursors && this.slots.A.pcm) this.setCursor("A", this.slots.A.cursor);
+      if (wasPlaying) {
+        this.stopPlayback();
+        this.syncPosition = clamp(position, 0, this.syncDuration());
+        return this.playShared();
+      } else {
+        this.syncPosition = clamp(position, 0, this.syncDuration());
+        this.renderShared();
+      }
+    }
+    async seekShared(time) {
+      if (!Number.isFinite(time)) return false;
+      const position = clamp(time, 0, this.syncDuration());
+      const wasPlaying = Boolean(this.syncVoice || this.syncStarting);
+      if (wasPlaying) this.stopPlayback();
+      this.syncPosition = position;
+      this.syncStatus = "syncPaused";
+      this.renderShared();
+      this.drawWave("A"); this.drawWave("B");
+      if (wasPlaying) return this.playShared();
+      return true;
+    }
+    updateSyncGains() {
+      if (!this.syncVoice) return;
+      const now = this.syncVoice.context.currentTime;
+      for (const voice of this.syncVoice.voices) {
+        const active = this.syncMode === "both" || this.syncMode === voice.key;
+        const level = active ? this.listeningGain(voice.key) * (this.syncMode === "both" ? .5 : 1) : 0;
+        const at = Math.max(now, voice.startAt);
+        voice.gain.gain.setTargetAtTime(level, at, .012);
+      }
+    }
+    tickShared() {
+      if (!this.syncVoice) return;
+      if (this.currentSyncPosition() >= this.syncDuration() - .005) {
+        this.finishShared(); return;
+      }
+      this.renderShared();
+      this.drawWave("A"); this.drawWave("B");
+    }
+    finishShared() {
+      this.stopPlayback();
+      this.syncPosition = 0; this.syncStatus = "syncReady";
+      this.renderShared();
+      this.drawWave("A"); this.drawWave("B");
+    }
+
     async loadExample(key, id) {
       const entry = examples.CATALOGUE.find(item => item.id === id);
       if (!entry) return false;
@@ -555,7 +706,8 @@
         });
         if (cancelled()) return false;
         const other = this.slots[key === "A" ? "B" : "A"];
-        const cursor = this.linkCursors && other.pcm ? Math.min(other.cursor, pcm.duration) :
+        const linkedTime = key === "B" ? other.cursor + this.syncOffset : other.cursor - this.syncOffset;
+        const cursor = this.linkCursors && other.pcm ? clamp(linkedTime, 0, pcm.duration) :
           Math.min(pcm.duration / 2, .25);
         const spectrum = dsp.spectrumAt(pcm.channels[0], pcm.sampleRate, cursor, this.fftSize);
         if (cancelled()) return false;
@@ -564,6 +716,7 @@
         s.cursor = cursor; s.spectrum = spectrum; s.audioBuffer = null;
         s.classId = source.classId; s.exampleId = source.exampleId || "";
         s.status = "ready"; s.error = false;
+        this.syncPosition = 0; this.syncStatus = "syncReady";
         return true;
       } catch (error) {
         if (!cancelled() && error?.code !== "cancelled") {
@@ -578,7 +731,7 @@
         }
         return false;
       } finally {
-        if (ticket === s.ticket) { s.busy = false; this.renderSlot(key); this.drawSlot(key); }
+        if (ticket === s.ticket) { s.busy = false; this.renderSlot(key); this.renderShared(); this.drawSlot(key); }
       }
     }
     async reindexChannel(key) {
@@ -593,7 +746,7 @@
         s.index = index; s.spectrum = dsp.spectrumAt(pcm.channels[s.channel], pcm.sampleRate, s.cursor, this.fftSize);
         s.status = "ready"; return true;
       } catch (_) { if (ticket === s.ticket) { s.status = "generic"; s.error = true; } return false; }
-      finally { if (ticket === s.ticket) { s.busy = false; this.renderSlot(key); this.drawSlot(key); } }
+      finally { if (ticket === s.ticket) { s.busy = false; this.renderSlot(key); this.renderShared(); this.drawSlot(key); } }
     }
     setCursor(key, time) {
       const s = this.slots[key];
@@ -604,7 +757,8 @@
       if (this.linkCursors) {
         const otherKey = key === "A" ? "B" : "A", other = this.slots[otherKey];
         if (other.pcm && !other.busy) {
-          other.cursor = Math.min(s.cursor, other.pcm.duration);
+          const linkedTime = key === "A" ? s.cursor + this.syncOffset : s.cursor - this.syncOffset;
+          other.cursor = clamp(linkedTime, 0, other.pcm.duration);
           other.spectrum = dsp.spectrumAt(other.pcm.channels[other.channel], other.pcm.sampleRate,
             other.cursor, this.fftSize);
           this.$(`compare${otherKey}Cursor`).value = String(other.cursor);
@@ -620,6 +774,24 @@
         this.contextOwner.context.currentTime, .01);
     }
 
+    async prepareAudioBuffer(slot, pcm, context, cancelled) {
+      if (slot.audioBuffer) return slot.audioBuffer;
+      const buffer = context.createBuffer(pcm.channels.length, pcm.frames, pcm.sampleRate);
+      const attenuation = pcm.peak > .98 ? .98 / pcm.peak : 1;
+      for (let c = 0; c < pcm.channels.length; c++) {
+        const target = buffer.getChannelData(c), samples = pcm.channels[c];
+        for (let start = 0; start < samples.length; start += 131072) {
+          if (cancelled()) return null;
+          const end = Math.min(samples.length, start + 131072);
+          for (let i = start; i < end; i++) target[i] = samples[i] * attenuation;
+          await this.yieldTask();
+        }
+      }
+      if (cancelled()) return null;
+      slot.audioBuffer = buffer;
+      return buffer;
+    }
+
     stopPlayback() {
       this.playbackTicket++;
       const voice = this.voice;
@@ -630,7 +802,28 @@
         catch (_) { /* The source may have ended already. */ }
         try { voice.node.disconnect(); voice.gain.disconnect(); } catch (_) { /* Graph may be detached. */ }
       }
-      for (const key of ["A", "B"]) this.renderSlot(key);
+      const shared = this.syncVoice, wasStarting = this.syncStarting;
+      const time = shared ? this.currentSyncPosition() : this.syncPosition;
+      this.syncVoice = null; this.syncStarting = false;
+      if (shared) {
+        if (shared.timer !== null) this.window.clearInterval(shared.timer);
+        for (const item of shared.voices) {
+          item.node.onended = null;
+          try { item.gain.gain.setValueAtTime(0, shared.context.currentTime); item.node.stop(); }
+          catch (_) { /* This branch may already have ended. */ }
+          try { item.node.disconnect(); item.gain.disconnect(); } catch (_) { /* Already detached. */ }
+        }
+      }
+      if (shared || wasStarting) {
+        this.syncPosition = time;
+        this.syncStatus = "syncPaused";
+      }
+      for (const key of ["A", "B"]) {
+        const s = this.slots[key];
+        if (s.status === "playing" || s.status === "starting") s.status = "ready";
+        this.renderSlot(key);
+      }
+      this.renderShared();
     }
     stop() {
       this.stopPlayback();
@@ -649,22 +842,8 @@
       try {
         const context = await this.contextOwner.readyContext();
         if (cancelled()) return false;
-        let buffer = s.audioBuffer;
-        if (!buffer) {
-          buffer = context.createBuffer(pcm.channels.length, pcm.frames, pcm.sampleRate);
-          const attenuation = pcm.peak > .98 ? .98 / pcm.peak : 1;
-          for (let c = 0; c < pcm.channels.length; c++) {
-            const target = buffer.getChannelData(c), samples = pcm.channels[c];
-            for (let start = 0; start < samples.length; start += 131072) {
-              if (cancelled()) return false;
-              const end = Math.min(samples.length, start + 131072);
-              for (let i = start; i < end; i++) target[i] = samples[i] * attenuation;
-              await this.yieldTask();
-            }
-          }
-          if (cancelled()) return false;
-          s.audioBuffer = buffer;
-        }
+        const buffer = await this.prepareAudioBuffer(s, pcm, context, cancelled);
+        if (!buffer || cancelled()) return false;
         const node = context.createBufferSource(), gain = context.createGain();
         node.buffer = buffer; gain.gain.setValueAtTime(0, context.currentTime);
         gain.gain.linearRampToValueAtTime(this.listeningGain(key), context.currentTime + .008);
@@ -682,6 +861,68 @@
       } finally {
         if (ticket === this.playbackTicket && this.startingKey === key) {
           this.startingKey = null; this.renderSlot(key);
+        }
+      }
+    }
+
+    async playShared() {
+      const a = this.slots.A, b = this.slots.B;
+      if (!this.active || !a.pcm || !b.pcm || a.busy || b.busy) return false;
+      if (this.syncVoice || this.syncStarting) { this.stopPlayback(); this.drawWave("A"); this.drawWave("B"); return true; }
+      this.stopPlayback(); const ticket = ++this.playbackTicket;
+      this.syncStarting = true; this.syncStatus = "syncStarting"; this.renderShared();
+      const pcmA = a.pcm, pcmB = b.pcm;
+      const cancelled = () => ticket !== this.playbackTicket || !this.active ||
+        a.pcm !== pcmA || b.pcm !== pcmB;
+      try {
+        const context = await this.contextOwner.readyContext();
+        if (cancelled()) return false;
+        const bufferA = await this.prepareAudioBuffer(a, pcmA, context, cancelled);
+        if (!bufferA || cancelled()) return false;
+        const bufferB = await this.prepareAudioBuffer(b, pcmB, context, cancelled);
+        if (!bufferB || cancelled()) return false;
+        const duration = this.syncDuration();
+        const position = this.syncPosition >= duration - .005 ? 0 : clamp(this.syncPosition, 0, duration);
+        const now = context.currentTime, voices = [];
+        try {
+          for (const [key, buffer, pcm, shift] of [["A", bufferA, pcmA, 0], ["B", bufferB, pcmB, this.syncOffset]]) {
+            const plan = sharedStart(pcm.duration, position, shift);
+            if (!plan) continue;
+            const node = context.createBufferSource(), gain = context.createGain();
+            node.buffer = buffer;
+            gain.gain.setValueAtTime(0, now);
+            node.connect(gain); gain.connect(this.contextOwner.output);
+            voices.push({ key, node, gain, startAt: now + plan.delay, offset: plan.offset });
+          }
+          for (const item of voices) item.node.start(item.startAt, item.offset);
+        } catch (error) {
+          for (const item of voices) {
+            try { item.node.stop(); } catch (_) { /* Source not started. */ }
+            try { item.node.disconnect(); item.gain.disconnect(); } catch (_) { /* Detached. */ }
+          }
+          throw error;
+        }
+        if (!voices.length) throw new Error("No samples remain on the shared timeline");
+        const shared = { context, voices, startTime: now, position, timer: null, ended: 0 };
+        this.syncVoice = shared; this.syncPosition = position; this.syncStarting = false;
+        this.syncStatus = "syncPlaying";
+        for (const item of voices) item.node.onended = () => {
+          if (this.syncVoice !== shared) return;
+          shared.ended++;
+          if (shared.ended === voices.length) this.finishShared();
+        };
+        this.updateSyncGains();
+        shared.timer = this.window.setInterval(() => this.tickShared(), 80);
+        this.renderShared(); this.drawWave("A"); this.drawWave("B");
+        return true;
+      } catch (_) {
+        if (!cancelled()) {
+          this.stopPlayback(); this.syncStatus = "syncError"; this.renderShared();
+        }
+        return false;
+      } finally {
+        if (ticket === this.playbackTicket && this.syncStarting) {
+          this.syncStarting = false; this.renderShared();
         }
       }
     }
@@ -742,6 +983,14 @@
       const x = left + (right - left) * s.cursor / pcm.duration;
       g.strokeStyle = "#d17f20"; g.lineWidth = 1.6; g.beginPath();
       g.moveTo(x, top); g.lineTo(x, bottom); g.stroke();
+      if (this.syncVoice || this.syncPosition > 0) {
+        const playbackTime = this.currentSyncPosition() + (key === "B" ? this.syncOffset : 0);
+        if (playbackTime >= 0 && playbackTime <= pcm.duration) {
+          const px = left + (right - left) * playbackTime / pcm.duration;
+          g.strokeStyle = "#3366c5"; g.lineWidth = 1.4; g.beginPath();
+          g.moveTo(px, top); g.lineTo(px, bottom); g.stroke();
+        }
+      }
       this.put(`compare${key}CursorInfo`, this.text("cursorInfo", { time: fmt(s.cursor, 3),
         duration: fmt(pcm.duration, 3), scale: fmt(scale, 2) }));
     }
@@ -952,5 +1201,5 @@
     }
   }
   return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, DIFFERENCE_FLOOR_DB,
-    totalBytes, overlayModel, matchedSpectra, differenceModel, differenceAt });
+    totalBytes, overlayModel, matchedSpectra, differenceModel, differenceAt, sharedDuration, sharedStart });
 });

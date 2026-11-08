@@ -35,6 +35,7 @@ function floatWav(channels, rate) {
 }
 function fixture() {
   const elements = new Map(), translations = [], draws = { count: 0 }, microphones = [];
+  const intervals = new Map(); let nextInterval = 0;
   const drawing = {};
   for (const name of ["setTransform", "clearRect", "fillRect", "moveTo", "lineTo"]) {
     drawing[name] = (...values) => {
@@ -97,7 +98,8 @@ function fixture() {
     },
     createBufferSource() {
       const node = { stops: 0, started: false, connect(to) { this.target = to; },
-        disconnect() {}, stop() { this.stops++; }, start() { this.started = true; }, onended: null };
+        disconnect() {}, stop() { this.stops++; },
+        start(...args) { this.started = true; this.startArgs = args; }, onended: null };
       nodes.push(node); return node;
     },
     createGain() {
@@ -108,6 +110,8 @@ function fixture() {
   const owner = { context, output: {}, readyCalls: 0,
     async readyContext() { this.readyCalls++; return context; } };
   const window = { devicePixelRatio: 2, setTimeout, clearTimeout,
+    setInterval(fn) { const id = ++nextInterval; intervals.set(id, fn); return id; },
+    clearInterval(id) { intervals.delete(id); },
     navigator: { mediaDevices: { getUserMedia() { throw new Error("Unsolicited mic permission"); } } } };
   let analysis = null;
   const controller = new compare.Controller({ document, window, contextOwner: owner,
@@ -117,7 +121,7 @@ function fixture() {
   const get = id => document.getElementById(id);
   const load = (key, value, source = { kind: "generated", classId: "reference", exampleId: "reference-sine-440" }) =>
     controller.load(key, async () => value, source);
-  return { controller, get, microphones, owner, context, draws, nodes, buffers, gains,
+  return { controller, get, microphones, owner, context, draws, nodes, buffers, gains, intervals,
     load, setAnalysis(value) { analysis = value; } };
 }
 
@@ -147,7 +151,8 @@ test("C2a keeps peer Analysis sub-tabs, moves Single source modes to its right c
   assert.match(html, /id="compareAClass"[\s\S]*id="compareAExample"[\s\S]*id="compareAOpen"[\s\S]*id="compareAMic"/);
   assert.match(html, /id="compareBClass"[\s\S]*id="compareBExample"[\s\S]*id="compareBOpen"[\s\S]*id="compareBMic"/);
   const compareResults = html.slice(html.indexOf('class="visuals compare-visuals"'), html.indexOf('id="analysisMicWorkspace"'));
-  assert.match(compareResults, /id="compareAVisualTitle"[\s\S]*id="compareBVisualTitle"[\s\S]*class="panel chart-panel compare-overlay-panel"/);
+  assert.match(compareResults, /id="compareAVisualTitle"[\s\S]*id="compareBVisualTitle"[\s\S]*class="panel chart-panel compare-sync-panel"[\s\S]*class="panel chart-panel compare-overlay-panel"/);
+  assert.match(compareResults, /id="compareSyncModeA"[\s\S]*id="compareSyncModeB"[\s\S]*id="compareSyncModeBoth"[\s\S]*id="compareSyncPlay"[\s\S]*id="compareSyncSeek"[\s\S]*id="compareSyncOffsetNumber"/);
   assert.match(compareResults, /id="compareLinkCursors"[\s\S]*id="compareNormalize"[\s\S]*id="compareOverlaySpectrum"/);
   const singleCards = compareResults.slice(0, compareResults.indexOf('class="panel chart-panel compare-overlay-panel"'));
   assert.doesNotMatch(singleCards, /id="compare[AB]Spectrum"/, "individual FFT charts leave the main A/B cards");
@@ -329,6 +334,137 @@ test("C2a links inspection times in seconds, clamps unequal durations and leaves
   f.controller.setCursor("A", .2);
   assert.equal(f.controller.slots.B.cursor, .03, "independent inspection resumes when unchecked");
   assert.equal(f.owner.readyCalls, 0, "plot controls never initiate audio");
+});
+
+test("S084 shared timeline defines the B offset in seconds without resampling", () => {
+  assert.equal(compare.sharedDuration(2, 3, .5), 2.5);
+  assert.equal(compare.sharedDuration(2, 3, -.5), 3.5);
+  assert.equal(compare.sharedDuration(4, 1, 2), 4);
+  assert.equal(compare.sharedDuration(NaN, 2, 0), 0);
+  assert.deepEqual(compare.sharedStart(3, 1, .25), { delay: 0, offset: 1.25 });
+  assert.deepEqual(compare.sharedStart(3, 0, -.4), { delay: .4, offset: 0 });
+  const shifted = compare.sharedStart(3, .5, -.4);
+  assert.equal(shifted.delay, 0);
+  assert.ok(Math.abs(shifted.offset - .1) < 1e-12);
+  assert.equal(compare.sharedStart(3, 2, 1), null, "an exhausted source is absent from this section of the shared timeline");
+  assert.equal(compare.sharedStart(3, -1, 0), null);
+});
+
+test("S084 switches live A/B/Together gains on one clock and pauses and resumes from the same playhead", async () => {
+  const f = fixture();
+  const a = pcm([sine(16000, .3, 440)], 16000), b = pcm([sine(48000, .22, 220)], 48000);
+  await f.load("A", a); await f.load("B", b);
+  const aSpectrum = f.controller.slots.A.spectrum, bSpectrum = f.controller.slots.B.spectrum;
+  f.controller.renderLanguage("en");
+  assert.equal(f.get("compareSyncPlay").disabled, false);
+  assert.equal(f.get("compareSyncModeA").attrs["aria-pressed"], "true");
+  f.get("compareSyncModeB").click();
+  assert.equal(f.owner.readyCalls, 0, "changing the shared mode cannot autoplay");
+  f.get("compareSyncModeA").click();
+  assert.equal(await f.controller.playShared(), true);
+  assert.equal(f.controller.playingKey, null, "individual players remain independent");
+  assert.equal(f.get("compareSyncPlay").attrs["aria-pressed"], "true");
+  assert.equal(f.nodes.length, 2);
+  assert.deepEqual(f.buffers.map(buffer => buffer.sampleRate), [16000, 48000]);
+  assert.deepEqual(f.nodes.map(node => node.startArgs), [[0, 0], [0, 0]]);
+  assert.deepEqual(f.gains.map(g => g.gain.events.at(-1)[1]), [.2, 0]);
+  f.get("compareSyncModeB").click();
+  assert.equal(f.nodes.length, 2, "switching must not restart either native playback buffer");
+  assert.equal(f.nodes[0].stops, 0);
+  assert.deepEqual(f.gains.map(g => g.gain.events.at(-1)[1]), [0, .2]);
+  f.get("compareSyncModeBoth").click();
+  assert.deepEqual(f.gains.map(g => g.gain.events.at(-1)[1]), [.1, .1], "a shared mix leaves headroom");
+  f.get("compareVolume").value = "50"; f.get("compareVolume").dispatch("input");
+  assert.deepEqual(f.gains.map(g => g.gain.events.at(-1)[1]), [.05, .05]);
+  f.get("compareAVolume").value = "40"; f.get("compareAVolume").dispatch("input");
+  assert.deepEqual(f.gains.map(g => g.gain.events.at(-1)[1]), [.1, .05]);
+  f.context.currentTime = .07; f.controller.tickShared();
+  assert.match(f.get("compareSyncTime").textContent, /0\.07 \/ 0\.3/);
+  f.get("compareSyncPlay").click();
+  assert.equal(f.controller.syncVoice, null);
+  assert.equal(f.intervals.size, 0);
+  assert.ok(Math.abs(f.controller.syncPosition - .07) < 1e-10);
+  assert.equal(f.nodes[0].stops, 1);
+  assert.equal(await f.controller.playShared(), true);
+  assert.equal(f.nodes.length, 4);
+  assert.deepEqual(f.nodes.slice(-2).map(node => node.startArgs), [[.07, .07], [.07, .07]]);
+  assert.equal(f.controller.slots.A.spectrum, aSpectrum);
+  assert.equal(f.controller.slots.B.spectrum, bSpectrum);
+  assert.equal(a.channels[0][1], sine(16000, .3, 440)[1], "shared audio must not alter the analysis PCM");
+  f.controller.stop();
+  assert.equal(f.intervals.size, 0);
+  assert.equal(f.nodes[2].stops, 1);
+  assert.equal(f.nodes[3].stops, 1);
+});
+
+test("S084 manual B offset moves linked inspection cursors and precisely schedules positive/negative offsets", async () => {
+  const f = fixture(), a = pcm([sine(16000, .3)], 16000), b = pcm([sine(32000, .2)], 32000);
+  await f.load("A", a); await f.load("B", b);
+  f.get("compareLinkCursors").checked = true;
+  f.get("compareLinkCursors").dispatch("change");
+  f.get("compareSyncOffsetNumber").value = "0.05";
+  f.get("compareSyncOffsetNumber").dispatch("change");
+  f.controller.setCursor("A", .1);
+  assert.ok(Math.abs(f.controller.slots.B.cursor - .15) < 1e-10);
+  f.controller.setCursor("B", .03);
+  assert.equal(f.controller.slots.A.cursor, 0, "reverse-linked cursor is clamped to A's beginning");
+  assert.equal(f.owner.readyCalls, 0, "adjusting the offset never starts playback");
+  await f.controller.playShared();
+  assert.deepEqual(f.nodes.map(node => node.startArgs), [[0, 0], [0, .05]], "positive τ skips B's beginning");
+  f.get("compareSyncPlay").click();
+  f.get("compareSyncOffsetNumber").value = "-0.04";
+  f.get("compareSyncOffsetNumber").dispatch("change");
+  f.controller.setCursor("A", .07);
+  assert.ok(Math.abs(f.controller.slots.B.cursor - .03) < 1e-10);
+  assert.equal(await f.controller.playShared(), true);
+  assert.deepEqual(f.nodes.slice(-2).map(node => node.startArgs), [[0, 0], [.04, 0]], "negative τ delays B's entrance");
+  f.context.currentTime = .06;
+  assert.equal(await f.controller.seekShared(.08), true);
+  assert.deepEqual(f.nodes.slice(-2).map(node => node.startArgs), [[.06, .08], [.06, .04]]);
+  assert.equal(await f.controller.setSyncOffset(.05), true);
+  assert.ok(Math.abs(f.controller.syncPosition - .08) < 1e-10);
+  assert.deepEqual(f.nodes.slice(-2).map(node => node.startArgs), [[.06, .08], [.06, .13]],
+    "changing alignment while playing restarts at the current shared time");
+  f.get("compareLinkCursors").checked = false;
+  f.get("compareLinkCursors").dispatch("change");
+  const independent = f.controller.slots.B.cursor;
+  f.controller.setCursor("A", .11);
+  assert.equal(f.controller.slots.B.cursor, independent, "unlinked inspection is still independent");
+  await f.controller.setSyncOffset(0);
+  assert.equal(Number(f.get("compareSyncOffsetNumber").value), 0);
+  f.controller.stop();
+  assert.equal(f.intervals.size, 0);
+});
+
+test("S084 shared transport completes, stops when an independent player takes over, and cancels pending starts", async () => {
+  const f = fixture();
+  await f.load("A", pcm([sine(16000, .12)], 16000));
+  await f.load("B", pcm([sine(16000, .08)], 16000));
+  assert.equal(await f.controller.playShared(), true);
+  const first = f.controller.syncVoice;
+  first.voices[0].node.onended();
+  assert.equal(f.controller.syncVoice, first, "the shorter branch may end before the shared timeline");
+  first.voices[1].node.onended();
+  assert.equal(f.controller.syncVoice, null);
+  assert.equal(f.controller.syncPosition, 0, "natural completion returns to the beginning");
+  assert.equal(f.intervals.size, 0);
+  assert.equal(await f.controller.playShared(), true);
+  const sharedNodes = f.nodes.slice(-2);
+  assert.equal(await f.controller.play("A"), true);
+  assert.equal(f.controller.syncVoice, null);
+  assert.deepEqual(sharedNodes.map(n => n.stops), [1, 1]);
+  assert.equal(f.controller.playingKey, "A");
+  f.controller.stop();
+  let release;
+  f.owner.readyContext = () => new Promise(resolve => { release = resolve; });
+  const pending = f.controller.playShared();
+  assert.equal(f.controller.syncStarting, true);
+  const nodesBefore = f.nodes.length;
+  f.controller.stop();
+  release(f.context);
+  assert.equal(await pending, false);
+  assert.equal(f.nodes.length, nodesBefore, "cancelled start must never attach fresh audio nodes");
+  assert.equal(f.intervals.size, 0);
 });
 
 test("C1 compares modeled guitar A with microphone piano B at different rates and keeps origins explicit", async () => {

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s083">
+  <link rel="stylesheet" href="sound-lab.css?v=s084">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -51,7 +51,7 @@
   <script src="sound-analysis-examples.js?v=s065" defer></script>
   <script src="sound-analysis.js?v=s081" defer></script>
   <script src="sound-microphone.js?v=s078" defer></script>
-  <script src="sound-compare.js?v=s083" defer></script>
+  <script src="sound-compare.js?v=s084" defer></script>
   <script src="sound-lab.js?v=s079" defer></script>
 </head>
 <body>
@@ -1927,6 +1927,32 @@
           <div class="compare-cursor-row"><label for="compareBCursor" data-compare-i18n="cursor">Шинжлэх хугацаа · сек</label>
             <input id="compareBCursor" type="range" min="0" max="1" step="any" value="0.25"></div>
           <p id="compareBCursorInfo" class="chart-foot"></p>
+        </section>
+        <section class="panel chart-panel compare-sync-panel" aria-labelledby="compareSyncTitle">
+          <div class="chart-heading"><div><h2 id="compareSyncTitle" data-compare-i18n="syncTitle">Харьцуулж сонсох</h2>
+            <p data-compare-i18n="syncIntro">A ба B-д нэг хугацааны тэнхлэг хэрэглэнэ. Дахин эхлүүлэхгүйгээр A/B-г сольж эсвэл хамт сонсоно.</p></div></div>
+          <div class="experiment-switch analysis-experiment-switch compare-sync-modes" id="compareSyncModes" role="group" aria-label="Нэгдсэн сонсох горим">
+            <button type="button" id="compareSyncModeA" class="selected" aria-pressed="true" data-compare-i18n="syncModeA">A</button>
+            <button type="button" id="compareSyncModeB" aria-pressed="false" data-compare-i18n="syncModeB">B</button>
+            <button type="button" id="compareSyncModeBoth" aria-pressed="false" data-compare-i18n="syncModeBoth">Хамт</button>
+          </div>
+          <div class="compare-sync-transport">
+            <button type="button" id="compareSyncPlay" class="analysis-primary" aria-pressed="false" data-compare-i18n="syncPlay">▶ Тоглуулах</button>
+            <div class="compare-sync-position"><div class="compare-sync-position-heading">
+              <label for="compareSyncSeek" data-compare-i18n="syncPosition">Нэгдсэн тоглуулах байрлал</label>
+              <output id="compareSyncTime">0 / 0 сек</output></div>
+              <input type="range" id="compareSyncSeek" min="0" max="1" step="0.01" value="0" aria-label="Нэгдсэн тоглуулах байрлал">
+            </div>
+          </div>
+          <div class="compare-sync-offset">
+            <label for="compareSyncOffsetNumber" data-compare-i18n="syncOffset">B-ийн хугацааны зөрүү τ · сек</label>
+            <input type="range" id="compareSyncOffset" min="-2" max="2" step="0.01" value="0" aria-label="B-ийн хугацааны зөрүү τ · сек">
+            <input type="number" id="compareSyncOffsetNumber" min="-30" max="30" step="0.01" value="0" inputmode="decimal">
+            <button type="button" id="compareSyncOffsetReset" class="analysis-secondary" data-compare-i18n="syncOffsetReset">Зөрүүг тэглэх</button>
+          </div>
+          <p class="field-help" id="compareSyncOffsetHelp" data-compare-i18n="syncOffsetHelp">Нэгдсэн t мөчид B-ийн t + τ мөчийг сонсоно. Эерэг τ B-ийн эхийг алгасна; сөрөг τ B-г хойшлуулна. Фазыг тааруулахгүй.</p>
+          <p id="compareSyncStatus" class="analysis-status" role="status" aria-live="polite"></p>
+          <p class="field-help" data-compare-i18n="syncMixHint">A/B-ийн өөрийн хэмжээ болон нийт хэмжээг хэрэглэнэ. Хамт сонсоход хоёр сувгийн хэмжээг тус бүрд нь хагаслаж нөөц үлдээнэ. Хөх шугам нь нэгдсэн тоглуулах, улбар шар нь шинжлэх курсор.</p>
         </section>
         <section class="panel chart-panel compare-overlay-panel" aria-labelledby="compareOverlayTitle">
           <div class="chart-heading"><div><h2 id="compareOverlayTitle" data-compare-i18n="overlayTitle">A/B спектрийн харьцуулалт</h2><p data-compare-i18n="overlayIntro">Эх спектрүүдийг давхарлах эсвэл ижил хугацааны цонхоор ялгааг нь шинжилнэ. Эх авианы сорьцлолт өөрчлөгдөхгүй.</p></div></div>

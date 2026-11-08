@@ -694,6 +694,31 @@ h1, h2, p { margin-top: 0; }
 .compare-listening-volume { flex: 2 1 150px; min-width: 145px; }
 .compare-listening-volume input[type="range"] { min-height: 27px; }
 .compare-playback-status { margin: 4px 0 9px; }
+.compare-sync-panel { grid-column: 1 / -1; min-width: 0; }
+.compare-sync-panel .chart-heading h2 { font-size: 17px; }
+.compare-sync-modes { width: min(100%, 650px); grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 12px 0; }
+.compare-sync-modes button { min-height: 42px; }
+.compare-sync-transport { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.compare-sync-transport .analysis-primary { flex: 0 1 180px; min-height: 47px; }
+.compare-sync-position { flex: 1 1 260px; min-width: 0; }
+.compare-sync-position-heading { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  color: #466782; font-size: 12px; font-weight: 750; }
+.compare-sync-position-heading output { font-variant-numeric: tabular-nums; }
+.compare-sync-position input[type="range"] { width: 100%; min-height: 29px; margin-top: 5px; }
+.compare-sync-offset { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(100px, 2fr) 105px 120px;
+  gap: 8px 14px; align-items: center; margin: 12px 0 6px; }
+.compare-sync-offset label { color: #466782; font-size: 12px; font-weight: 750; }
+.compare-sync-offset input[type="range"] { min-width: 0; width: 100%; }
+.compare-sync-offset input[type="number"] { min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
+.compare-sync-offset button { min-height: 38px; padding: 6px 8px; }
+.compare-sync-panel > .field-help { margin: 8px 0 0; }
+.compare-sync-panel > .analysis-status { margin-top: 12px; }
+@media (max-width: 680px) {
+  .compare-sync-offset { grid-template-columns: minmax(0, 1fr) 110px; }
+  .compare-sync-offset label { grid-column: 1 / -1; }
+  .compare-sync-offset button { grid-column: 1 / -1; justify-self: start; }
+  .compare-sync-transport .analysis-primary { flex: 1 1 100%; }
+}
 .compare-plot-channel { max-width: 230px; margin: 2px 0 8px; }
 .compare-plot-panel canvas { height: 205px; margin-top: 10px; cursor: crosshair; touch-action: manipulation; }
 .compare-plot-panel canvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
