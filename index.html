@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#192d49">
   <meta name="description" content="Explore sound waves, plucked and held instrument models, harmonic synthesis, noise, a theremin and sirens with interactive plots and bilingual controls.">
   <title>Sound Lab · Дууны лаборатори</title>
-  <link rel="stylesheet" href="sound-lab.css?v=s082">
+  <link rel="stylesheet" href="sound-lab.css?v=s083">
   <script src="sound-model.js" defer></script>
   <script src="sound-string.js?v=s062" defer></script>
   <script src="sound-mandolin.js?v=s063" defer></script>
@@ -51,7 +51,7 @@
   <script src="sound-analysis-examples.js?v=s065" defer></script>
   <script src="sound-analysis.js?v=s081" defer></script>
   <script src="sound-microphone.js?v=s078" defer></script>
-  <script src="sound-compare.js?v=s082" defer></script>
+  <script src="sound-compare.js?v=s083" defer></script>
   <script src="sound-lab.js?v=s079" defer></script>
 </head>
 <body>
@@ -1933,6 +1933,7 @@
           <div class="experiment-switch analysis-experiment-switch compare-plot-modes" id="compareSpectralModes" role="group" aria-label="Спектрийн харьцуулалтын хэлбэр">
             <button type="button" id="compareShowOverlay" class="selected" aria-pressed="true" data-compare-i18n="overlayMode">A/B давхарлах</button>
             <button type="button" id="compareShowDifference" aria-pressed="false" data-compare-i18n="differenceMode">Ялгаа A−B</button>
+            <button type="button" id="compareShowRatio" aria-pressed="false" data-compare-i18n="ratioMode">Түвшний харьцаа (дБ)</button>
           </div>
           <div class="compare-overlay-toolbar">
             <label class="compare-option"><input id="compareLinkCursors" type="checkbox"><span data-compare-i18n="linkCursors">Курсоруудыг ижил хугацаанд холбох</span></label>
@@ -1945,7 +1946,7 @@
             <p id="compareOverlayNote" class="field-help" data-compare-i18n="overlayNote">Тус бүрийн 4096 сорьцтой Hann цонх нь өөр хугацааны урттай байж болно. Нормчлол зөвхөн давхарласан зурагт нөлөөлнө; эх авиа, хоёр үндсэн спектр өөрчлөгдөхгүй.</p>
           </div>
           <div id="compareDifferenceView" hidden>
-            <div class="chart-heading compare-difference-heading"><div><h3 id="compareDifferenceTitle" data-compare-i18n="differenceTitle">Ижил хугацааны цонхтой спектрийн ялгаа</h3><p data-compare-i18n="differenceIntro">Эерэг dB нь тухайн давтамжид A-ийн спектрийн чадал B-ээс ихийг заана.</p></div></div>
+            <div class="chart-heading compare-difference-heading"><div><h3 id="compareDifferenceTitle" data-compare-i18n="differenceTitle">Спектрийн далайцын тэмдэгтэй ялгаа</h3><p id="compareDifferenceIntro" data-compare-i18n="differenceIntro">|A| − |B|: эерэг бол A, сөрөг бол B-ийн далайц их. Бүх давтамжид тасралтгүй муруй гарна.</p></div></div>
             <label class="compare-option"><input id="compareDifferenceNormalize" type="checkbox"><span data-compare-i18n="differenceNormalize">Хэлбэрийг харьцуулах (спектрийн оргилуудыг тааруулах)</span></label>
             <canvas id="compareDifferenceSpectrum" width="1080" height="280" role="img" tabindex="0" aria-describedby="compareDifferenceInfo compareDifferenceProbe compareDifferenceNote"></canvas>
             <div class="compare-frequency-probe">
@@ -1955,7 +1956,7 @@
             <p id="compareDifferenceInfo" class="chart-foot"></p>
             <p id="compareDifferencePadding" class="analysis-warning"></p>
             <p id="compareDifferenceStatus" class="chart-foot"></p>
-            <p id="compareDifferenceNote" class="field-help" data-compare-i18n="differenceNote">Хоёр авианы курсор бүрийн орчимд бараг ижил хугацаатай Hann цонх авч, ижил Гц дээр спектрийг харьцуулна. Маш сул давтамжийн ялгааг нуув.</p>
+            <p id="compareDifferenceNote" class="field-help" data-compare-i18n="differenceNote">Ижил хугацааны Hann цонхны спектрийн далайцуудыг хасна. Сул давтамжийг нуухгүй; комплекс Фурье хувиргалт эсвэл долгионы ялгаа биш.</p>
           </div>
           <details class="compare-individual-details" id="compareIndividualDetails">
             <summary data-compare-i18n="individualSpectra">Тус бүрийн спектрийг харах</summary>

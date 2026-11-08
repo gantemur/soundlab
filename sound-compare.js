@@ -63,8 +63,9 @@
   }
 
   // Interpolate spectral *power* in Hz (never interpolate dB values or treat
-  // unequal bin numbers as matching frequencies). It is a display estimate,
-  // not phase-coherent subtraction or a transfer function.
+  // unequal bin numbers as matching frequencies). Taking its square root
+  // gives a continuous amplitude estimate on the shared physical Hz axis.
+  // Neither display is phase-coherent subtraction or a transfer function.
   function powerAt(spectrum, hz) {
     if (!spectrum || !Number.isFinite(hz) || hz < 0 || hz >
         (spectrum.magnitudes.length - 1) * spectrum.binHz) return null;
@@ -83,15 +84,15 @@
     return peak > 0 ? 20 * Math.log10(peak) : -Infinity;
   }
   function differenceModel(matched, { axis = "log", maxHz = null, normalize = false,
-    floorDb = DIFFERENCE_FLOOR_DB } = {}) {
+    measure = "amplitude", floorDb = DIFFERENCE_FLOOR_DB } = {}) {
     if (!matched?.A || !matched?.B) return null;
     const high = Math.min(matched.sampleRateA / 2, matched.sampleRateB / 2,
       Number.isFinite(maxHz) && maxHz > 0 ? maxHz : Infinity);
     const low = axis === "log" ? Math.min(20, high / 2) : 0;
     if (!(high > low)) return null;
     const aPeak = bestVisibleDb(matched.A, low, high), bPeak = bestVisibleDb(matched.B, low, high);
-    const peakOffset = normalize && Number.isFinite(aPeak) && Number.isFinite(bPeak) ? aPeak - bPeak : 0;
-    return { ...matched, axis, low, high, normalize, floorDb, aPeak, bPeak, peakOffset };
+    return { ...matched, axis, low, high, normalize,
+      measure: measure === "ratio" ? "ratio" : "amplitude", floorDb, aPeak, bPeak };
   }
   function differenceAt(model, hz) {
     if (!model || !Number.isFinite(hz) || hz < model.low || hz > model.high) return null;
@@ -99,8 +100,21 @@
     if (powerA === null || powerB === null) return null;
     const dbA = powerA > 0 ? 10 * Math.log10(powerA) : -Infinity;
     const dbB = powerB > 0 ? 10 * Math.log10(powerB) : -Infinity;
-    const valid = dbA >= model.floorDb && dbB >= model.floorDb;
-    return { hz, dbA, dbB, valid, delta: valid ? dbA - dbB - model.peakOffset : null };
+    const rawA = Math.sqrt(powerA), rawB = Math.sqrt(powerB);
+    const referenceA = model.normalize && Number.isFinite(model.aPeak) ? 10 ** (model.aPeak / 20) : 1;
+    const referenceB = model.normalize && Number.isFinite(model.bPeak) ? 10 ** (model.bPeak / 20) : 1;
+    const amplitudeA = rawA / referenceA, amplitudeB = rawB / referenceB;
+    // A genuine signed amplitude difference is defined even if a source is
+    // silent. The optional level-ratio view instead floors BOTH operands
+    // before the logarithm; it remains continuous but is floor-limited near
+    // silence. The floor applies after optional peak normalization.
+    const floor = 10 ** (model.floorDb / 20);
+    const floorLimited = model.measure === "ratio" && (amplitudeA < floor || amplitudeB < floor);
+    const delta = model.measure === "ratio" ?
+      20 * Math.log10(Math.max(amplitudeA, floor) / Math.max(amplitudeB, floor)) :
+      amplitudeA - amplitudeB;
+    return { hz, dbA, dbB, rawA, rawB, amplitudeA, amplitudeB,
+      valid: true, floorLimited, delta };
   }
   const words = {
     en: {
@@ -136,7 +150,7 @@
       cursorInfo: "Cursor {time} s · source duration {duration} s · amplitude scale ±{scale}",
       spectrumInfo: "Hann {fft} · {bin} Hz/bin · strongest displayed bin {peak} Hz ({level} dBFS); not a pitch estimate",
       spectrumSilent: "Hann {fft} · {bin} Hz/bin · no significant peak",
-      overlayTitle: "Spectral comparison A/B", overlayIntro: "Choose a native spectral overlay or a matched-window level difference, without resampling the sound.",
+      overlayTitle: "Spectral comparison A/B", overlayIntro: "Overlay the spectra, subtract their amplitudes, or inspect their level ratio without resampling the sound.",
       linkCursors: "Link inspection times (seconds)", normalizeOverlay: "Normalize each displayed spectral peak",
       overlayNote: "Native Hann windows use the same sample count but may span different times. Peak normalization affects only this overlay, not the source audio or the two separate spectra.",
       overlayWaiting: "Choose two sounds to compare their spectra.",
@@ -145,22 +159,27 @@
       overlayWindow: "{ms} ms Hann · {bin} Hz/bin · cursor {time} s",
       overlayUnavailable: "no source", overlayMissing: " · above {hz} Hz, only the higher-rate source has samples",
       overlayAria: "Two spectra with shared frequency and level axes",
-      plotModes: "Spectral comparison views", overlayMode: "Overlay A/B", differenceMode: "Difference A−B",
-      differenceTitle: "Matched-window spectral difference", differenceIntro: "A positive dB difference means A has more spectral power than B at this frequency.",
+      plotModes: "Spectral comparison views", overlayMode: "Overlay A/B", differenceMode: "Difference A−B", ratioMode: "Level ratio (dB)",
+      differenceTitle: "Signed spectral-amplitude difference", differenceIntro: "|A| − |B|: positive where A has more spectral amplitude, negative where B has more. The line stays continuous.",
+      ratioTitle: "Spectral level ratio (dB)", ratioIntro: "10 log₁₀(PA/PB): positive where A is stronger. A documented floor keeps this view continuous near silence.",
+      differenceAxis: "|A| − |B| · amplitude", ratioAxis: "A/B · dB",
       differenceNormalize: "Compare shape (align matched spectral peaks)",
-      differenceProbeLabel: "Inspect frequency · Hz", differenceAria: "Signed spectral level difference A minus B in decibels",
+      differenceProbeLabel: "Inspect frequency · Hz", differenceAria: "Continuous signed difference of spectral amplitudes A minus B", ratioAria: "Continuous spectral level ratio A over B in decibels",
       differenceWaiting: "Choose two sounds to calculate the A−B difference.",
       differenceInfo: "Shared band {low}–{high} Hz · paired Hann {ms} ms · A: {aSamples} samples at {aRate} Hz ({aBins} Hz/FFT bin) · B: {bSamples} samples at {bRate} Hz ({bBins} Hz/FFT bin)",
-      differenceNote: "Each source uses a Hann window of approximately equal real duration, centered on its own cursor. FFTs are zero-padded for sampling the frequency axis, not for added resolution. Squared amplitudes are linearly interpolated at matching Hz; values below −90 dBFS in either source are hidden, not assigned an artificial ratio. Curves stop at the lower Nyquist limit. This is not time alignment, phase subtraction, a transfer function or acoustic dB SPL.",
-      differenceAbsolute: "Absolute source levels (dBFS)", differenceRelative: "Peak-relative spectral shapes (display only)",
+      differenceNote: "Each source uses a centered Hann window of approximately equal real duration. Squared amplitudes are interpolated at matching Hz, then square-rooted before subtraction; no low-level points are removed. FFT zero-padding samples the axis more densely but adds no physical resolution. This subtracts spectral magnitudes, NOT complex Fourier transforms or waveforms. No time alignment, phase subtraction or acoustic dB SPL.",
+      ratioNote: "This view subtracts decibel levels, equivalently 10 log₁₀(PA/PB). A −90 dB floor is applied to EACH amplitude (after optional peak normalization) before taking the logarithm, so the plotted ratio is continuous and finite. Near silence it is floor-limited, not a precise physical ratio; both inaudible components approach zero difference. No time alignment, phase subtraction, transfer function or acoustic dB SPL.",
+      differenceAbsolute: "Original spectral amplitudes (linear units)", differenceRelative: "Peak-relative spectral shapes (display only)",
+      ratioAbsolute: "Original spectral levels with −90 dBFS floor", ratioRelative: "Peak-relative levels with −90 dB floor",
       differencePadding: "Hann windows extend beyond a recording: {a} A samples and {b} B samples treated as silence; inspect farther from the edges for a complete window.",
-      differenceProbe: "{hz} Hz · A {a} dBFS · B {b} dBFS · A−B {delta} dB{mode}",
-      differenceProbeRelative: " (peak-relative)", differenceProbeBelow: "{hz} Hz · A {a} dBFS · B {b} dBFS · at least one source is below −90 dBFS; difference hidden.",
+      differenceProbe: "{hz} Hz · |A| {a} · |B| {b} · A−B {delta}{mode}",
+      ratioProbe: "{hz} Hz · A {a} dBFS · B {b} dBFS · A/B {delta} dB{mode}{limit}",
+      ratioFloorHint: " (floor-limited)", differenceProbeRelative: " (peak-relative)",
       differenceProbeRange: "Enter a frequency inside the shared {low}–{high} Hz range.",
       differenceNoBand: "There is no shared frequency range for these two recordings.",
-      differenceNoSignal: "No plotted frequency passes the −90 dBFS gate in both sounds. Try matching audible content or inspecting another time.",
-      differenceClipped: "The chart shows −60…+60 dB; the frequency probe reports values beyond the plotted limits.",
-      disclaimer: "The overlay shows native equal-sample Hann spectra at their original dBFS levels; A−B instead uses paired equal-duration windows and matched Hz values. No automatic time alignment or resampling of audio. This is not acoustic dB SPL."
+      differenceContinuous: "The vertical amplitude scale fits this pair; the line includes every frequency in the shared band.",
+      ratioClipped: "The chart shows −90…+90 dB (clipped); the frequency probe is not clipped. Floor-limited ratios are only indicative.",
+      disclaimer: "The overlay shows native equal-sample Hann spectra at their original dBFS levels. Difference A−B subtracts paired-window magnitudes, while Level ratio uses their dB ratio with a floor. No automatic time alignment or resampling of audio. This is not acoustic dB SPL."
     },
     mn: {
       title: "Хоёр авиаг харьцуулах", intro: "A ба B авиаг тусад нь сонгож, долгион, спектр болон сонсголыг харьцуулаарай.",
@@ -195,7 +214,7 @@
       cursorInfo: "Курсор {time} сек · урт {duration} сек · далайцын хуваарь ±{scale}",
       spectrumInfo: "Hann {fft} · алхам {bin} Гц · хамгийн хүчтэй зурвас {peak} Гц ({level} dBFS); нот тодорхойлохгүй",
       spectrumSilent: "Hann {fft} · алхам {bin} Гц · тод зурвас илрээгүй",
-      overlayTitle: "A/B спектрийн харьцуулалт", overlayIntro: "Эх спектрүүдийг давхарлах эсвэл ижил хугацааны цонхоор ялгааг нь шинжилнэ. Эх авианы сорьцлолт өөрчлөгдөхгүй.",
+      overlayTitle: "A/B спектрийн харьцуулалт", overlayIntro: "Спектрүүдийг давхарлах, далайцуудыг хасах эсвэл түвшний харьцааг харах боломжтой. Эх авианы сорьцлолт өөрчлөгдөхгүй.",
       linkCursors: "Шинжлэх хугацааг (сек) холбох", normalizeOverlay: "Харагдах спектр бүрийн оргилыг нормчлох",
       overlayNote: "Hann цонхны сорьцын тоо ижил боловч хугацааны урт өөр байж болно. Оргилын нормчлол нь зөвхөн энэ давхар зурагт нөлөөлнө; эх авиа, тусдаа спектрүүд өөрчлөгдөхгүй.",
       overlayWaiting: "Хоёр авиа сонгож, спектрүүдийг харьцуулаарай.",
@@ -204,22 +223,27 @@
       overlayWindow: "Hann {ms} мс · {bin} Гц/алхам · курсор {time} сек",
       overlayUnavailable: "авиа байхгүй", overlayMissing: " · {hz} Гц-ээс дээш зөвхөн өндөр сорьцлолттой авиа",
       overlayAria: "Ижил давтамж, түвшний тэнхлэгтэй A/B спектр",
-      plotModes: "Спектрийн харьцуулалтын хэлбэр", overlayMode: "A/B давхарлах", differenceMode: "Ялгаа A−B",
-      differenceTitle: "Ижил хугацааны цонхтой спектрийн ялгаа", differenceIntro: "Эерэг dB нь тухайн давтамжид A-ийн спектрийн чадал B-ээс ихийг заана.",
+      plotModes: "Спектрийн харьцуулалтын хэлбэр", overlayMode: "A/B давхарлах", differenceMode: "Ялгаа A−B", ratioMode: "Түвшний харьцаа (дБ)",
+      differenceTitle: "Спектрийн далайцын тэмдэгтэй ялгаа", differenceIntro: "|A| − |B|: эерэг бол A, сөрөг бол B-ийн далайц их. Бүх давтамжид тасралтгүй муруй гарна.",
+      ratioTitle: "Спектрийн түвшний харьцаа (дБ)", ratioIntro: "10 log₁₀(PA/PB): эерэг бол A хүчтэй. Сул дохионд тодорхой босго тавьж, муруйг тасралтгүй болгов.",
+      differenceAxis: "|A| − |B| · далайц", ratioAxis: "A/B · дБ",
       differenceNormalize: "Хэлбэрийг харьцуулах (спектрийн оргилуудыг тааруулах)",
-      differenceProbeLabel: "Шинжлэх давтамж · Гц", differenceAria: "A хасах B спектрийн түвшний тэмдэгтэй ялгаа, децибел",
+      differenceProbeLabel: "Шинжлэх давтамж · Гц", differenceAria: "A хасах B спектрийн далайцын тасралтгүй тэмдэгтэй ялгаа", ratioAria: "A ба B спектрийн түвшний тасралтгүй харьцаа, децибел",
       differenceWaiting: "Спектрийн A−B ялгааг олохын тулд хоёр авиа сонгоорой.",
       differenceInfo: "Хамтын зурвас {low}–{high} Гц · Hann {ms} мс · A: {aSamples} сорьц, {aRate} Гц ({aBins} Гц/FFT алхам) · B: {bSamples} сорьц, {bRate} Гц ({bBins} Гц/FFT алхам)",
-      differenceNote: "Хоёр авианы курсор бүрийн орчимд бараг ижил бодит хугацаатай Hann цонх авна. FFT-ийн тэгээр нөхөлт давтамжийн тэнхлэгийг нягтруулдаг ч ялгах чадварыг нэмэхгүй. Ижил Гц цэгт амплитудын квадратыг шугаман интерполяцлана. Аль нэг спектр −90 dBFS-ээс бага бол хиймэл харьцаа тооцохгүй. Доод Найквистийн давтамж дээр зогсоно. Хугацаа тааруулах, фазын ялгаа, дамжуулалтын функц эсвэл акустик dB SPL биш.",
-      differenceAbsolute: "Эх дохионы түвшин (dBFS)", differenceRelative: "Оргилд харьцуулсан спектрийн хэлбэр (зөвхөн зураг)",
+      differenceNote: "Хоёр авианы курсорын орчимд бараг ижил бодит хугацаатай Hann цонх авна. Ижил Гц цэгт далайцын квадратыг интерполяцлан язгуур авч, далайцуудыг хасна; сул утгыг нуухгүй. FFT-ийн тэгээр нөхөлт давтамжийг нягтруулах ч ялгах чадварыг нэмэхгүй. Энэ нь комплекс Фурье хувиргалтууд эсвэл долгионуудыг хассан хэрэг БИШ. Хугацаа, фаз тааруулахгүй; акустик dB SPL биш.",
+      ratioNote: "Энэ харагдацад децибел түвшнүүдийг хасна: 10 log₁₀(PA/PB). Логарифм авахын өмнө хоёр далайц бүрд −90 дБ босго (оргилд нормчилсон бол түүний дараа) хэрэглэснээр муруй тасралтгүй болно. Маш сул авиа дахь харьцаа босгоор хязгаарлагдсан, нарийн физик хэмжилт биш; хоёулаа сул бол ялгаа тэгт дөхнө. Хугацаа, фаз тааруулахгүй; дамжуулалтын функц эсвэл акустик dB SPL биш.",
+      differenceAbsolute: "Эх спектрийн далайц (шугаман нэгж)", differenceRelative: "Оргилд харьцуулсан спектрийн хэлбэр (зөвхөн зураг)",
+      ratioAbsolute: "Эх спектрийн түвшин, −90 dBFS босготой", ratioRelative: "Оргилд харьцуулсан түвшин, −90 дБ босготой",
       differencePadding: "Hann цонх бичлэгийн хязгаараас гарчээ: A-ийн {a}, B-ийн {b} сорьцыг тэгээр нөхөв. Бүрэн цонх үзэхийн тулд курсорыг дотогш шилжүүлээрэй.",
-      differenceProbe: "{hz} Гц · A {a} dBFS · B {b} dBFS · A−B {delta} dB{mode}",
-      differenceProbeRelative: " (оргилд харьцуулсан)", differenceProbeBelow: "{hz} Гц · A {a} dBFS · B {b} dBFS · дор хаяж нэг нь −90 dBFS-ээс бага тул ялгааг нуув.",
+      differenceProbe: "{hz} Гц · |A| {a} · |B| {b} · A−B {delta}{mode}",
+      ratioProbe: "{hz} Гц · A {a} dBFS · B {b} dBFS · A/B {delta} дБ{mode}{limit}",
+      ratioFloorHint: " (босгоор хязгаарласан)", differenceProbeRelative: " (оргилд харьцуулсан)",
       differenceProbeRange: "Хамтын {low}–{high} Гц доторх давтамж оруулна уу.",
       differenceNoBand: "Хоёр бичлэгт давхцах давтамжийн зурвас байхгүй.",
-      differenceNoSignal: "−90 dBFS босго давсан хамтын цэг алга. Ижил төстэй авиа эсвэл өөр хугацаа сонгоорой.",
-      differenceClipped: "Графикт −60…+60 dB харуулна; тусгай давтамжийн утга үүнээс гадуур байж болно.",
-      disclaimer: "Давхарласан зурагт эх сорьцлолттой, ижил тооны сорьцтой Hann спектрүүдийг dBFS түвшнээр харуулна. A−B ялгаанд ижил хугацааны цонх, ижил Гц цэгүүд ашиглана. Авианы хугацаа эсвэл сорьцлолтыг автоматаар тааруулахгүй. Акустик dB SPL биш."
+      differenceContinuous: "Босоо далайцын хуваарь энэ хосод таарна; хамтын бүх давтамжийн утгыг холбов.",
+      ratioClipped: "Графикт −90…+90 дБ (хязгаарласан); тоон утга хязгааргүй. Сул дохионы харьцаа зөвхөн ойролцоо.",
+      disclaimer: "Давхарласан зурагт эх сорьцлолттой, ижил сорьцын тоотой Hann спектрүүдийн dBFS түвшнийг харуулна. Ялгаа A−B нь ижил хугацааны далайцуудыг хасна; Түвшний харьцаа нь босготой дБ харьцаа юм. Авианы хугацаа, сорьцлолтыг автоматаар тааруулахгүй. Акустик dB SPL биш."
     }
   };
 
@@ -305,6 +329,7 @@
       });
       this.$("compareShowOverlay").addEventListener("click", () => this.setSpectralView("overlay"));
       this.$("compareShowDifference").addEventListener("click", () => this.setSpectralView("difference"));
+      this.$("compareShowRatio").addEventListener("click", () => this.setSpectralView("ratio"));
       this.$("compareDifferenceNormalize").addEventListener("change", event => {
         this.normalizeDifference = Boolean(event.target.checked);
         this.drawDifference();
@@ -403,7 +428,7 @@
         this.$(`compare${key}Spectrum`).setAttribute("aria-label", `${key}: ${this.text("visualTitle")} FFT`);
       }
       this.$("compareOverlaySpectrum").setAttribute("aria-label", this.text("overlayAria"));
-      this.$("compareDifferenceSpectrum").setAttribute("aria-label", this.text("differenceAria"));
+      this.$("compareDifferenceSpectrum").setAttribute("aria-label", this.text(this.spectralView === "ratio" ? "ratioAria" : "differenceAria"));
       this.$("compareKindModes").setAttribute("aria-label", this.text("kindModes"));
       this.$("compareSpectralModes").setAttribute("aria-label", this.text("plotModes"));
       this.render();
@@ -418,19 +443,24 @@
       this.syncSpectralView();
     }
     syncSpectralView() {
-      const difference = this.spectralView === "difference";
-      this.$("compareOverlayView").hidden = difference;
-      this.$("compareDifferenceView").hidden = !difference;
-      for (const [id, selected] of [["compareShowOverlay", !difference], ["compareShowDifference", difference]]) {
+      const overlay = this.spectralView === "overlay", ratio = this.spectralView === "ratio";
+      this.$("compareOverlayView").hidden = !overlay;
+      this.$("compareDifferenceView").hidden = overlay;
+      this.put("compareDifferenceTitle", this.text(ratio ? "ratioTitle" : "differenceTitle"));
+      this.put("compareDifferenceIntro", this.text(ratio ? "ratioIntro" : "differenceIntro"));
+      this.put("compareDifferenceNote", this.text(ratio ? "ratioNote" : "differenceNote"));
+      this.$("compareDifferenceSpectrum").setAttribute("aria-label", this.text(ratio ? "ratioAria" : "differenceAria"));
+      for (const [id, selected] of [["compareShowOverlay", overlay],
+        ["compareShowDifference", this.spectralView === "difference"], ["compareShowRatio", ratio]]) {
         const button = this.$(id);
         button.classList.toggle("selected", selected);
         button.setAttribute("aria-pressed", String(selected));
       }
     }
     setSpectralView(view) {
-      this.spectralView = view === "difference" ? "difference" : "overlay";
+      this.spectralView = ["difference", "ratio"].includes(view) ? view : "overlay";
       this.syncSpectralView();
-      if (this.spectralView === "difference") this.drawDifference(); else this.drawOverlay();
+      if (this.spectralView !== "overlay") this.drawDifference(); else this.drawOverlay();
     }
     renderSlot(key) {
       const s = this.slots[key], entry = examples.CATALOGUE.find(item => item.id === s.source?.exampleId);
@@ -669,7 +699,7 @@
       g.font = "11px system-ui, sans-serif"; g.lineWidth = 1;
       return { g, left: 44, right: width - 14, top: 18, bottom: height - 30, width, height };
     }
-    drawSpectral() { if (this.spectralView === "difference") this.drawDifference(); else this.drawOverlay(); }
+    drawSpectral() { if (this.spectralView !== "overlay") this.drawDifference(); else this.drawOverlay(); }
     draw() { for (const key of ["A", "B"]) this.drawSlot(key, false); this.drawSpectral(); }
     drawSlot(key, includeOverlay = true) {
       const s = this.slots[key], pcm = s.pcm;
@@ -820,7 +850,8 @@
           matched: matchedSpectra(this.slots, this.fftSize) };
       }
       return differenceModel(this.matchedCache.matched, {
-        axis: this.axis, maxHz: this.maxHz, normalize: this.normalizeDifference
+        axis: this.axis, maxHz: this.maxHz, normalize: this.normalizeDifference,
+        measure: this.spectralView === "ratio" ? "ratio" : "amplitude"
       });
     }
     drawDifference() {
@@ -838,7 +869,9 @@
         aSamples: A.windowSamples, bSamples: B.windowSamples,
         aRate: model.sampleRateA, bRate: model.sampleRateB,
         aBins: fmt(A.binHz, 2), bBins: fmt(B.binHz, 2)
-      }) + " · " + this.text(model.normalize ? "differenceRelative" : "differenceAbsolute"));
+      }) + " · " + this.text(model.measure === "ratio" ?
+        (model.normalize ? "ratioRelative" : "ratioAbsolute") :
+        (model.normalize ? "differenceRelative" : "differenceAbsolute")));
       this.put("compareDifferencePadding", A.paddedSamples || B.paddedSamples ?
         this.text("differencePadding", { a: A.paddedSamples, b: B.paddedSamples }) : "");
       const probe = this.$("compareDifferenceHz");
@@ -846,25 +879,48 @@
       const hz = probe.value.trim() === "" ? NaN : Number(probe.value);
       const inspected = differenceAt(model, hz);
       const db = value => value === -Infinity ? "−∞" : fmt(value, 2);
+      const amp = value => Math.abs(value) > 0 && Math.abs(value) < .0001 ? value.toExponential(2) : fmt(value, 4);
+      const signedAmp = value => value > 0 ? "+" + amp(value) : amp(value);
+      const signed = (value, digits = 2) => value > 0 ? "+" + fmt(value, digits) : fmt(value, digits);
       this.put("compareDifferenceProbe", !inspected ? this.text("differenceProbeRange", {
         low: fmt(low, 0), high: fmt(high, 0)
-      }) : inspected.valid ? this.text("differenceProbe", {
+      }) : model.measure === "ratio" ? this.text("ratioProbe", {
         hz: fmt(hz, 2), a: db(inspected.dbA), b: db(inspected.dbB),
-        delta: fmt(inspected.delta, 2), mode: model.normalize ? this.text("differenceProbeRelative") : ""
-      }) : this.text("differenceProbeBelow", { hz: fmt(hz, 2),
-        a: db(inspected.dbA), b: db(inspected.dbB) }));
+        delta: signed(inspected.delta), mode: model.normalize ? this.text("differenceProbeRelative") : "",
+        limit: inspected.floorLimited ? this.text("ratioFloorHint") : ""
+      }) : this.text("differenceProbe", {
+        hz: fmt(hz, 2), a: amp(inspected.amplitudeA), b: amp(inspected.amplitudeB),
+        delta: signedAmp(inspected.delta), mode: model.normalize ? this.text("differenceProbeRelative") : ""
+      }));
       const p = this.canvas("compareDifferenceSpectrum"); if (!p) return;
       const { g, left, right, top, bottom, height } = p;
       const x = frequency => left + (right - left) * (axis === "log" ?
         Math.log(Math.max(low, frequency) / low) / Math.log(high / low) : frequency / high);
-      const y = value => bottom - (clamp(value, -60, 60) + 60) / 120 * (bottom - top);
-      g.strokeStyle = "#dbe7ef"; g.fillStyle = "#56738d";
-      for (let level = -60; level <= 60; level += 20) {
-        g.beginPath(); g.moveTo(left, y(level)); g.lineTo(right, y(level));
-        g.strokeStyle = level === 0 ? "#8ba9b9" : "#dbe7ef"; g.stroke();
-        g.textAlign = "right"; g.fillText(level > 0 ? `+${level}` : String(level), left - 5, y(level) + 4);
+      const count = Math.max(2, Math.floor(right - left)), points = [];
+      let min = 0, max = 0;
+      for (let i = 0; i <= count; i++) {
+        const fraction = i / count;
+        const frequency = axis === "log" ? low * (high / low) ** fraction : high * fraction;
+        const point = differenceAt(model, frequency);
+        points.push(point);
+        if (point) { min = Math.min(min, point.delta); max = Math.max(max, point.delta); }
       }
-      g.fillStyle = "#56738d"; g.textAlign = "left"; g.fillText("A−B · dB", left + 8, top + 13);
+      const ratio = model.measure === "ratio";
+      const padding = Math.max(.08 * (max - min), 1e-3);
+      const yMin = ratio ? -90 : min - padding, yMax = ratio ? 90 : max + padding;
+      const y = value => bottom - (clamp(value, yMin, yMax) - yMin) / (yMax - yMin) * (bottom - top);
+      const axisLabel = value => Math.abs(value) < 1e-12 ? "0" :
+        Math.abs(value) < .0001 ? value.toExponential(1) : fmt(value, Math.abs(value) < .1 ? 4 : 3);
+      g.strokeStyle = "#dbe7ef"; g.fillStyle = "#56738d";
+      for (let i = 0; i <= 4; i++) {
+        const level = yMin + (yMax - yMin) * i / 4;
+        g.beginPath(); g.moveTo(left, y(level)); g.lineTo(right, y(level));
+        g.strokeStyle = "#dbe7ef"; g.stroke();
+        g.textAlign = "right"; g.fillText(ratio ? signed(level, 0) : axisLabel(level), left - 5, y(level) + 4);
+      }
+      g.strokeStyle = "#8ba9b9"; g.beginPath(); g.moveTo(left, y(0)); g.lineTo(right, y(0)); g.stroke();
+      g.fillStyle = "#56738d"; g.textAlign = "left";
+      g.fillText(this.text(ratio ? "ratioAxis" : "differenceAxis"), left + 8, top + 13);
       const ticks = axis === "log" ? [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000]
         .filter(value => value >= low && value <= high) : [0, high / 4, high / 2, high * .75, high];
       let last = -Infinity;
@@ -874,20 +930,17 @@
         g.textAlign = "center"; g.fillText(frequency >= 1000 ? fmt(frequency / 1000, 1) + "k" : fmt(frequency, 0),
           clamp(px, left + 15, right - 15), height - 7); last = px;
       }
-      const count = Math.max(2, Math.floor(right - left));
-      let started = false, validCount = 0;
+      let started = false;
       g.lineWidth = 1.8; g.strokeStyle = "#7c4bc2"; g.beginPath();
       for (let i = 0; i <= count; i++) {
         const fraction = i / count;
-        const frequency = axis === "log" ? low * (high / low) ** fraction : high * fraction;
-        const point = differenceAt(model, frequency);
-        if (!point?.valid) {
+        const point = points[i];
+        if (!point) {
           if (started) g.stroke();
           g.beginPath(); started = false; continue;
         }
         const px = left + (right - left) * fraction, py = y(point.delta);
         if (!started) { g.moveTo(px, py); started = true; } else g.lineTo(px, py);
-        validCount++;
       }
       if (started) g.stroke();
       if (inspected) {
@@ -895,7 +948,7 @@
         g.strokeStyle = "#d17f20"; g.lineWidth = 1.1; g.beginPath();
         g.moveTo(px, top); g.lineTo(px, bottom); g.stroke();
       }
-      this.put("compareDifferenceStatus", validCount ? this.text("differenceClipped") : this.text("differenceNoSignal"));
+      this.put("compareDifferenceStatus", this.text(ratio ? "ratioClipped" : "differenceContinuous"));
     }
   }
   return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, DIFFERENCE_FLOOR_DB,

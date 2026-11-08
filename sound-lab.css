@@ -699,8 +699,12 @@ h1, h2, p { margin-top: 0; }
 .compare-plot-panel canvas:focus-visible { outline: 3px solid #72a7fc; outline-offset: 2px; }
 .compare-overlay-panel { grid-column: 1 / -1; min-width: 0; }
 .compare-overlay-panel canvas { height: 250px; margin: 10px 0 4px; cursor: default; }
-.compare-plot-modes { width: min(100%, 470px); margin: 13px 0 5px; }
+.compare-plot-modes { width: min(100%, 690px); margin: 13px 0 5px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .compare-plot-modes button { min-height: 43px; }
+@media (max-width: 470px) {
+  .compare-plot-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compare-plot-modes button:last-child { grid-column: 1 / -1; }
+}
 .compare-difference-heading { margin-top: 9px; }
 .compare-difference-heading h3 { margin: 0 0 5px; color: #2b5074; font-size: 16px; }
 #compareDifferenceView > .compare-option { margin: 4px 0; }

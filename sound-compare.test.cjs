@@ -192,7 +192,7 @@ test("C2a overlays native spectra without resampling or silently normalizing the
   assert.equal(compare.overlayModel({ A: {}, B: {} }), null);
 });
 
-test("C2b subtracts dB only on common Hertz values from equal-duration Hann windows at unequal rates", () => {
+test("S083 subtracts continuous spectral amplitudes and optionally displays a floored dB ratio at unequal rates", () => {
   const a = pcm([sine(16000, 1, 440, .4)], 16000);
   const b = pcm([sine(48000, 1, 440, .2)], 48000);
   const slots = { A: { pcm: a, channel: 0, cursor: .5 }, B: { pcm: b, channel: 0, cursor: .5 } };
@@ -205,16 +205,20 @@ test("C2b subtracts dB only on common Hertz values from equal-duration Hann wind
   assert.equal(model.low, 0);
   const probe = compare.differenceAt(model, 440);
   assert.equal(probe.valid, true);
-  assert.ok(Math.abs(probe.delta - 6.0206) < .4, `expected 6 dB, received ${probe.delta}`);
+  assert.ok(Math.abs(probe.delta - .2) < .015, `expected ~0.2 amplitude difference, received ${probe.delta}`);
   const relative = compare.differenceModel(matched, { axis: "log", maxHz: 5000, normalize: true });
   assert.ok(Math.abs(compare.differenceAt(relative, 440).delta) < .5, "matching peaks removes a global gain difference from shape");
   assert.equal(compare.differenceAt(model, 9000), null);
   assert.equal(compare.differenceAt(relative, 0), null, "logarithmic axis starts above zero");
-  assert.equal(compare.differenceAt(model, 2000).valid, false, "near-silence bins have no fabricated finite ratio");
+  assert.equal(compare.differenceAt(model, 2000).valid, true, "small amplitudes remain in the continuous difference");
+  const ratio = compare.differenceModel(matched, { axis: "linear", maxHz: 5000, measure: "ratio" });
+  assert.ok(Math.abs(compare.differenceAt(ratio, 440).delta - 6.0206) < .4);
+  assert.ok(Math.abs(compare.differenceAt(compare.differenceModel(matched, {
+    axis: "linear", maxHz: 5000, measure: "ratio", normalize: true }), 440).delta) < .5);
   assert.equal(a.channels[0][10], sine(16000, 1, 440, .4)[10]);
 });
 
-test("C2b keeps overlay visible by default, switches views, probes dB, and never starts audio on inspection", async () => {
+test("S083 keeps overlay default, switches three peer views, probes amplitudes and dB without playing", async () => {
   const f = fixture();
   assert.equal(f.get("compareShowOverlay").attrs["aria-pressed"], "true");
   assert.equal(f.get("compareDifferenceView").hidden, true);
@@ -230,7 +234,7 @@ test("C2b keeps overlay visible by default, switches views, probes dB, and never
   f.get("compareDifferenceHz").value = "440";
   f.get("compareDifferenceHz").dispatch("input");
   assert.match(f.get("compareDifferenceProbe").textContent, /A−B/);
-  assert.match(f.get("compareDifferenceProbe").textContent, /A−B (5\.9\d|6\.0\d)/);
+  assert.match(f.get("compareDifferenceProbe").textContent, /A−B \+(0\.1\d|0\.2)/);
   f.get("compareDifferenceNormalize").checked = true;
   f.get("compareDifferenceNormalize").dispatch("change");
   assert.match(f.get("compareDifferenceInfo").textContent, /зураг/);
@@ -238,6 +242,15 @@ test("C2b keeps overlay visible by default, switches views, probes dB, and never
   f.controller.renderLanguage("en");
   assert.equal(f.get("compareShowDifference").textContent, "Difference A−B");
   assert.match(f.get("compareDifferenceNote").textContent, /interpolated/);
+  assert.match(f.get("compareDifferenceTitle").textContent, /amplitude/);
+  f.get("compareDifferenceNormalize").checked = false;
+  f.get("compareDifferenceNormalize").dispatch("change");
+  f.get("compareShowRatio").click();
+  assert.equal(f.get("compareShowRatio").attrs["aria-pressed"], "true");
+  assert.match(f.get("compareDifferenceTitle").textContent, /ratio/);
+  assert.match(f.get("compareDifferenceProbe").textContent, /A\/B \+(5\.9\d|6\.0\d) dB/);
+  assert.match(f.get("compareDifferenceNote").textContent, /floor/);
+  f.get("compareShowDifference").click();
   f.get("compareDifferenceHz").value = "20000"; f.get("compareDifferenceHz").dispatch("input");
   assert.match(f.get("compareDifferenceProbe").textContent, /inside the shared/);
   f.get("compareDifferenceSpectrum").dispatch("pointerdown", { clientX: 330 });
@@ -252,19 +265,42 @@ test("C2b keeps overlay visible by default, switches views, probes dB, and never
   assert.equal(f.owner.readyCalls, 0);
 });
 
-test("C2b suppresses spectral difference below the near-silence floor and reports zero-padding", async () => {
+test("S083 retains silent spectral points in signed amplitude difference and floor-limits level ratio", async () => {
   const f = fixture(), a = pcm([sine(16000, .15, 440, .4)], 16000);
   const silence = pcm([new Float32Array(48000)], 48000);
   await f.load("A", a); await f.load("B", silence);
   f.get("compareShowDifference").click();
   f.get("compareDifferenceHz").value = "440"; f.get("compareDifferenceHz").dispatch("input");
-  assert.match(f.get("compareDifferenceProbe").textContent, /−90 dBFS/);
-  assert.match(f.get("compareDifferenceStatus").textContent, /босго/);
+  assert.match(f.get("compareDifferenceProbe").textContent, /A−B/);
+  assert.match(f.get("compareDifferenceStatus").textContent, /холбов/);
+  f.get("compareShowRatio").click();
+  assert.match(f.get("compareDifferenceProbe").textContent, /босгоор хязгаарласан/);
+  assert.match(f.get("compareDifferenceStatus").textContent, /−90/);
   f.controller.setCursor("A", 0);
   assert.match(f.get("compareDifferencePadding").textContent, /A-ийн/);
   assert.equal(f.controller.slots.A.pcm, a);
   assert.equal(f.controller.slots.B.pcm, silence);
   assert.equal(f.owner.readyCalls, 0);
+});
+
+test("S083 gives a negative 220-Hz and positive 440-Hz magnitude difference without spectral gaps", () => {
+  const a = pcm([sine(44100, 1, 440, .5)], 44100);
+  const b = pcm([sine(44100, 1, 220, .25)], 44100);
+  const slots = { A: { pcm: a, channel: 0, cursor: .5 }, B: { pcm: b, channel: 0, cursor: .5 } };
+  const matched = compare.matchedSpectra(slots, 4096);
+  const model = compare.differenceModel(matched, { axis: "log", maxHz: 5000 });
+  assert.ok(compare.differenceAt(model, 220).delta < -.2, "B dominates around its 220-Hz fundamental");
+  assert.ok(compare.differenceAt(model, 440).delta > .4, "A dominates around 440 Hz");
+  for (let hz = 20; hz <= 5000; hz += 5) {
+    const point = compare.differenceAt(model, hz);
+    assert.equal(point.valid, true, "no hard floor removes faint frequencies");
+    assert.ok(Number.isFinite(point.delta));
+  }
+  const ratio = compare.differenceModel(matched, { axis: "log", maxHz: 5000, measure: "ratio" });
+  assert.ok(compare.differenceAt(ratio, 220).delta < -60);
+  assert.ok(compare.differenceAt(ratio, 440).delta > 60);
+  assert.equal(compare.differenceAt(ratio, 1000).floorLimited, true);
+  assert.ok(Number.isFinite(compare.differenceAt(ratio, 1000).delta), "ratio uses floor instead of gaps");
 });
 
 test("C2a links inspection times in seconds, clamps unequal durations and leaves independent mode available", async () => {
