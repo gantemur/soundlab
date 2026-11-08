@@ -152,7 +152,7 @@ test("C2a keeps peer Analysis sub-tabs, moves Single source modes to its right c
   assert.match(html, /id="compareBClass"[\s\S]*id="compareBExample"[\s\S]*id="compareBOpen"[\s\S]*id="compareBMic"/);
   const compareResults = html.slice(html.indexOf('class="visuals compare-visuals"'), html.indexOf('id="analysisMicWorkspace"'));
   assert.match(compareResults, /id="compareAVisualTitle"[\s\S]*id="compareBVisualTitle"[\s\S]*class="panel chart-panel compare-sync-panel"[\s\S]*class="panel chart-panel compare-overlay-panel"/);
-  assert.match(compareResults, /id="compareSyncModeA"[\s\S]*id="compareSyncModeB"[\s\S]*id="compareSyncModeBoth"[\s\S]*id="compareSyncPlay"[\s\S]*id="compareSyncSeek"[\s\S]*id="compareSyncOffsetNumber"/);
+  assert.match(compareResults, /id="compareSyncModeA"[\s\S]*id="compareSyncModeB"[\s\S]*id="compareSyncModeBoth"[\s\S]*id="compareSyncModeAuto"[\s\S]*id="compareSyncSwitchPeriod"[\s\S]*id="compareSyncReplay"[\s\S]*id="compareSyncPlay"[\s\S]*id="compareSyncSeek"[\s\S]*id="compareSyncOffsetNumber"/);
   assert.match(compareResults, /id="compareLinkCursors"[\s\S]*id="compareNormalize"[\s\S]*id="compareOverlaySpectrum"/);
   const singleCards = compareResults.slice(0, compareResults.indexOf('class="panel chart-panel compare-overlay-panel"'));
   assert.doesNotMatch(singleCards, /id="compare[AB]Spectrum"/, "individual FFT charts leave the main A/B cards");
@@ -465,6 +465,173 @@ test("S084 shared transport completes, stops when an independent player takes ov
   assert.equal(await pending, false);
   assert.equal(f.nodes.length, nodesBefore, "cancelled start must never attach fresh audio nodes");
   assert.equal(f.intervals.size, 0);
+});
+
+test("S085 Auto A/B offers a bilingual, non-autoplaying repeated-excerpt audition", async () => {
+  const f = fixture();
+  await f.load("A", pcm([sine(16000, 1)], 16000));
+  await f.load("B", pcm([sine(48000, 1)], 48000));
+  f.controller.renderLanguage("en");
+  assert.equal(f.get("compareSyncModeAuto").textContent, "Auto A/B");
+  assert.equal(f.get("compareSyncAutoControls").hidden, true);
+  assert.equal(f.get("compareSyncSwitchPeriod").value, "0.6");
+  assert.equal(f.get("compareSyncReplay").checked, true);
+  assert.equal(f.get("compareSyncSwitchPeriod").children[1].textContent, "0.6 s");
+  f.get("compareSyncModeAuto").click();
+  assert.equal(f.controller.syncMode, "auto");
+  assert.equal(f.get("compareSyncModeAuto").attrs["aria-pressed"], "true");
+  assert.equal(f.get("compareSyncAutoControls").hidden, false);
+  assert.equal(f.get("compareSyncPositionLabel").textContent, "Repeated excerpt starts at");
+  assert.match(f.get("compareSyncAutoHelp").textContent, /pluck/);
+  assert.equal(f.owner.readyCalls, 0, "mode, period and repeat controls must never autoplay");
+  f.get("compareSyncSwitchPeriod").value = "1";
+  f.get("compareSyncSwitchPeriod").dispatch("change");
+  assert.equal(f.controller.syncSwitchPeriod, 1);
+  f.get("compareSyncReplay").checked = false;
+  f.get("compareSyncReplay").dispatch("change");
+  assert.equal(f.controller.syncReplay, false);
+  assert.match(f.get("compareSyncAutoHelp").textContent, /original recordings/);
+  assert.equal(f.get("compareSyncPositionLabel").textContent, "Shared playback position");
+  f.controller.renderLanguage("mn");
+  assert.equal(f.get("compareSyncModeAuto").textContent, "A/B ээлжлэх");
+  assert.equal(f.get("compareSyncSwitchPeriod").children[1].textContent, "0.6 сек");
+  assert.match(f.get("compareSyncAutoHelp").textContent, /эх бичлэг/);
+  assert.equal(f.owner.readyCalls, 0);
+});
+
+test("S085 repeated Auto A/B loops each native short excerpt with audio-clock gated turns", async () => {
+  const f = fixture();
+  const a = pcm([sine(16000, 2, 440, .45)], 16000);
+  const pluck = new Float32Array(48000 * 2);
+  pluck[480] = .7; pluck[24000] = .01; // An early attack and much weaker late content.
+  const b = pcm([pluck], 48000);
+  await f.load("A", a); await f.load("B", b);
+  f.controller.renderLanguage("en");
+  f.get("compareSyncModeAuto").click();
+  assert.equal(await f.controller.playShared(), true);
+  const shared = f.controller.syncVoice;
+  assert.equal(shared.auto, true); assert.equal(shared.repeat, true);
+  assert.equal(shared.period, .6);
+  assert.deepEqual(f.buffers.map(buffer => [buffer.sampleRate, buffer.channels[0].length]),
+    [[16000, 9600], [48000, 28800]], "only excerpts are copied at original native rates");
+  assert.deepEqual(f.nodes.map(node => node.startArgs), [[.025, 0], [.025, 0]]);
+  assert.deepEqual(f.nodes.map(node => node.loop), [true, true]);
+  assert.deepEqual(f.nodes.map(node => node.loopStart), [0, 0]);
+  assert.deepEqual(f.nodes.map(node => node.loopEnd), [.6, .6]);
+  assert.ok(Math.abs(f.buffers[1].channels[0][480] - .7) < 1e-6,
+    "B's initial pluck is present each time its loop restarts");
+  assert.ok(Math.abs(f.buffers[1].channels[0][24000] - .01) < 1e-6,
+    "B retains its quiet tail inside the excerpt, but loops back to the attack on its next turn");
+  assert.equal(f.gains.length, 4, "Auto uses independent volume controls and scheduled A/B gates");
+  const [aVolume, aGate, bVolume, bGate] = f.gains;
+  assert.deepEqual([aVolume.target, bVolume.target], [aGate, bGate]);
+  assert.equal(aGate.target, f.owner.output); assert.equal(bGate.target, f.owner.output);
+  const aTurns = aGate.gain.events.filter(event => event[0] === "target");
+  assert.deepEqual(aTurns.slice(0, 3).map(event => [event[1], event[3]]), [[1, .006], [0, .006], [1, .006]]);
+  assert.ok(Math.abs(aTurns[0][2] - .025) < 1e-10 && Math.abs(aTurns[1][2] - .625) < 1e-10 &&
+    Math.abs(aTurns[2][2] - 1.225) < 1e-10);
+  assert.deepEqual(bGate.gain.events.filter(event => event[0] === "target").slice(0, 2),
+    [["target", 0, .025, .006], ["target", 1, .625, .006]]);
+  const scheduled = aGate.gain.events.length;
+  f.get("compareBVolume").value = "60"; f.get("compareBVolume").dispatch("input");
+  assert.equal(bVolume.gain.events.at(-1)[1], .6);
+  assert.equal(aGate.gain.events.length, scheduled, "volume changes must not override gate automation");
+  f.context.currentTime = 10; f.controller.tickShared();
+  assert.equal(f.controller.syncVoice, shared, "a repeated audition does not finish at original source end");
+  assert.equal(f.controller.currentSyncPosition(), 0, "the seek slider remains anchored at excerpt start");
+  assert.ok(f.controller.sharedMarkerTime() > 0 && f.controller.sharedMarkerTime() < .6);
+  assert.match(f.get("compareSyncStatus").textContent, /repeating 0.6 s/);
+  assert.equal(a.channels[0][1], sine(16000, 2, 440, .45)[1], "analysis PCM is unchanged");
+  assert.ok(Math.abs(b.channels[0][480] - .7) < 1e-6);
+  f.get("compareSyncPlay").click();
+  assert.equal(f.controller.syncVoice, null);
+  assert.equal(f.controller.syncPosition, 0);
+  assert.equal(f.intervals.size, 0);
+  assert.deepEqual(f.nodes.map(node => node.stops), [1, 1]);
+});
+
+test("S085 repetition honors positive/negative B offsets, excerpt seeking, and cancel on global stop", async () => {
+  const f = fixture(), a = pcm([sine(8000, 1)], 8000);
+  const bSamples = new Float32Array(16000);
+  bSamples.fill(.3);
+  const b = pcm([bSamples], 16000);
+  await f.load("A", a); await f.load("B", b);
+  f.get("compareSyncModeAuto").click();
+  await f.controller.seekShared(.15);
+  await f.controller.setSyncOffset(.05);
+  assert.equal(await f.controller.playShared(), true);
+  assert.ok(Math.abs(f.buffers[1].channels[0][160] - .3) < 1e-6,
+    "positive B offset reads later native samples");
+  assert.equal(f.controller.syncPosition, .15);
+  f.context.currentTime = .4;
+  assert.equal(await f.controller.seekShared(.2), true);
+  assert.equal(f.controller.syncPosition, .2);
+  assert.ok(Math.abs(f.buffers[3].channels[0][160] - .3) < 1e-6);
+  assert.equal(await f.controller.setSyncOffset(-.4), true);
+  const delayedB = f.buffers[5].channels[0];
+  assert.equal(delayedB[160], 0, "negative B time generates true silence before source start");
+  assert.ok(Math.abs(delayedB[3200 + 160] - .3) < 1e-6,
+    "B arrives after 0.2 s padding without shifting the PCM");
+  const beforeStop = f.nodes.length;
+  f.controller.stop();
+  assert.equal(f.intervals.size, 0);
+  assert.equal(f.controller.syncVoice, null);
+  assert.equal(f.nodes.length, beforeStop);
+  assert.equal(a.channels[0][0], 0); assert.ok(Math.abs(b.channels[0][160] - .3) < 1e-6);
+});
+
+test("S085 continuous Auto A/B switches on the native shared timeline and ends naturally", async () => {
+  const f = fixture();
+  await f.load("A", pcm([sine(16000, .55)], 16000));
+  await f.load("B", pcm([sine(48000, .45)], 48000));
+  f.get("compareSyncModeAuto").click();
+  await f.controller.setSyncAutoOptions(.3, false);
+  assert.equal(await f.controller.playShared(), true);
+  assert.equal(f.controller.syncVoice.repeat, false);
+  assert.equal(f.controller.syncVoice.auto, true);
+  assert.deepEqual(f.buffers.map(buffer => buffer.channels[0].length), [8800, 21600],
+    "continuous Auto keeps full original audio buffers");
+  assert.deepEqual(f.nodes.map(node => node.startArgs), [[.025, 0], [.025, 0]]);
+  assert.deepEqual(f.nodes.map(node => node.loop), [undefined, undefined]);
+  assert.deepEqual(f.gains[1].gain.events.filter(e => e[0] === "target").slice(0, 2).map(e => e[1]), [1, 0]);
+  assert.deepEqual(f.gains[3].gain.events.filter(e => e[0] === "target").slice(0, 2).map(e => e[1]), [0, 1]);
+  f.context.currentTime = .2; f.controller.tickShared();
+  assert.ok(Math.abs(f.controller.currentSyncPosition() - .175) < 1e-9);
+  assert.match(f.get("compareSyncTime").textContent, /0\.18 \/ 0\.55/);
+  f.context.currentTime = .59; f.controller.tickShared();
+  assert.equal(f.controller.syncVoice, null, "no repeat means completion at shared duration");
+  assert.equal(f.controller.syncPosition, 0);
+  assert.equal(f.intervals.size, 0);
+});
+
+test("S085 toggles Auto during playback safely, restarts after period changes and never autoplays when stopped", async () => {
+  const f = fixture();
+  await f.load("A", pcm([sine(8000, 2)], 8000));
+  await f.load("B", pcm([sine(16000, 2)], 16000));
+  assert.equal(await f.controller.playShared(), true);
+  f.context.currentTime = .27;
+  assert.equal(await f.controller.setSyncMode("auto"), true);
+  assert.ok(Math.abs(f.controller.syncPosition - .27) < 1e-10);
+  assert.equal(f.controller.syncVoice.repeat, true);
+  assert.deepEqual(f.nodes.slice(0, 2).map(node => node.stops), [1, 1]);
+  const firstAuto = f.controller.syncVoice;
+  f.context.currentTime = .43;
+  assert.equal(await f.controller.setSyncAutoOptions(1, true), true);
+  assert.notEqual(f.controller.syncVoice, firstAuto);
+  assert.ok(Math.abs(f.controller.syncPosition - .27) < 1e-10, "changing period keeps the excerpt start");
+  assert.equal(f.controller.syncVoice.period, 1);
+  f.context.currentTime = .63;
+  const marker = f.controller.sharedMarkerTime();
+  assert.equal(await f.controller.setSyncMode("B"), true);
+  assert.ok(Math.abs(f.controller.syncPosition - marker) < 1e-10,
+    "leaving a repeated audition returns to the audible point on the original timeline");
+  assert.equal(f.controller.syncVoice.auto, false);
+  assert.equal(f.controller.syncMode, "B");
+  f.controller.stop();
+  const calls = f.owner.readyCalls;
+  await f.controller.setSyncMode("auto");
+  await f.controller.setSyncAutoOptions(.6, false);
+  assert.equal(f.owner.readyCalls, calls, "stopped mode/option changes never request the audio context");
 });
 
 test("C1 compares modeled guitar A with microphone piano B at different rates and keeps origins explicit", async () => {

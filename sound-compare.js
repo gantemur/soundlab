@@ -139,13 +139,19 @@
       open: "Open WAV…", mic: "Microphone…", fromAnalysis: "Use current Analysis sound",
       playA: "▶ Play A", playB: "▶ Play B", stopA: "Ⅱ Stop A", stopB: "Ⅱ Stop B",
       volume: "Listening volume", channel: "Analysis channel", settings: "Comparison settings",
-      syncTitle: "Compare by listening", syncIntro: "One timeline for A and B. Switch sources without restarting, or hear both together.",
-      syncModes: "Shared listening modes", syncModeA: "A", syncModeB: "B", syncModeBoth: "Together",
-      syncPlay: "▶ Play", syncPause: "Ⅱ Pause", syncPosition: "Shared playback position",
+      syncTitle: "Compare by listening", syncIntro: "Listen to A/B on one timeline, mix them, or automatically alternate short excerpts.",
+      syncModes: "Shared listening modes", syncModeA: "A", syncModeB: "B", syncModeBoth: "Together", syncModeAuto: "Auto A/B",
+      syncSwitchPeriod: "Switch every", syncReplay: "Replay the excerpt on every turn",
+      syncAutoHelpReplay: "A and B each replay the same short interval from the selected starting time (B offset included). Even a quickly fading pluck is heard at every B turn. Playback loops until paused.",
+      syncAutoHelpTimeline: "A and B alternate along their original recordings without restarting. A fading pluck can become nearly silent in later B turns; playback ends with the shared timeline.",
+      syncPlay: "▶ Play", syncPause: "Ⅱ Pause", syncPosition: "Shared playback position", syncExcerptStart: "Repeated excerpt starts at",
       syncTime: "{time} / {duration} s", syncOffset: "B time offset τ · s", syncOffsetReset: "Reset offset",
       syncOffsetHelp: "At shared time t, B plays at t + τ. Positive τ skips B's beginning; negative τ delays B. No phase alignment.",
-      syncReady: "Choose A, B or Together, then play.", syncStarting: "Preparing aligned playback…",
+      syncReady: "Choose A, B, Together or Auto A/B, then play.", syncStarting: "Preparing aligned playback…",
       syncPlaying: "Playing {mode}. Switch modes without restarting.", syncPaused: "Paused at {time} s.",
+      syncAutoPlayingReplay: "Auto A/B: repeating {period} s excerpts from {time} s. Pause to stop the loop.",
+      syncAutoPlayingTimeline: "Auto A/B: switching every {period} s on the original timeline.",
+      syncPausedExcerpt: "Paused. The next excerpt begins at {time} s.",
       syncError: "Shared playback could not start; both sources remain available for analysis.",
       syncMixHint: "Uses the separate A/B volume sliders and master volume. Together mixes each at half gain for headroom. Blue waveform markers show the shared playhead; orange markers remain inspection cursors.",
       fftSize: "FFT window · samples", axis: "Frequency axis", linear: "Linear", log: "Logarithmic",
@@ -212,13 +218,19 @@
       open: "WAV нээх…", mic: "Микрофон…", fromAnalysis: "Шинжлэх хэсгийн авиаг авах",
       playA: "▶ A тоглуулах", playB: "▶ B тоглуулах", stopA: "Ⅱ A зогсоох", stopB: "Ⅱ B зогсоох",
       volume: "Сонсох дууны хэмжээ", channel: "Шинжлэх суваг", settings: "Харьцуулах тохиргоо",
-      syncTitle: "Харьцуулж сонсох", syncIntro: "A ба B-д нэг хугацааны тэнхлэг хэрэглэнэ. Дахин эхлүүлэхгүйгээр A/B-г сольж эсвэл хамт сонсоно.",
-      syncModes: "Нэгдсэн сонсох горим", syncModeA: "A", syncModeB: "B", syncModeBoth: "Хамт",
-      syncPlay: "▶ Тоглуулах", syncPause: "Ⅱ Түр зогсоох", syncPosition: "Нэгдсэн тоглуулах байрлал",
+      syncTitle: "Харьцуулж сонсох", syncIntro: "A/B-г нэг хугацаанд сонсох, хамт тоглуулах эсвэл богино хэсгүүдээр ээлжлэн харьцуулах боломжтой.",
+      syncModes: "Нэгдсэн сонсох горим", syncModeA: "A", syncModeB: "B", syncModeBoth: "Хамт", syncModeAuto: "A/B ээлжлэх",
+      syncSwitchPeriod: "Солих хугацаа", syncReplay: "Ээлж бүрд нэг хэсгийг эхнээс нь тоглуулах",
+      syncAutoHelpReplay: "Сонгосон мөчөөс эхлэх богино хэсгийг A, B дээр дахин дахин ээлжлэн тоглуулна (B-ийн зөрүү үйлчилнэ). Гитарын эхний цохилт B-ийн ээлж бүрд сонсогдоно. Түр зогсоох хүртэл давтана.",
+      syncAutoHelpTimeline: "A ба B-г эх бичлэгийн хугацаагаар ээлжлэн сонсоно; дахин эхлүүлэхгүй. Хурдан намжих хөгжим B-ийн сүүлийн ээлжүүдэд сонсогдохгүй байж болно. Нэгдсэн хугацааны төгсгөлд зогсоно.",
+      syncPlay: "▶ Тоглуулах", syncPause: "Ⅱ Түр зогсоох", syncPosition: "Нэгдсэн тоглуулах байрлал", syncExcerptStart: "Давтах хэсгийн эхлэл",
       syncTime: "{time} / {duration} сек", syncOffset: "B-ийн хугацааны зөрүү τ · сек", syncOffsetReset: "Зөрүүг тэглэх",
       syncOffsetHelp: "Нэгдсэн t мөчид B-ийн t + τ мөчийг сонсоно. Эерэг τ B-ийн эхийг алгасна; сөрөг τ B-г хойшлуулна. Фазыг тааруулахгүй.",
-      syncReady: "A, B эсвэл Хамт горим сонгоод тоглуулаарай.", syncStarting: "Тааруулсан авиануудыг бэлтгэж байна…",
+      syncReady: "A, B, Хамт эсвэл A/B ээлжлэх горим сонгоод тоглуулаарай.", syncStarting: "Тааруулсан авиануудыг бэлтгэж байна…",
       syncPlaying: "{mode} горимоор сонсож байна. Дахин эхлүүлэхгүйгээр сольж болно.", syncPaused: "{time} сек дээр түр зогслоо.",
+      syncAutoPlayingReplay: "A/B ээлжлэх: {time} сек-ээс {period} сек хэсгийг давтаж байна. Түр зогсоож дуусгана.",
+      syncAutoPlayingTimeline: "A/B ээлжлэх: эх хугацааны тэнхлэг дээр {period} сек тутам солино.",
+      syncPausedExcerpt: "Түр зогслоо. Дараагийн хэсэг {time} сек-ээс эхэлнэ.",
       syncError: "Нэгдсэн сонсголыг эхлүүлж чадсангүй; хоёр авианы шинжилгээ хэвээр.",
       syncMixHint: "A/B-ийн өөрийн хэмжээ болон нийт хэмжээг хэрэглэнэ. Хамт сонсоход хоёр сувгийн хэмжээг тус бүрд нь хагаслаж нөөц үлдээнэ. Хөх шугам нь нэгдсэн тоглуулах, улбар шар нь шинжлэх курсор.",
       fftSize: "FFT цонхны урт · сорьц", axis: "Давтамжийн тэнхлэг", linear: "Шугаман", log: "Логарифмын",
@@ -297,6 +309,7 @@
       }]));
       this.voice = null; this.playingKey = null; this.playbackTicket = 0; this.startingKey = null;
       this.syncMode = "A"; this.syncOffset = 0; this.syncPosition = 0;
+      this.syncSwitchPeriod = .6; this.syncReplay = true;
       this.syncVoice = null; this.syncStarting = false; this.syncStatus = "syncReady";
       for (const key of ["A", "B"]) {
         this.$(`compare${key}Class`).addEventListener("change", event => {
@@ -350,9 +363,17 @@
         if (this.syncVoice) this.updateSyncGains();
         this.put("compareVolumeValue", Math.round(this.volume * 100) + "%");
       });
-      for (const mode of ["A", "B", "Both"]) {
-        this.$(`compareSyncMode${mode}`).addEventListener("click", () => this.setSyncMode(mode === "Both" ? "both" : mode));
+      for (const mode of ["A", "B", "Both", "Auto"]) {
+        this.$(`compareSyncMode${mode}`).addEventListener("click", () => {
+          void this.setSyncMode(mode === "Both" ? "both" : mode === "Auto" ? "auto" : mode);
+        });
       }
+      this.$("compareSyncSwitchPeriod").addEventListener("change", event => {
+        void this.setSyncAutoOptions(Number(event.target.value), this.syncReplay);
+      });
+      this.$("compareSyncReplay").addEventListener("change", event => {
+        void this.setSyncAutoOptions(this.syncSwitchPeriod, Boolean(event.target.checked));
+      });
       this.$("compareSyncPlay").addEventListener("click", () => { void this.playShared(); });
       this.$("compareSyncSeek").addEventListener("input", event => {
         this.put("compareSyncTime", this.text("syncTime", {
@@ -485,7 +506,8 @@
       this.$("compareKindModes").setAttribute("aria-label", this.text("kindModes"));
       this.$("compareSpectralModes").setAttribute("aria-label", this.text("plotModes"));
       this.$("compareSyncModes").setAttribute("aria-label", this.text("syncModes"));
-      this.$("compareSyncSeek").setAttribute("aria-label", this.text("syncPosition"));
+      this.options("compareSyncSwitchPeriod", [.3, .6, 1, 2].map(seconds =>
+        [String(seconds), `${seconds} ${this.language === "en" ? "s" : "сек"}`]), this.syncSwitchPeriod);
       this.$("compareSyncOffset").setAttribute("aria-label", this.text("syncOffset"));
       this.$("compareSyncOffsetNumber").setAttribute("aria-label", this.text("syncOffset"));
       this.render();
@@ -564,17 +586,33 @@
     currentSyncPosition() {
       if (!this.syncVoice) return this.syncPosition;
       const voice = this.syncVoice;
+      if (voice.repeat) return voice.position; // The seek control is the repeated excerpt's anchor.
       return clamp(voice.position + Math.max(0, voice.context.currentTime - voice.startTime), 0, this.syncDuration());
+    }
+    sharedMarkerTime() {
+      const voice = this.syncVoice;
+      if (!voice?.repeat) return this.currentSyncPosition();
+      const elapsed = Math.max(0, voice.context.currentTime - voice.startTime);
+      return clamp(voice.position + elapsed % voice.period, 0, this.syncDuration());
     }
     renderShared() {
       const ready = this.active && ["A", "B"].every(key => this.slots[key].pcm && !this.slots[key].busy);
       const duration = this.syncDuration(), time = this.currentSyncPosition();
-      for (const mode of ["A", "B", "both"]) {
-        const button = this.$(`compareSyncMode${mode === "both" ? "Both" : mode}`), selected = this.syncMode === mode;
+      for (const mode of ["A", "B", "both", "auto"]) {
+        const id = mode === "both" ? "Both" : mode === "auto" ? "Auto" : mode;
+        const button = this.$(`compareSyncMode${id}`), selected = this.syncMode === mode;
         button.disabled = !ready;
         button.classList.toggle("selected", selected);
         button.setAttribute("aria-pressed", String(selected));
       }
+      const auto = this.syncMode === "auto", repeat = auto && this.syncReplay;
+      this.$("compareSyncAutoControls").hidden = !auto;
+      this.$("compareSyncSwitchPeriod").value = String(this.syncSwitchPeriod);
+      this.$("compareSyncReplay").checked = this.syncReplay;
+      this.put("compareSyncAutoHelp", this.text(repeat ? "syncAutoHelpReplay" : "syncAutoHelpTimeline"));
+      const positionLabel = this.text(repeat ? "syncExcerptStart" : "syncPosition");
+      this.put("compareSyncPositionLabel", positionLabel);
+      this.$("compareSyncSeek").setAttribute("aria-label", positionLabel);
       const playing = Boolean(this.syncVoice || this.syncStarting);
       this.$("compareSyncPlay").disabled = !ready;
       this.$("compareSyncPlay").setAttribute("aria-pressed", String(playing));
@@ -586,15 +624,38 @@
       this.put("compareSyncTime", this.text("syncTime", { time: fmt(time, 2), duration: fmt(duration, 2) }));
       this.$("compareSyncOffset").value = String(clamp(this.syncOffset, -2, 2));
       this.$("compareSyncOffsetNumber").value = String(this.syncOffset);
-      this.put("compareSyncStatus", this.text(this.syncStarting ? "syncStarting" :
-        this.syncVoice ? "syncPlaying" : this.syncStatus, {
-        mode: this.text(this.syncMode === "both" ? "syncModeBoth" : `syncMode${this.syncMode}`), time: fmt(time, 2)
+      const status = this.syncStarting ? "syncStarting" : this.syncVoice ?
+        auto ? (repeat ? "syncAutoPlayingReplay" : "syncAutoPlayingTimeline") : "syncPlaying" :
+        this.syncStatus === "syncPaused" && repeat ? "syncPausedExcerpt" : this.syncStatus;
+      this.put("compareSyncStatus", this.text(status, {
+        mode: this.text(this.syncMode === "both" ? "syncModeBoth" : this.syncMode === "auto" ?
+          "syncModeAuto" : `syncMode${this.syncMode}`), time: fmt(time, 2), period: fmt(this.syncSwitchPeriod, 1)
       }));
     }
-    setSyncMode(mode) {
-      if (!["A", "B", "both"].includes(mode)) return;
+    async setSyncMode(mode) {
+      if (!["A", "B", "both", "auto"].includes(mode) || mode === this.syncMode) return;
+      const previousAuto = this.syncMode === "auto";
+      const restart = Boolean(this.syncVoice || this.syncStarting) && (previousAuto !== (mode === "auto"));
+      const position = this.syncVoice?.repeat && mode !== "auto" ? this.sharedMarkerTime() : this.currentSyncPosition();
       this.syncMode = mode;
+      if (restart) {
+        this.stopPlayback(); this.syncPosition = clamp(position, 0, this.syncDuration());
+        return this.playShared();
+      }
       if (this.syncVoice) this.updateSyncGains();
+      this.renderShared();
+    }
+    async setSyncAutoOptions(period, repeat) {
+      if (![.3, .6, 1, 2].includes(period)) return;
+      repeat = Boolean(repeat);
+      if (period === this.syncSwitchPeriod && repeat === this.syncReplay) return;
+      const wasPlaying = this.syncMode === "auto" && Boolean(this.syncVoice || this.syncStarting);
+      const position = this.syncVoice?.repeat && !repeat ? this.sharedMarkerTime() : this.currentSyncPosition();
+      this.syncSwitchPeriod = period; this.syncReplay = repeat;
+      if (wasPlaying) {
+        this.stopPlayback(); this.syncPosition = clamp(position, 0, this.syncDuration());
+        return this.playShared();
+      }
       this.renderShared();
     }
     setSyncOffset(value) {
@@ -630,15 +691,39 @@
       if (!this.syncVoice) return;
       const now = this.syncVoice.context.currentTime;
       for (const voice of this.syncVoice.voices) {
-        const active = this.syncMode === "both" || this.syncMode === voice.key;
-        const level = active ? this.listeningGain(voice.key) * (this.syncMode === "both" ? .5 : 1) : 0;
+        const auto = this.syncVoice.auto;
+        const active = auto || this.syncMode === "both" || this.syncMode === voice.key;
+        const level = active ? this.listeningGain(voice.key) * (!auto && this.syncMode === "both" ? .5 : 1) : 0;
         const at = Math.max(now, voice.startAt);
         voice.gain.gain.setTargetAtTime(level, at, .012);
       }
     }
+    scheduleAlternateGates(shared) {
+      if (!shared.auto) return;
+      const now = shared.context.currentTime, { period, startTime } = shared;
+      const current = Math.max(0, Math.floor(Math.max(0, now - startTime) / period));
+      // Browser background throttling can delay the UI tick. Recover the live
+      // phase instead of scheduling a backlog of AudioParam events in the past.
+      if (current > shared.nextGateIndex) {
+        for (const item of shared.voices) {
+          item.gate.gain.setValueAtTime(Number((current % 2 === 0) === (item.key === "A")), now);
+        }
+        shared.nextGateIndex = current + 1;
+      }
+      const last = Math.ceil((now + 30 - startTime) / period);
+      for (let turn = shared.nextGateIndex; turn <= last; turn++) {
+        const at = startTime + turn * period;
+        for (const item of shared.voices) {
+          const active = (turn % 2 === 0) === (item.key === "A");
+          item.gate.gain.setTargetAtTime(active ? 1 : 0, at, .006);
+        }
+      }
+      shared.nextGateIndex = Math.max(shared.nextGateIndex, last + 1);
+    }
     tickShared() {
       if (!this.syncVoice) return;
-      if (this.currentSyncPosition() >= this.syncDuration() - .005) {
+      this.scheduleAlternateGates(this.syncVoice);
+      if (!this.syncVoice.repeat && this.currentSyncPosition() >= this.syncDuration() - .005) {
         this.finishShared(); return;
       }
       this.renderShared();
@@ -792,6 +877,31 @@
       return buffer;
     }
 
+    // Audition-only loop, made directly from native PCM samples. Out-of-range
+    // source times become silence (including the delay from a negative B τ).
+    // Neither the analysis PCM nor either cached full-playback buffer changes.
+    async prepareExcerptBuffer(pcm, context, sourceTime, seconds, cancelled) {
+      const frames = Math.max(1, Math.round(seconds * pcm.sampleRate));
+      const buffer = context.createBuffer(pcm.channels.length, frames, pcm.sampleRate);
+      const first = Math.round(sourceTime * pcm.sampleRate);
+      const fade = Math.max(1, Math.round(.004 * pcm.sampleRate));
+      const attenuation = pcm.peak > .98 ? .98 / pcm.peak : 1;
+      for (let c = 0; c < pcm.channels.length; c++) {
+        const target = buffer.getChannelData(c), source = pcm.channels[c];
+        for (let start = 0; start < frames; start += 131072) {
+          if (cancelled()) return null;
+          const end = Math.min(frames, start + 131072);
+          for (let i = start; i < end; i++) {
+            const at = first + i;
+            if (at < 0 || at >= source.length) continue;
+            target[i] = source[at] * attenuation * Math.min(1, i / fade, (frames - 1 - i) / fade);
+          }
+          await this.yieldTask();
+        }
+      }
+      return cancelled() ? null : buffer;
+    }
+
     stopPlayback() {
       this.playbackTicket++;
       const voice = this.voice;
@@ -811,7 +921,8 @@
           item.node.onended = null;
           try { item.gain.gain.setValueAtTime(0, shared.context.currentTime); item.node.stop(); }
           catch (_) { /* This branch may already have ended. */ }
-          try { item.node.disconnect(); item.gain.disconnect(); } catch (_) { /* Already detached. */ }
+          try { item.node.disconnect(); item.gain.disconnect(); item.gate?.disconnect(); }
+          catch (_) { /* Already detached. */ }
         }
       }
       if (shared || wasStarting) {
@@ -872,47 +983,62 @@
       this.stopPlayback(); const ticket = ++this.playbackTicket;
       this.syncStarting = true; this.syncStatus = "syncStarting"; this.renderShared();
       const pcmA = a.pcm, pcmB = b.pcm;
+      const auto = this.syncMode === "auto", repeat = auto && this.syncReplay, period = this.syncSwitchPeriod;
       const cancelled = () => ticket !== this.playbackTicket || !this.active ||
         a.pcm !== pcmA || b.pcm !== pcmB;
       try {
         const context = await this.contextOwner.readyContext();
         if (cancelled()) return false;
-        const bufferA = await this.prepareAudioBuffer(a, pcmA, context, cancelled);
-        if (!bufferA || cancelled()) return false;
-        const bufferB = await this.prepareAudioBuffer(b, pcmB, context, cancelled);
-        if (!bufferB || cancelled()) return false;
         const duration = this.syncDuration();
         const position = this.syncPosition >= duration - .005 ? 0 : clamp(this.syncPosition, 0, duration);
-        const now = context.currentTime, voices = [];
+        const bufferA = repeat ? await this.prepareExcerptBuffer(pcmA, context, position, period, cancelled) :
+          await this.prepareAudioBuffer(a, pcmA, context, cancelled);
+        if (!bufferA || cancelled()) return false;
+        const bufferB = repeat ? await this.prepareExcerptBuffer(pcmB, context, position + this.syncOffset, period, cancelled) :
+          await this.prepareAudioBuffer(b, pcmB, context, cancelled);
+        if (!bufferB || cancelled()) return false;
+        const now = context.currentTime, startTime = auto ? now + .025 : now, voices = [];
         try {
           for (const [key, buffer, pcm, shift] of [["A", bufferA, pcmA, 0], ["B", bufferB, pcmB, this.syncOffset]]) {
-            const plan = sharedStart(pcm.duration, position, shift);
+            const plan = repeat ? { delay: 0, offset: 0 } : sharedStart(pcm.duration, position, shift);
             if (!plan) continue;
             const node = context.createBufferSource(), gain = context.createGain();
             node.buffer = buffer;
+            if (repeat) {
+              node.loop = true; node.loopStart = 0;
+              node.loopEnd = Math.max(1, Math.round(period * pcm.sampleRate)) / pcm.sampleRate;
+            }
             gain.gain.setValueAtTime(0, now);
-            node.connect(gain); gain.connect(this.contextOwner.output);
-            voices.push({ key, node, gain, startAt: now + plan.delay, offset: plan.offset });
+            node.connect(gain);
+            const gate = auto ? context.createGain() : null;
+            if (gate) {
+              gate.gain.setValueAtTime(0, now);
+              gain.connect(gate); gate.connect(this.contextOwner.output);
+            } else gain.connect(this.contextOwner.output);
+            voices.push({ key, node, gain, gate, startAt: startTime + plan.delay, offset: plan.offset });
           }
+          if (!voices.length) throw new Error("No samples remain on the shared timeline");
+          const shared = { context, voices, startTime, position, timer: null, ended: 0,
+            auto, repeat, period, nextGateIndex: 0 };
+          this.scheduleAlternateGates(shared);
           for (const item of voices) item.node.start(item.startAt, item.offset);
+          this.syncVoice = shared; this.syncPosition = position; this.syncStarting = false;
+          this.syncStatus = "syncPlaying";
+          for (const item of voices) item.node.onended = () => {
+            if (this.syncVoice !== shared) return;
+            shared.ended++;
+            if (shared.ended === voices.length) this.finishShared();
+          };
+          this.updateSyncGains();
+          shared.timer = this.window.setInterval(() => this.tickShared(), 80);
         } catch (error) {
           for (const item of voices) {
             try { item.node.stop(); } catch (_) { /* Source not started. */ }
-            try { item.node.disconnect(); item.gain.disconnect(); } catch (_) { /* Detached. */ }
+            try { item.node.disconnect(); item.gain.disconnect(); item.gate?.disconnect(); }
+            catch (_) { /* Detached. */ }
           }
           throw error;
         }
-        if (!voices.length) throw new Error("No samples remain on the shared timeline");
-        const shared = { context, voices, startTime: now, position, timer: null, ended: 0 };
-        this.syncVoice = shared; this.syncPosition = position; this.syncStarting = false;
-        this.syncStatus = "syncPlaying";
-        for (const item of voices) item.node.onended = () => {
-          if (this.syncVoice !== shared) return;
-          shared.ended++;
-          if (shared.ended === voices.length) this.finishShared();
-        };
-        this.updateSyncGains();
-        shared.timer = this.window.setInterval(() => this.tickShared(), 80);
         this.renderShared(); this.drawWave("A"); this.drawWave("B");
         return true;
       } catch (_) {
@@ -984,7 +1110,7 @@
       g.strokeStyle = "#d17f20"; g.lineWidth = 1.6; g.beginPath();
       g.moveTo(x, top); g.lineTo(x, bottom); g.stroke();
       if (this.syncVoice || this.syncPosition > 0) {
-        const playbackTime = this.currentSyncPosition() + (key === "B" ? this.syncOffset : 0);
+        const playbackTime = this.sharedMarkerTime() + (key === "B" ? this.syncOffset : 0);
         if (playbackTime >= 0 && playbackTime <= pcm.duration) {
           const px = left + (right - left) * playbackTime / pcm.duration;
           g.strokeStyle = "#3366c5"; g.lineWidth = 1.4; g.beginPath();
