@@ -116,6 +116,106 @@
     return { hz, dbA, dbB, rawA, rawB, amplitudeA, amplitudeB,
       valid: true, floorLimited, delta };
   }
+  // C2e: compare coarse RMS envelopes on a *seconds* grid, leaving native PCM untouched.
+  // Tau is B time minus A time: the existing shared playback reads B(t + tau).
+  const ALIGN_HOP_SECONDS = 0.01;
+  const ALIGN_SECONDS = 12;
+  const ALIGN_MAX_OFFSET_SECONDS = 2;
+  function alignmentEnvelope(pcm, channel = 0, maxSeconds = ALIGN_SECONDS) {
+    const samples = pcm?.channels?.[channel], rate = pcm?.sampleRate;
+    if (!samples || !Number.isFinite(rate) || rate <= 0 || !Number.isFinite(maxSeconds) ||
+      maxSeconds <= 0) return null;
+    const frames = Math.min(samples.length, Math.floor(maxSeconds * rate));
+    const count = Math.floor(frames / (ALIGN_HOP_SECONDS * rate));
+    if (count < 50) return null;
+    const rms = new Float64Array(count);
+    let peak = 0;
+    for (let i = 0; i < count; i++) {
+      const from = Math.round(i * ALIGN_HOP_SECONDS * rate);
+      const to = Math.min(frames, Math.round((i + 1) * ALIGN_HOP_SECONDS * rate));
+      let sum = 0;
+      for (let j = from; j < to; j++) {
+        const value = samples[j];
+        if (!Number.isFinite(value)) return null;
+        sum += value * value;
+      }
+      const value = Math.sqrt(sum / Math.max(1, to - from));
+      rms[i] = value;
+      peak = Math.max(peak, value);
+    }
+    if (!(peak > 1e-6)) return null;
+    // Square-root compression makes quieter attacks count without a log noise floor.
+    const features = new Float64Array(count);
+    let mean = 0;
+    for (let i = 0; i < count; i++) {
+      let sum = 0, weight = 0;
+      for (let k = -2; k <= 2; k++) {
+        const j = i + k;
+        if (j < 0 || j >= count) continue;
+        const w = 3 - Math.abs(k);
+        sum += w * rms[j]; weight += w;
+      }
+      features[i] = Math.sqrt(Math.max(0, sum / weight / peak));
+      mean += features[i];
+    }
+    mean /= count;
+    let variance = 0;
+    for (const value of features) variance += (value - mean) ** 2;
+    const deviation = Math.sqrt(variance / count);
+    // A steady sine has virtually constant energy: its phase is not a time marker.
+    return { features, deviation, sampleCount: frames, rate };
+  }
+  function estimateTimeOffset(pcmA, pcmB, { channelA = 0, channelB = 0,
+    maxSeconds = ALIGN_SECONDS, maxOffsetSeconds = ALIGN_MAX_OFFSET_SECONDS } = {}) {
+    const a = alignmentEnvelope(pcmA, channelA, maxSeconds);
+    const b = alignmentEnvelope(pcmB, channelB, maxSeconds);
+    if (!a || !b || a.deviation < 0.07 || b.deviation < 0.07) {
+      return { ok: false, reason: "noPattern" };
+    }
+    const A = a.features, B = b.features;
+    const limit = Math.min(200, Math.floor(Math.max(0, maxOffsetSeconds) / ALIGN_HOP_SECONDS));
+    const minOverlap = Math.max(40, Math.ceil(0.55 * Math.min(A.length, B.length)));
+    const results = [];
+    for (let shift = -limit; shift <= limit; shift++) {
+      // Compare A(t) with B(t+tau), so positive tau skips B's beginning.
+      const from = Math.max(0, -shift), end = Math.min(A.length, B.length - shift);
+      const count = end - from;
+      if (count < minOverlap) continue;
+      let sumA = 0, sumB = 0, sumAA = 0, sumBB = 0, sumAB = 0;
+      for (let i = from; i < end; i++) {
+        const x = A[i], y = B[i + shift];
+        sumA += x; sumB += y; sumAA += x * x; sumBB += y * y; sumAB += x * y;
+      }
+      const varA = sumAA - sumA * sumA / count, varB = sumBB - sumB * sumB / count;
+      if (varA < 1e-5 || varB < 1e-5) continue;
+      const correlation = Math.max(-1, Math.min(1,
+        (sumAB - sumA * sumB / count) / Math.sqrt(varA * varB)));
+      // Avoid favoring tiny overlaps that happen to contain one matching event.
+      const overlapWeight = Math.sqrt(count / Math.min(A.length, B.length));
+      results.push({ shift, score: correlation * overlapWeight, correlation, overlap: count * ALIGN_HOP_SECONDS });
+    }
+    if (!results.length) return { ok: false, reason: "noPattern" };
+    results.sort((x, y) => y.score - x.score);
+    const best = results[0];
+    // Ignore adjacent 10ms candidates; they reflect the same broad peak.
+    const second = results.find(item => Math.abs(item.shift - best.shift) >= 12);
+    // In a repeating rhythm, a distant lag can correlate almost perfectly
+    // despite a shorter overlap; this is not a unique alignment.
+    const repeated = results.some(item => Math.abs(item.shift - best.shift) >= 20 &&
+      item.correlation >= 0.94 && item.overlap >= Math.max(0.8, 0.65 * best.overlap));
+    const margin = second ? best.score - second.score : best.score;
+    if (Math.abs(best.shift) >= limit - 2) return { ok: false, reason: "edge", score: best.score };
+    if (best.correlation < 0.78 || best.score < 0.73)
+      return { ok: false, reason: "weak", score: best.score };
+    if (margin < 0.055 || repeated) return { ok: false, reason: "ambiguous", score: best.score, margin };
+    const confidence = best.correlation >= 0.94 && best.score >= 0.90 && margin >= 0.12 ?
+      "high" : "moderate";
+    return { ok: true, offset: best.shift * ALIGN_HOP_SECONDS,
+      score: best.score, correlation: best.correlation, margin, confidence,
+      resolution: ALIGN_HOP_SECONDS, analyzedSeconds: Math.min(maxSeconds,
+        pcmA.duration || A.length * ALIGN_HOP_SECONDS, pcmB.duration || B.length * ALIGN_HOP_SECONDS) };
+  }
+
   // Shared time t follows A. Sound B is heard at native source time t + tau;
   // positive tau skips B's initial samples, negative tau delays its entrance.
   // Scheduling uses AudioBufferSourceNode offsets, not modified/resampled PCM.
@@ -147,6 +247,16 @@
       syncPlay: "▶ Play", syncPause: "Ⅱ Pause", syncPosition: "Shared playback position", syncExcerptStart: "Repeated excerpt starts at",
       syncTime: "{time} / {duration} s", syncOffset: "B time offset τ · s", syncOffsetReset: "Reset offset",
       syncOffsetHelp: "At shared time t, B plays at t + τ. Positive τ skips B's beginning; negative τ delays B. No phase alignment.",
+      syncEstimate: "Estimate B offset", syncApplyEstimate: "Apply suggestion",
+      syncEstimateHelp: "Looks for a shared pattern of loudness changes in the first 12 s, searching ±2 s in steps of 0.01 s. Best for two recordings of the same event. Estimates are not phase alignment and never alter the sound.",
+      syncEstimating: "Checking both amplitude envelopes…",
+      syncEstimateSuggested: "Suggested τ = {offset} s · {confidence} match (envelope correlation {score}). Press Apply to use it.",
+      syncEstimateApplied: "Applied τ = {offset} s. You can still adjust the offset manually.",
+      syncConfidenceHigh: "strong", syncConfidenceModerate: "tentative",
+      syncEstimateNoPattern: "No reliable alignment: at least one sound lacks distinctive changes over time (such as a steady tone).",
+      syncEstimateWeak: "No reliable alignment: the two amplitude patterns do not match closely enough.",
+      syncEstimateAmbiguous: "No reliable alignment: several offsets fit similarly well, as with repeating patterns.",
+      syncEstimateEdge: "No reliable alignment within ±2 s. Try adjusting the offset manually.",
       syncReady: "Choose A, B, Together or Auto A/B, then play.", syncStarting: "Preparing aligned playback…",
       syncPlaying: "Playing {mode}. Switch modes without restarting.", syncPaused: "Paused at {time} s.",
       syncAutoPlayingReplay: "Auto A/B: repeating {period} s excerpts from {time} s. Pause to stop the loop.",
@@ -226,6 +336,16 @@
       syncPlay: "▶ Тоглуулах", syncPause: "Ⅱ Түр зогсоох", syncPosition: "Нэгдсэн тоглуулах байрлал", syncExcerptStart: "Давтах хэсгийн эхлэл",
       syncTime: "{time} / {duration} сек", syncOffset: "B-ийн хугацааны зөрүү τ · сек", syncOffsetReset: "Зөрүүг тэглэх",
       syncOffsetHelp: "Нэгдсэн t мөчид B-ийн t + τ мөчийг сонсоно. Эерэг τ B-ийн эхийг алгасна; сөрөг τ B-г хойшлуулна. Фазыг тааруулахгүй.",
+      syncEstimate: "B-ийн зөрүүг тооцох", syncApplyEstimate: "Саналын дагуу тааруулах",
+      syncEstimateHelp: "Эхний 12 секундийн дууны эрчмийн өөрчлөлтийг харьцуулж, ±2 сек дотор 0.01 сек алхмаар хайна. Нэг үйл явдлын хоёр бичлэгт тохиромжтой. Фазыг тааруулахгүй, эх авиаг өөрчлөхгүй.",
+      syncEstimating: "Хоёр авианы эрчмийн хэлбэрийг шалгаж байна…",
+      syncEstimateSuggested: "Санал болгосон τ = {offset} сек · {confidence} тохирол (эрчмийн хэлбэрийн хамаарал {score}). Хэрэглэх бол товчийг дарна уу.",
+      syncEstimateApplied: "τ = {offset} сек зөрүүг хэрэглэв. Гараар дахин тохируулж болно.",
+      syncConfidenceHigh: "сайн", syncConfidenceModerate: "болзолтой",
+      syncEstimateNoPattern: "Найдвартай зөрүү олдсонгүй: дор хаяж нэг авианд ялгарах хугацааны өөрчлөлт байхгүй (жишээ нь тогтмол өнгө).",
+      syncEstimateWeak: "Найдвартай зөрүү олдсонгүй: хоёр авианы эрчмийн өөрчлөлт хангалттай төстэй биш.",
+      syncEstimateAmbiguous: "Найдвартай зөрүү олдсонгүй: давтагдах хэмнэл мэт хэд хэдэн зөрүү ойролцоо таарч байна.",
+      syncEstimateEdge: "±2 сек дотроос найдвартай зөрүү олдсонгүй. Гараар тохируулж үзнэ үү.",
       syncReady: "A, B, Хамт эсвэл A/B ээлжлэх горим сонгоод тоглуулаарай.", syncStarting: "Тааруулсан авиануудыг бэлтгэж байна…",
       syncPlaying: "{mode} горимоор сонсож байна. Дахин эхлүүлэхгүйгээр сольж болно.", syncPaused: "{time} сек дээр түр зогслоо.",
       syncAutoPlayingReplay: "A/B ээлжлэх: {time} сек-ээс {period} сек хэсгийг давтаж байна. Түр зогсоож дуусгана.",
@@ -311,6 +431,7 @@
       this.syncMode = "A"; this.syncOffset = 0; this.syncPosition = 0;
       this.syncSwitchPeriod = .6; this.syncReplay = true;
       this.syncVoice = null; this.syncStarting = false; this.syncStatus = "syncReady";
+      this.alignmentResult = null; this.alignmentBusy = false; this.alignmentTicket = 0;
       for (const key of ["A", "B"]) {
         this.$(`compare${key}Class`).addEventListener("change", event => {
           const state = this.slots[key], category = event.target.value;
@@ -389,6 +510,8 @@
       this.$("compareSyncOffset").addEventListener("change", event => this.setSyncOffset(Number(event.target.value)));
       this.$("compareSyncOffsetNumber").addEventListener("change", event => this.setSyncOffset(Number(event.target.value)));
       this.$("compareSyncOffsetReset").addEventListener("click", () => this.setSyncOffset(0));
+      this.$("compareSyncEstimate").addEventListener("click", () => { void this.estimateSyncOffset(); });
+      this.$("compareSyncApplyEstimate").addEventListener("click", () => this.applySyncEstimate());
       this.$("compareLinkCursors").addEventListener("change", event => {
         this.linkCursors = Boolean(event.target.checked);
         if (this.linkCursors) {
@@ -459,7 +582,7 @@
           state.ticket++; state.busy = false;
           if (state.status === "loading" || state.status === "starting") state.status = "stopped";
         }
-        this.stopPlayback();
+        this.stopPlayback(); this.invalidateEstimate();
       } else {
         if (!this.initialized) {
           this.initialized = true;
@@ -624,6 +747,19 @@
       this.put("compareSyncTime", this.text("syncTime", { time: fmt(time, 2), duration: fmt(duration, 2) }));
       this.$("compareSyncOffset").value = String(clamp(this.syncOffset, -2, 2));
       this.$("compareSyncOffsetNumber").value = String(this.syncOffset);
+      this.$("compareSyncEstimate").disabled = !ready || this.alignmentBusy;
+      const suggestion = this.alignmentResult, apply = this.$("compareSyncApplyEstimate");
+      apply.hidden = !ready || !suggestion?.ok || Boolean(suggestion.applied);
+      apply.disabled = !ready || this.alignmentBusy;
+      const estimateKey = this.alignmentBusy ? "syncEstimating" : !suggestion ? null :
+        suggestion.ok ? (suggestion.applied ? "syncEstimateApplied" : "syncEstimateSuggested") :
+        ({ noPattern: "syncEstimateNoPattern", weak: "syncEstimateWeak",
+          ambiguous: "syncEstimateAmbiguous", edge: "syncEstimateEdge" })[suggestion.reason] || "syncEstimateWeak";
+      this.put("compareSyncEstimateResult", estimateKey ? this.text(estimateKey, {
+        offset: (suggestion?.offset > 0 ? "+" : "") + fmt(suggestion?.offset || 0, 2),
+        confidence: this.text(suggestion?.confidence === "high" ? "syncConfidenceHigh" : "syncConfidenceModerate"),
+        score: fmt(suggestion?.correlation || 0, 2)
+      }) : "");
       const status = this.syncStarting ? "syncStarting" : this.syncVoice ?
         auto ? (repeat ? "syncAutoPlayingReplay" : "syncAutoPlayingTimeline") : "syncPlaying" :
         this.syncStatus === "syncPaused" && repeat ? "syncPausedExcerpt" : this.syncStatus;
@@ -658,10 +794,41 @@
       }
       this.renderShared();
     }
+    invalidateEstimate() {
+      this.alignmentTicket++;
+      this.alignmentResult = null; this.alignmentBusy = false;
+    }
+    async estimateSyncOffset() {
+      if (!this.active || this.alignmentBusy) return false;
+      const a = this.slots.A, b = this.slots.B;
+      if (!a.pcm || !b.pcm || a.busy || b.busy) return false;
+      const pcmA = a.pcm, pcmB = b.pcm, channelA = a.channel, channelB = b.channel;
+      const ticket = ++this.alignmentTicket;
+      this.alignmentResult = null; this.alignmentBusy = true; this.renderShared();
+      await this.yieldTask(); // Allow the checking status to paint before scanning local PCM.
+      const result = estimateTimeOffset(pcmA, pcmB, { channelA, channelB });
+      if (ticket !== this.alignmentTicket || !this.active ||
+        a.pcm !== pcmA || b.pcm !== pcmB || a.channel !== channelA || b.channel !== channelB) return false;
+      this.alignmentResult = { ...result, applied: false };
+      this.alignmentBusy = false;
+      this.renderShared();
+      return result.ok;
+    }
+    applySyncEstimate() {
+      const result = this.alignmentResult;
+      if (!result?.ok || result.applied || this.alignmentBusy ||
+        !this.slots.A.pcm || !this.slots.B.pcm) return false;
+      const offset = result.offset;
+      this.setSyncOffset(offset);
+      this.alignmentResult = { ...result, applied: true };
+      this.renderShared();
+      return true;
+    }
     setSyncOffset(value) {
       if (!Number.isFinite(value)) return;
       const offset = Math.round(clamp(value, -30, 30) * 100) / 100;
       if (offset === this.syncOffset) { this.renderShared(); return; }
+      this.invalidateEstimate();
       const wasPlaying = Boolean(this.syncVoice || this.syncStarting);
       const position = this.currentSyncPosition();
       this.syncOffset = offset;
@@ -801,6 +968,7 @@
         s.cursor = cursor; s.spectrum = spectrum; s.audioBuffer = null;
         s.classId = source.classId; s.exampleId = source.exampleId || "";
         s.status = "ready"; s.error = false;
+        this.invalidateEstimate();
         this.syncPosition = 0; this.syncStatus = "syncReady";
         return true;
       } catch (error) {
@@ -821,6 +989,7 @@
     }
     async reindexChannel(key) {
       const s = this.slots[key], pcm = s.pcm; if (!pcm) return false;
+      this.invalidateEstimate();
       const ticket = ++s.ticket; s.busy = true; s.status = "loading";
       this.stopPlayback(); this.renderSlot(key);
       try {
@@ -1327,5 +1496,5 @@
     }
   }
   return Object.freeze({ Controller, words, MAX_TOTAL_PCM_BYTES, DEFAULTS, DIFFERENCE_FLOOR_DB,
-    totalBytes, overlayModel, matchedSpectra, differenceModel, differenceAt, sharedDuration, sharedStart });
+    totalBytes, overlayModel, matchedSpectra, differenceModel, differenceAt, sharedDuration, sharedStart, estimateTimeOffset });
 });
