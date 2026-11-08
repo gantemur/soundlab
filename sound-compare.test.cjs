@@ -634,6 +634,110 @@ test("S085 toggles Auto during playback safely, restarts after period changes an
   assert.equal(f.owner.readyCalls, calls, "stopped mode/option changes never request the audio context");
 });
 
+
+function alignmentPcm(rate, duration, attacks, { gain = .65, frequency = 430, noise = 0 } = {}) {
+  const samples = new Float32Array(Math.round(rate * duration));
+  for (let i = 0; i < samples.length; i++) {
+    const time = i / rate;
+    let envelope = 0;
+    for (let j = 0; j < attacks.length; j++) {
+      const after = time - attacks[j];
+      if (after >= 0 && after < .25)
+        envelope += Math.exp(-after * (13 + j % 3 * 3)) * (1 - (j % 3) * .17);
+    }
+    samples[i] = gain * envelope * Math.sin(2 * Math.PI * frequency * time) +
+      noise * Math.sin(2 * Math.PI * 137 * time);
+  }
+  return pcm([samples], rate);
+}
+test("S086/C2e estimates signed B(t+τ) offset from independent native-rate envelopes", () => {
+  const events = [.38, .96, 1.52, 2.43];
+  const A = alignmentPcm(16000, 3, events, { frequency: 440 });
+  const B = alignmentPcm(22050, 3.6, events.map(t => t + .33),
+    { frequency: 660, gain: .19, noise: .001 });
+  const originalA = A.channels[0][1200], originalB = B.channels[0][18000];
+  const positive = compare.estimateTimeOffset(A, B);
+  assert.equal(positive.ok, true, JSON.stringify(positive));
+  assert.ok(Math.abs(positive.offset - .33) <= .02, JSON.stringify(positive));
+  assert.equal(positive.confidence, "high");
+  assert.equal(A.channels[0][1200], originalA);
+  assert.equal(B.channels[0][18000], originalB);
+  assert.equal(A.sampleRate, 16000); assert.equal(B.sampleRate, 22050);
+  const earlyA = alignmentPcm(16000, 3, [.68, 1.32, 1.84, 2.53]);
+  const earlyB = alignmentPcm(48000, 3, [.45, 1.09, 1.61, 2.30], { frequency: 600 });
+  const negative = compare.estimateTimeOffset(earlyA, earlyB);
+  assert.equal(negative.ok, true, JSON.stringify(negative));
+  assert.ok(Math.abs(negative.offset + .23) <= .02, JSON.stringify(negative));
+});
+test("S086/C2e refuses steady tones, silence, unrelated events and ambiguous periodic patterns", () => {
+  const A = alignmentPcm(16000, 3, [.38, .96, 1.52, 2.43]);
+  assert.equal(compare.estimateTimeOffset(pcm([sine(16000, 3)], 16000), A).reason, "noPattern");
+  assert.equal(compare.estimateTimeOffset(A, pcm([new Float32Array(96000)], 32000)).reason, "noPattern");
+  const unrelated = alignmentPcm(22050, 3, [.58, 1.27, 1.44, 2.72]);
+  assert.equal(compare.estimateTimeOffset(A, unrelated).ok, false);
+  const periodic = (rate, duration, delay) => {
+    const samples = new Float32Array(Math.round(rate * duration));
+    for (let i = 0; i < samples.length; i++) {
+      const time = i / rate, phase = ((time - delay - .3) % .4 + .4) % .4;
+      samples[i] = phase < .13 ? .7 * Math.exp(-25 * phase) * Math.sin(2 * Math.PI * 430 * time) : 0;
+    }
+    return pcm([samples], rate);
+  };
+  const repeating = compare.estimateTimeOffset(periodic(8000, 4, 0), periodic(11025, 4.2, .2));
+  assert.equal(repeating.ok, false, JSON.stringify(repeating));
+  assert.equal(repeating.reason, "ambiguous");
+});
+test("S086/C2e respects chosen stereo channel and never guesses a silent side", () => {
+  const A = alignmentPcm(12000, 3, [.4, 1.03, 1.55, 2.29]);
+  const bCorrect = alignmentPcm(24000, 3.4, [.62, 1.25, 1.77, 2.51], { frequency: 720 });
+  const B = pcm([new Float32Array(bCorrect.frames), bCorrect.channels[0]], 24000);
+  assert.equal(compare.estimateTimeOffset(A, B, { channelB: 0 }).ok, false);
+  const result = compare.estimateTimeOffset(A, B, { channelB: 1 });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.ok(Math.abs(result.offset - .22) <= .02);
+});
+test("S086/C2e only suggests alignment until explicitly applied; edits invalidate the estimate", async () => {
+  const f = fixture();
+  const A = alignmentPcm(16000, 3, [.38, .96, 1.52, 2.43]);
+  const B = alignmentPcm(22050, 3.4, [.71, 1.29, 1.85, 2.76], { frequency: 660 });
+  await f.load("A", A); await f.load("B", B);
+  f.controller.renderLanguage("en");
+  assert.equal(f.get("compareSyncEstimate").textContent, "Estimate B offset");
+  assert.equal(f.get("compareSyncApplyEstimate").hidden, true);
+  assert.equal(f.get("compareSyncEstimate").disabled, false);
+  assert.equal(await f.controller.estimateSyncOffset(), true);
+  assert.equal(f.controller.syncOffset, 0, "estimation itself must not alter playback");
+  assert.equal(f.get("compareSyncApplyEstimate").hidden, false);
+  assert.match(f.get("compareSyncEstimateResult").textContent, /Suggested τ = \+0\.33/);
+  assert.equal(f.owner.readyCalls, 0, "estimation must not start any audio");
+  assert.equal(f.controller.applySyncEstimate(), true);
+  assert.ok(Math.abs(f.controller.syncOffset - .33) < .02);
+  assert.equal(f.get("compareSyncApplyEstimate").hidden, true);
+  assert.match(f.get("compareSyncEstimateResult").textContent, /Applied τ/);
+  assert.equal(f.owner.readyCalls, 0);
+  f.controller.setSyncOffset(-.15);
+  assert.equal(f.controller.alignmentResult, null, "manual adjustment clears the previous suggestion");
+  assert.equal(f.get("compareSyncEstimateResult").textContent, "");
+  assert.equal(await f.controller.estimateSyncOffset(), true);
+  await f.load("B", alignmentPcm(22050, 3, [.21, .88, 1.49, 2.29]));
+  assert.equal(f.controller.alignmentResult, null, "replacing the source invalidates an estimate");
+  assert.equal(f.get("compareSyncApplyEstimate").hidden, true);
+  f.controller.renderLanguage("mn");
+  assert.equal(f.get("compareSyncEstimate").textContent, "B-ийн зөрүүг тооцох");
+  assert.equal(A.channels[0].length, A.frames);
+  assert.equal(B.channels[0].length, B.frames);
+});
+test("S086/C2e reports an unalignable sine-vs-pluck pair without playback or changing τ", async () => {
+  const f = fixture();
+  await f.load("A", pcm([sine(16000, 2, 440, .5)], 16000));
+  await f.load("B", alignmentPcm(22050, 3, [0], { frequency: 220 }));
+  assert.equal(await f.controller.estimateSyncOffset(), false);
+  assert.match(f.get("compareSyncEstimateResult").textContent, /Найдвартай зөрүү олдсонгүй/);
+  assert.equal(f.get("compareSyncApplyEstimate").hidden, true);
+  assert.equal(f.controller.syncOffset, 0);
+  assert.equal(f.owner.readyCalls, 0);
+});
+
 test("C1 compares modeled guitar A with microphone piano B at different rates and keeps origins explicit", async () => {
   const f = fixture(), a = pcm([sine(16000, .2, 220)], 16000);
   assert.equal(await f.load("A", a, { kind: "modeled", classId: "instruments", exampleId: "model-guitar-a3" }), true);

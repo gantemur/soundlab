@@ -1962,6 +1962,12 @@
             <button type="button" id="compareSyncOffsetReset" class="analysis-secondary" data-compare-i18n="syncOffsetReset">Зөрүүг тэглэх</button>
           </div>
           <p class="field-help" id="compareSyncOffsetHelp" data-compare-i18n="syncOffsetHelp">Нэгдсэн t мөчид B-ийн t + τ мөчийг сонсоно. Эерэг τ B-ийн эхийг алгасна; сөрөг τ B-г хойшлуулна. Фазыг тааруулахгүй.</p>
+          <div class="compare-sync-estimate">
+            <button type="button" id="compareSyncEstimate" class="analysis-secondary" data-compare-i18n="syncEstimate">B-ийн зөрүүг тооцох</button>
+            <button type="button" id="compareSyncApplyEstimate" class="analysis-secondary" data-compare-i18n="syncApplyEstimate" hidden>Саналын дагуу тааруулах</button>
+            <output id="compareSyncEstimateResult" class="compare-sync-estimate-result" role="status" aria-live="polite"></output>
+          </div>
+          <p class="field-help" data-compare-i18n="syncEstimateHelp">Эхний 12 секундийн эрчмийн өөрчлөлтийг харьцуулж, ±2 секунд дотор хайна. Нэг үйл явдлын хоёр бичлэгт илүү тохиромжтой.</p>
           <p id="compareSyncStatus" class="analysis-status" role="status" aria-live="polite"></p>
           <p class="field-help" data-compare-i18n="syncMixHint">A/B-ийн өөрийн хэмжээ болон нийт хэмжээг хэрэглэнэ. Хамт сонсоход хоёр сувгийн хэмжээг тус бүрд нь хагаслаж нөөц үлдээнэ. Хөх шугам нь нэгдсэн тоглуулах, улбар шар нь шинжлэх курсор.</p>
         </section>

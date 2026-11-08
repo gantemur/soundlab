@@ -718,6 +718,9 @@ h1, h2, p { margin-top: 0; }
 .compare-sync-offset input[type="range"] { min-width: 0; width: 100%; }
 .compare-sync-offset input[type="number"] { min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
 .compare-sync-offset button { min-height: 38px; padding: 6px 8px; }
+.compare-sync-estimate { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+.compare-sync-estimate button { min-height: 38px; padding: 6px 12px; }
+.compare-sync-estimate-result { flex: 1 1 240px; font-size: 12px; font-weight: 650; color: #38627d; }
 .compare-sync-panel > .field-help { margin: 8px 0 0; }
 .compare-sync-panel > .analysis-status { margin-top: 12px; }
 @media (max-width: 680px) {
