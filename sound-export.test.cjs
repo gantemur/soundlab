@@ -540,6 +540,32 @@ test("RP3 complete Für Elise exports the true final cadence, grace attacks and 
     "source pp, editorial mf and soft grace attacks yield distinct WAV dynamics");
 });
 
+test("RP4 Minute Waltz saves, reopens and exports all ornaments with an analytic tempo map", async () => {
+  const input = arrangement(presets.create("minuteWaltz", "mn"));
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT,
+    version: projects.VERSION, title: "Chopin · Minute Waltz", ...input }));
+  assert.equal(saved.content.tracks.length, 1);
+  const parsed = ensemble.parseTracks(saved.content.tracks, "equal", temperament).prepared[0].score;
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  const notes = f.contexts[0].graph.sources;
+  const attacks = players.scheduledEvents(parsed);
+  const time = beat => require("./sound-score.js").beatToSeconds(parsed, beat);
+  assert.equal(parsed.bars.length, 140);
+  assert.equal(parsed.parts[0].voiceIds.length, 4);
+  assert.ok(output.duration > 131.34 && output.duration < 135,
+    "the complete 2:11 waltz has no fixed export duration cutoff");
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
+  assert.equal(notes.length, 1440, "all 1,360 pitches, graces and sounding ornaments reach WAV");
+  for (const index of [0, 75, 355, 650, 975, 1350, 1439]) {
+    close(notes[index].at, time(attacks[index].startBeat));
+  }
+  assert.ok(notes.at(-1).at > 130, "the written final cadence is not cut off");
+  const gains = notes.map(note => note.gain.find(record => record[0] === "set")?.[1]);
+  assert.ok(Math.min(...gains) < .5 * Math.max(...gains),
+    "written pp dynamics and hairpins survive offline piano gain scheduling");
+});
+
 test("persistent pitched dynamics change live/offline gain without changing note times", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n!p!C !accent!D !f!E G |]";
   const f = fixture();

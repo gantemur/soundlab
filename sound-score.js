@@ -51,10 +51,10 @@
     return 60 / score.tempoQuarter;
   }
 
-  // Quarter-beat score positions are mapped to an absolute audio-clock time.
-  // Each entry changes tempo instantaneously at its beat; integrate 60/Q
-  // across the intervening intervals. This map is shared by the player and
-  // the offline renderer, so seeking does not accumulate rounded durations.
+  // Quarter-beat score positions map to absolute audio-clock seconds. An E3
+  // entry steps immediately to its Q. An E5 entry with interpolation="linear"
+  // ramps the quarter-note BPM to the NEXT entry's Q. The analytic integral
+  // of 60/Q and its inverse keep live seeking and offline WAV synchronized.
   function tempoSegments(score) {
     return score.tempoMap?.length ? score.tempoMap :
       [{ beat: 0, tempoQuarter: score.tempoQuarter }];
@@ -64,9 +64,38 @@
     if (!Number.isFinite(beat) || beat < 0) throw new RangeError("Invalid score beat");
     const segments = tempoSegments(score);
     for (let i = segments.length - 1; i >= 0; i--) {
-      if (beat >= segments[i].beat) return segments[i].tempoQuarter;
+      if (beat >= segments[i].beat) {
+        const item = segments[i], next = segments[i + 1];
+        if (item.interpolation === "linear" && next) {
+          const progress = (beat - item.beat) / (next.beat - item.beat);
+          return item.tempoQuarter + (next.tempoQuarter - item.tempoQuarter) * progress;
+        }
+        return item.tempoQuarter;
+      }
     }
     return score.tempoQuarter;
+  }
+
+  function tempoIntervalSeconds(item, next, beats) {
+    if (beats <= 0) return 0;
+    if (item.interpolation === "linear" && next) {
+      const slope = (next.tempoQuarter - item.tempoQuarter) / (next.beat - item.beat);
+      if (Math.abs(slope) > 1e-12) {
+        return 60 * Math.log1p(slope * beats / item.tempoQuarter) / slope;
+      }
+    }
+    return 60 * beats / item.tempoQuarter;
+  }
+
+  function tempoIntervalBeats(item, next, seconds) {
+    if (seconds <= 0) return 0;
+    if (item.interpolation === "linear" && next) {
+      const slope = (next.tempoQuarter - item.tempoQuarter) / (next.beat - item.beat);
+      if (Math.abs(slope) > 1e-12) {
+        return item.tempoQuarter * Math.expm1(slope * seconds / 60) / slope;
+      }
+    }
+    return seconds * item.tempoQuarter / 60;
   }
 
   function beatToSeconds(score, beat) {
@@ -76,7 +105,7 @@
     for (let i = 0; i < segments.length; i++) {
       const item = segments[i], next = segments[i + 1]?.beat ?? Infinity;
       const span = Math.min(beat, next) - item.beat;
-      if (span > 0) seconds += 60 * span / item.tempoQuarter;
+      if (span > 0) seconds += tempoIntervalSeconds(item, segments[i + 1], span);
       if (beat <= next) break;
     }
     return seconds;
@@ -88,9 +117,9 @@
     let elapsed = 0;
     for (let i = 0; i < segments.length; i++) {
       const item = segments[i], next = segments[i + 1]?.beat ?? Infinity;
-      const duration = (next - item.beat) * 60 / item.tempoQuarter;
+      const duration = tempoIntervalSeconds(item, segments[i + 1], next - item.beat);
       if (seconds <= elapsed + duration) {
-        return item.beat + (seconds - elapsed) * item.tempoQuarter / 60;
+        return item.beat + tempoIntervalBeats(item, segments[i + 1], seconds - elapsed);
       }
       elapsed += duration;
     }
@@ -135,6 +164,8 @@
             mark.beat < 0 || mark.beat >= score.totalBeats ||
             !Number.isFinite(mark.tempoQuarter) || mark.tempoQuarter < 30 ||
             mark.tempoQuarter > 320 ||
+            (mark.interpolation !== undefined && (mark.interpolation !== "linear" ||
+              index === score.tempoMap.length - 1)) ||
             (index > 0 && mark.beat <= score.tempoMap[index - 1].beat))) {
         throw new RangeError("Invalid score tempo map");
       }
@@ -189,6 +220,11 @@
       if (event.articulation !== undefined &&
           (event.type === "rest" || !["staccato", "tenuto", "legato"].includes(event.articulation))) {
         throw new RangeError("Invalid score articulation");
+      }
+      if (event.ornament !== undefined &&
+          (event.type !== "note" || !["trill", "mordent"].includes(event.ornament) ||
+            event.tieFromPrevious)) {
+        throw new RangeError("Ornaments belong to the initial attack of a pitched note");
       }
       if (event.gracePitches !== undefined &&
           (event.type === "rest" || !Array.isArray(event.gracePitches) ||

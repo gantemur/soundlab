@@ -89,17 +89,18 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-scales\.js\?v=s031"/);
   assert.match(html, /src="sound-limit5\.js\?v=s036"/);
   assert.match(html, /src="sound-temperaments\.js\?v=s036"/);
-  assert.match(html, /src="sound-score\.js\?v=rp3"/);
-  assert.match(html, /src="sound-abc\.js\?v=rp3"/);
+  assert.match(html, /src="sound-score\.js\?v=rp4"/);
+  assert.match(html, /src="sound-abc\.js\?v=rp4"/);
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s087"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s087"/);
-  assert.match(html, /src="sound-score-player\.js\?v=rp3"/);
+  assert.match(html, /src="sound-score-player\.js\?v=rp4"/);
   assert.match(html, /src="sound-compose\.js\?v=rp2"/);
   assert.match(html, /src="sound-classical-scores\.js\?v=rp1b"/);
   assert.match(html, /src="sound-joplin-scores\.js\?v=rp2"/);
   assert.match(html, /src="sound-beethoven-scores\.js\?v=rp3"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=rp3"/);
+  assert.match(html, /src="sound-chopin-scores\.js\?v=rp4"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=rp4"/);
   assert.match(html, /src="sound-export\.js\?v=rp3"/);
   assert.match(html, /src="sound-ensemble\.js\?v=rp3b"/);
   assert.match(html, /src="sound-project\.js\?v=s087"/);
@@ -769,7 +770,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
   for (const name of ["sound-score.js", "sound-abc.js", "sound-drum-abc.js", "sound-drum-patterns.js", "sound-fm.js", "sound-score-player.js",
-    "sound-compose.js", "sound-classical-scores.js", "sound-joplin-scores.js", "sound-beethoven-scores.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js",
+    "sound-compose.js", "sound-classical-scores.js", "sound-joplin-scores.js", "sound-beethoven-scores.js", "sound-chopin-scores.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js",
     "sound-wav.js", "sound-export.js", "sound-export-ui.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });

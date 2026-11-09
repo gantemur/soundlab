@@ -16,10 +16,12 @@
     require("./sound-joplin-scores.js") : root.SoundLabJoplinScores;
   const beethoven = typeof module === "object" && module.exports ?
     require("./sound-beethoven-scores.js") : root.SoundLabBeethovenScores;
-  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven);
+  const chopin = typeof module === "object" && module.exports ?
+    require("./sound-chopin-scores.js") : root.SoundLabChopinScores;
+  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven, chopin);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven, chopin) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -68,6 +70,12 @@
       description: Object.freeze({
         en: "Complete WoO 59 bagatelle: both hands, both repeated sections, contrasting F-major and darker episodes, and the closing reprise. Seven editable voices preserve all 1,038 pitched attacks, plus three written grace notes. The slurs are retained; sectional dynamics, pulse changes, a few staccatos and short pedal passages are explicitly editorial.",
         mn: "WoO 59 бүтэн багатель: хоёр гарын нот, хоёр давталт, фа мажор болон бараан дунд хэсэг, төгсгөлийн дахилт. Засварлах 7 хоолойд 1038 үндсэн цохилт, 3 угтвар нот бий. Эхийн лигийг хадгалсан; хурд, динамик, зарим богино нот болон педаль нь Sound Lab-ын тайлбар юм."
+      }) },
+    { id: "minuteWaltz", category: "classics", en: "Chopin · Minute Waltz, Op. 64 No. 1 (complete)",
+      mn: "Шопен · Минутын вальс, Op. 64 №1 (бүтнээр)",
+      description: Object.freeze({
+        en: "Complete D-flat major waltz with first/second endings: 140 played bars, both hands and four editable piano voices. Ten grace notes, two trilled notes and eight upper mordents are separately realized. Printed dynamics are retained; gradual tempo ramps and selected hairpin endpoints are Sound Lab's interpretive choices. About 2 minutes 11 seconds.",
+        mn: "Ре-бемоль мажорын бүтэн вальс: хоёр өөр төгсгөлтэй, нийт 140 такт, хоёр гарын засварлах 4 хоолой. 10 угтвар нот, 2 трилль, 8 дээд мордентийг тус тусад нь тоглуулна. Эхийн динамикийг хадгалсан; хурдыг аажмаар өөрчлөх болон зарим чанга-сулын шилжилтийг Sound Lab тайлбарлан нэмсэн. Ойролцоогоор 2 минут 11 секунд."
       }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -219,6 +227,13 @@
       name: language === "en" ? "Piano · 7 voices" : "Төгөлдөр хуур · 7 хоолой",
       instrument: "piano", volume: 54, mute: false, solo: false,
       abc: beethoven.FUR_ELISE_ABC }];
+  }
+
+  function createMinuteWaltz(language) {
+    return [{ id: 1,
+      name: language === "en" ? "Waltz piano · 4 voices" : "Вальсын төгөлдөр хуур · 4 хоолой",
+      instrument: "piano", volume: 54, mute: false, solo: false,
+      abc: chopin.MINUTE_WALTZ_ABC }];
   }
 
   const STRUM_STUDY = Object.freeze({
@@ -918,6 +933,7 @@
     if (id === "turkishMarch") return createTurkishMarch(language);
     if (id === "entertainer") return createEntertainer(language);
     if (id === "furElise") return createFurElise(language);
+    if (id === "minuteWaltz") return createMinuteWaltz(language);
     if (id === "charleston") return createCharleston(language);
     if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);

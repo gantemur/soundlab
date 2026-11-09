@@ -131,6 +131,38 @@
     return { mode, spacingMs };
   }
 
+  // Diatonic upper auxiliary in the score's key (e.g. Ab -> Bb in Db).
+  // No pitch is transposed in the editable notation; only attacks change.
+  function upperAuxiliary(pitch, key) {
+    const letters = "CDEFGAB";
+    const index = letters.indexOf(pitch.letter);
+    const letter = letters[(index + 1) % letters.length];
+    return { letter, accidental: key.accidentals[letter] ?? 0,
+      octave: pitch.octave + (pitch.letter === "B" ? 1 : 0) };
+  }
+
+  function ornamentAttacks(score, event) {
+    const begin = scoreModel.beatToSeconds(score, event.startBeat);
+    const finish = scoreModel.beatToSeconds(score, event.startBeat + event.durationBeats);
+    const span = finish - begin;
+    const upper = upperAuxiliary(event.pitch, score.key);
+    const count = event.ornament === "mordent" ? 3 :
+      Math.min(81, Math.max(3, 2 * Math.floor((span / .085 - 1) / 2) + 1));
+    const period = event.ornament === "mordent" ? Math.min(.045, span / 4) : span / count;
+    const result = [];
+    for (let index = 0; index < count; index++) {
+      const beginsAt = begin + period * index;
+      const endsAt = index === count - 1 ? finish : beginsAt + period * .9;
+      const startBeat = scoreModel.secondsToBeat(score, beginsAt);
+      const endBeat = scoreModel.secondsToBeat(score, endsAt);
+      result.push({ ...event, pitch: index % 2 ? { ...upper } : { ...event.pitch },
+        startBeat, durationBeats: endBeat - startBeat, ornament: undefined,
+        articulation: undefined, gracePitches: undefined, isOrnament: true,
+        pedalEndBeat: scoreModel.pedalReleaseBeat(score, endBeat) });
+    }
+    return result;
+  }
+
   function scheduledEvents(score, fromBeat = 0, guitar = DEFAULT_GUITAR) {
     scoreModel.validate(score);
     if (!Number.isFinite(fromBeat) || fromBeat < 0 || fromBeat > score.totalBeats) {
@@ -212,7 +244,8 @@
           const endBeat = scoreModel.secondsToBeat(score, onsetSeconds + (index + .9) * period);
           expressiveNotes.push({ ...event, pitch: { ...pitch }, startBeat,
             durationBeats: endBeat - startBeat, articulation: undefined, gracePitches: undefined,
-            isGrace: true, velocity: Math.min(1.5, (event.velocity ?? 1) * .82),
+            isGrace: true, ornament: undefined,
+            velocity: Math.min(1.5, (event.velocity ?? 1) * .82),
             pedalEndBeat: scoreModel.pedalReleaseBeat(score, endBeat) });
         }
         const delayedBeat = scoreModel.secondsToBeat(score, onsetSeconds + totalGraceSeconds);
@@ -221,7 +254,8 @@
       }
       event.gracePitches = undefined;
       event.pedalEndBeat = scoreModel.pedalReleaseBeat(score, event.startBeat + event.durationBeats);
-      expressiveNotes.push(event);
+      if (event.ornament) expressiveNotes.push(...ornamentAttacks(score, event));
+      else expressiveNotes.push(event);
     }
     // Keep each complete attack time when resuming inside a tie, pedal or strum.
     // Expand the entire score first so alternating strokes also retain their

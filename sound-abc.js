@@ -2,8 +2,9 @@
  * SPDX-License-Identifier: MIT
  * A deliberately small, strict subset of ABC notation. One instrument can
  * contain independent V: blocks, each with its own rhythm and notation state.
- * Supports dynamics, articulation, grace notes, piano pedal and barline Q:
- * tempo changes (also inside a block-form polyphonic score).
+ * Supports dynamics and hairpins, articulation, ornaments, grace notes,
+ * piano pedal and barline Q: tempo changes. The optional Sound Lab
+ * %%soundlab-tempo-ramp linear directive interpolates to the NEXT Q: mark.
  */
 (function (root, factory) {
   const scoreModel = typeof module === "object" && module.exports ?
@@ -108,7 +109,16 @@
     const lines = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n");
     lines.forEach((line, index) => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("%")) return;
+      if (!trimmed) return;
+      if (trimmed === "%%soundlab-tempo-ramp linear") {
+        if (!keyFound || !musicStarted) throw new ABCError("Tempo ramps belong before a body Q: mark", index + 1);
+        bodyLines.push({ ramp: true, line: index + 1 });
+        return;
+      }
+      if (trimmed.startsWith("%%soundlab-tempo-ramp")) {
+        throw new ABCError("Unsupported Sound Lab tempo-ramp directive", index + 1);
+      }
+      if (trimmed.startsWith("%")) return;
       const header = /^([A-Za-z]):\s*(.*?)\s*(?:%.*)?$/.exec(trimmed);
       if (header && !musicStarted) {
         const field = header[1].toUpperCase();
@@ -144,7 +154,8 @@
     let startBeat = 0, barStart = 0, bar = 1, closed = false;
     let carried = {}, pendingTie = null, lastToken = null;
     let markedLevel = null, accentNext = false;
-    let articulationNext = null, graceNext = null, pedalDown = false;
+    let articulationNext = null, graceNext = null, ornamentNext = null, pedalDown = false;
+    let hairpin = null, pendingRamp = false;
     const pedalMap = [];
     const tempoMap = [{ beat: 0, tempoQuarter }];
     const expressive = event => {
@@ -152,16 +163,22 @@
         event.velocity = Math.min(1.5, (markedLevel ?? 1) * (accentNext ? 1.16 : 1));
       }
       if (event.type !== "rest") {
+        if (event.type === "chord" && ornamentNext) {
+          throw new ABCError("Trills and mordents belong to individual notes");
+        }
         if (articulationNext) event.articulation = articulationNext;
+        if (ornamentNext) event.ornament = ornamentNext;
         if (graceNext) event.gracePitches = graceNext;
+        if (hairpin) hairpin.attacks.push({ event, accent: accentNext });
         accentNext = false;
         articulationNext = null;
+        ornamentNext = null;
         graceNext = null;
       }
     };
     const finishBar = (isLast, line) => {
-      if (articulationNext || graceNext) {
-        throw new ABCError("Articulation and grace notes must precede a pitched note in the same bar", line);
+      if (articulationNext || graceNext || ornamentNext) {
+        throw new ABCError("Articulation and ornaments must precede a pitched note in the same bar", line);
       }
       const length = startBeat - barStart;
       if (length < 1e-8) throw new ABCError("Empty bar " + bar, line);
@@ -177,15 +194,26 @@
       barStart = startBeat;
       carried = {};
     };
-    for (const { text: body, line, tempo } of bodyLines) {
+    for (const { text: body, line, tempo, ramp } of bodyLines) {
+      if (ramp) {
+        if (pendingRamp || tempoMap.at(-1).beat >= startBeat ||
+            Math.abs(startBeat - barStart) > 1e-8 || closed) {
+          throw new ABCError("Place a tempo ramp after a previous Q: mark and before the next Q:", line);
+        }
+        pendingRamp = true;
+        continue;
+      }
       if (tempo !== undefined) {
         if (Math.abs(startBeat - barStart) > 1e-8 || closed || startBeat <= 0) {
           throw new ABCError("Q: tempo changes must be between complete bars", line);
         }
+        if (pendingRamp) tempoMap.at(-1).interpolation = "linear";
         if (tempoMap.at(-1).beat === startBeat) tempoMap.at(-1).tempoQuarter = tempo;
         else tempoMap.push({ beat: startBeat, tempoQuarter: tempo });
+        pendingRamp = false;
         continue;
       }
+      if (pendingRamp) throw new ABCError("Follow %%soundlab-tempo-ramp linear immediately with Q:", line);
       for (let i = 0; i < body.length;) {
         const c = body[i];
         if (/\s/.test(c)) { i++; continue; }
@@ -194,8 +222,32 @@
           const end = body.indexOf("!", i + 1);
           if (end < 0) throw new ABCError("Close each dynamic mark with !", line, i + 1);
           const name = body.slice(i + 1, end);
-          if (Object.hasOwn(DYNAMICS, name)) markedLevel = DYNAMICS[name];
+          if (Object.hasOwn(DYNAMICS, name)) {
+            markedLevel = DYNAMICS[name];
+            if (hairpin) hairpin.target = markedLevel;
+          }
           else if (name === "accent") accentNext = true;
+          else if (name === "<(" || name === ">(") {
+            if (hairpin) throw new ABCError("Close one hairpin before opening another", line, i + 1);
+            hairpin = { direction: name[0], startBeat, from: markedLevel ?? 1,
+              target: null, attacks: [] };
+          } else if (name === "<)" || name === ">)") {
+            if (!hairpin || hairpin.direction !== name[0] ||
+                startBeat <= hairpin.startBeat || hairpin.target === null ||
+                (hairpin.direction === "<" && hairpin.target <= hairpin.from) ||
+                (hairpin.direction === ">" && hairpin.target >= hairpin.from)) {
+              throw new ABCError("Hairpins need a matching close and a louder/softer end dynamic", line, i + 1);
+            }
+            for (const { event, accent } of hairpin.attacks) {
+              const fraction = (event.startBeat - hairpin.startBeat) / (startBeat - hairpin.startBeat);
+              event.velocity = Math.min(1.5, (hairpin.from +
+                fraction * (hairpin.target - hairpin.from)) * (accent ? 1.16 : 1));
+            }
+            hairpin = null;
+          } else if (name === "trill" || name === "mordent") {
+            if (ornamentNext) throw new ABCError("One ornament per note", line, i + 1);
+            ornamentNext = name;
+          }
           else if (ARTICULATIONS.includes(name)) {
             if (articulationNext) throw new ABCError("One articulation per note", line, i + 1);
             articulationNext = name;
@@ -324,8 +376,8 @@
         if (durationBeats > 32) throw new ABCError("One note/rest may not exceed 32 quarter beats", line, startIndex + 1);
         const event = { type: isRest ? "rest" : "note", startBeat,
           durationBeats, bar, abc: body.slice(startIndex, i) };
-        if (isRest && (articulationNext || graceNext)) {
-          throw new ABCError("Articulation and grace notes must precede a pitched note", line, startIndex + 1);
+        if (isRest && (articulationNext || graceNext || ornamentNext)) {
+          throw new ABCError("Articulation and ornaments must precede a pitched note", line, startIndex + 1);
         }
         if (pendingTie && isRest) {
           throw new ABCError("A tie must join notes of the same spelled pitch", line, startIndex + 1);
@@ -341,7 +393,7 @@
           event.tieFromPrevious = Boolean(pendingTie);
           event.tieToNext = false;
           if (pendingTie) {
-            if (graceNext || articulationNext) {
+            if (graceNext || articulationNext || ornamentNext) {
               throw new ABCError("A tied continuation cannot start an ornament or articulation", line, startIndex + 1);
             }
             const previous = pendingTie.event.pitch;
@@ -358,6 +410,8 @@
       }
     }
     if (pendingTie) throw new ABCError("A tie must continue to another note", pendingTie.line, pendingTie.column);
+    if (pendingRamp) throw new ABCError("Complete tempo ramps with a Q: mark");
+    if (hairpin) throw new ABCError("Close !<(! or !>(! with a matching hairpin end");
     if (pedalDown) throw new ABCError("Release !ped! with !ped-up! before the score ends");
     if (startBeat > barStart + 1e-8) finishBar(true, lines.length);
     if (!events.length) throw new ABCError("Write at least one note or rest after K:");
@@ -385,7 +439,12 @@
     let current = null, sawKey = false;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i], trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("%")) continue;
+      if (trimmed.startsWith("%%soundlab-tempo-ramp") &&
+          trimmed !== "%%soundlab-tempo-ramp linear") {
+        throw new ABCError("Unsupported Sound Lab tempo-ramp directive", i + 1);
+      }
+      if (!trimmed || (trimmed.startsWith("%") &&
+          trimmed !== "%%soundlab-tempo-ramp linear")) continue;
       const field = /^([A-Za-z]):\s*(.*?)\s*(?:%.*)?$/.exec(trimmed);
       if (i < firstVoice) {
         if (field?.[1].toUpperCase() === "K") sawKey = true;
@@ -431,12 +490,20 @@
       }
     });
     const explicitMaps = voiceScores.filter(voice => voice.tempoMap).map(voice => voice.tempoMap);
-    if (explicitMaps.some(map => JSON.stringify(map) !== JSON.stringify(explicitMaps[0]))) {
+    // Rational tuplets are accumulated in floating point separately by each
+    // V: voice; distinct spellings can differ by ~1e-13 at the same barline.
+    const agreeing = (left, right) => left.length === right.length &&
+      left.every((mark, index) => Math.abs(mark.beat - right[index].beat) < 1e-7 &&
+        mark.tempoQuarter === right[index].tempoQuarter &&
+        mark.interpolation === right[index].interpolation);
+    if (explicitMaps.some(map => !agreeing(map, explicitMaps[0]))) {
       throw new ABCError("V: voice tempo maps must agree");
     }
     if (explicitMaps.length) first.tempoMap = explicitMaps[0];
     const explicitPedals = voiceScores.filter(voice => voice.pedalMap).map(voice => voice.pedalMap);
-    if (explicitPedals.some(map => JSON.stringify(map) !== JSON.stringify(explicitPedals[0]))) {
+    if (explicitPedals.some(map => map.length !== explicitPedals[0].length ||
+        map.some((mark, index) => Math.abs(mark.beat - explicitPedals[0][index].beat) >= 1e-7 ||
+          mark.down !== explicitPedals[0][index].down))) {
       throw new ABCError("V: voice pedal maps must agree");
     }
     if (explicitPedals.length) first.pedalMap = explicitPedals[0];

@@ -61,7 +61,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 24);
+  assert.equal(presets.CATALOG.length, 25);
 });
 
 test("Turkish March is the complete K.331 finale with all unfolded pitched/grace attacks", () => {
