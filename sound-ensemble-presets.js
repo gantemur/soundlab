@@ -20,10 +20,12 @@
     require("./sound-chopin-scores.js") : root.SoundLabChopinScores;
   const bach = typeof module === "object" && module.exports ?
     require("./sound-bach-scores.js") : root.SoundLabBachScores;
-  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven, chopin, bach);
+  const odeon = typeof module === "object" && module.exports ?
+    require("./sound-odeon-scores.js") : root.SoundLabOdeonScores;
+  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven, chopin, bach, odeon);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven, chopin, bach) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven, chopin, bach, odeon) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -84,6 +86,12 @@
       description: Object.freeze({
         en: "The complete 35-bar Prelude from The Well-Tempered Clavier I, in three independently editable piano voices. All 549 sounding pitches, tied bass sustains, and the final chord follow a CC0 score. The source specifies quarter=66 and has no printed dynamics or pedal; this version adds none. About 2 minutes 7 seconds.",
         mn: "Сайн хөглөгдсөн клавир I дэвтрийн 35 такттай бүтэн прелюд. Гурван засварлах төгөлдөр хуурын хоолойд CC0 эхийн 549 цохилт, удаан үргэлжлэх басс, төгсгөлийн аккордыг хадгалав. Эхэд дөрөвтийн нот=66 хурдтай, нэмэлт динамик буюу педалийн тэмдэггүй; энд ч нэмж оруулаагүй. Ойролцоогоор 2 минут 7 секунд."
+      }) },
+    { id: "odeonPrinted", category: "classics", en: "Nazareth · Odeon (complete tango brasileiro)",
+      mn: "Назарет · Odeon (бүтэн бразил танго)",
+      description: Object.freeze({
+        en: "Ernesto Nazareth's complete 1909 piano tango in C-sharp minor. Four editable ABC voices preserve 1,273 note attacks from a transposed symbolic reference, with a printed B-strain repeat added (1,452 total); 129 played 2/4 bars, about 2 min 56 s at an editorial quarter=88. The source MIDI lacks the B-strain's separate first ending, so the repeated B currently uses the same ending twice. Dynamics are editorial. This is a score-based approximation, not an exact critical edition or recorded performance.",
+        mn: "Эрнесто Назаретын 1909 оны до-диез минорын төгөлдөр хуурын бүтэн бразил танго. Тэмдэгт MIDI эхийн 1273 нотыг дөрвөн засварлах ABC хоолойд хадгалж, эх хэвлэлийн B хэсгийн давталтыг нэмэн нийт 1452 нот, 129 такт болгов. Дөрөвтийн нот=88 гэсэн сонгосон хурдаар 2 минут 56 секунд үргэлжилнэ. MIDI эхэд B хэсгийн өөр эхний төгсгөл байхгүй тул одоогоор төгсгөлийн нэг хувилбарыг хоёр удаа хэрэглэв. Динамикийг тайлбарлан нэмсэн; яг таг шүүмжлэлт эх биш."
       }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -249,6 +257,13 @@
       name: language === "en" ? "Piano · 3 voices" : "Төгөлдөр хуур · 3 хоолой",
       instrument: "piano", volume: 54, mute: false, solo: false,
       abc: bach.PRELUDE_C_MAJOR_ABC }];
+  }
+
+  function createOdeon(language) {
+    return [{ id: 1,
+      name: language === "en" ? "Odeon piano · 4 voices" : "Odeon төгөлдөр хуур · 4 хоолой",
+      instrument: "piano", volume: 54, mute: false, solo: false,
+      abc: odeon.ODEON_PRINT_ABC }];
   }
 
   const STRUM_STUDY = Object.freeze({
@@ -950,6 +965,7 @@
     if (id === "furElise") return createFurElise(language);
     if (id === "minuteWaltz") return createMinuteWaltz(language);
     if (id === "bachPrelude") return createBachPrelude(language);
+    if (id === "odeonPrinted") return createOdeon(language);
     if (id === "charleston") return createCharleston(language);
     if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);

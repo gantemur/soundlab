@@ -101,7 +101,8 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-beethoven-scores\.js\?v=rp3"/);
   assert.match(html, /src="sound-chopin-scores\.js\?v=rp4"/);
   assert.match(html, /src="sound-bach-scores\.js\?v=rp5a"/);
-  assert.match(html, /src="sound-ensemble-presets\.js\?v=rp5a"/);
+  assert.match(html, /src="sound-odeon-scores\.js\?v=rp5b"/);
+  assert.match(html, /src="sound-ensemble-presets\.js\?v=rp5b"/);
   assert.match(html, /src="sound-export\.js\?v=rp3"/);
   assert.match(html, /src="sound-ensemble\.js\?v=range2"/);
   assert.match(html, /src="sound-project\.js\?v=s087"/);
@@ -771,7 +772,7 @@ function fakePage(search = "", supportWorklets = true, analysisController = null
   // Load the new modules as a browser would, not via Node require: their audio
   // scheduler must see this sandbox's clock/timers rather than real Node timers.
   for (const name of ["sound-score.js", "sound-abc.js", "sound-drum-abc.js", "sound-drum-patterns.js", "sound-fm.js", "sound-score-player.js",
-    "sound-compose.js", "sound-classical-scores.js", "sound-joplin-scores.js", "sound-beethoven-scores.js", "sound-chopin-scores.js", "sound-bach-scores.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js",
+    "sound-compose.js", "sound-classical-scores.js", "sound-joplin-scores.js", "sound-beethoven-scores.js", "sound-chopin-scores.js", "sound-bach-scores.js", "sound-odeon-scores.js", "sound-ensemble-presets.js", "sound-ensemble.js", "sound-project.js", "sound-project-ui.js",
     "sound-wav.js", "sound-export.js", "sound-export-ui.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, name), "utf8"), vmContext,
       { filename: name });

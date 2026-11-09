@@ -653,6 +653,28 @@ test("RP5a complete Bach Prelude exports all 549 attacks, long bass holds and fi
   assert.ok(notes.at(-1).at >= time(136), "the closing full-bar chord survives export");
 });
 
+test("RP5b complete Odeon keeps every repeated piano attack in the full WAV export", async () => {
+  const input = arrangement(presets.create("odeonPrinted", "en"));
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT,
+    version: projects.VERSION, title: "Nazareth · Odeon", ...input }));
+  const parsed = ensemble.parseTracks(saved.content.tracks, "equal", temperament).prepared[0].score;
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  const notes = f.contexts[0].graph.sources;
+  const attacks = players.scheduledEvents(parsed);
+  const time = beat => require("./sound-score.js").beatToSeconds(parsed, beat);
+  assert.equal(parsed.bars.length, 129);
+  assert.equal(parsed.parts[0].voiceIds.length, 4);
+  assert.ok(output.duration > 175.9 && output.duration < 180,
+    "the whole 2:56 score must not be truncated by former 90-second limits");
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
+  assert.equal(notes.length, 1452);
+  for (const index of [0, 105, 340, 610, 875, 1210, 1451]) {
+    close(notes[index].at, time(attacks[index].startBeat));
+  }
+  assert.ok(notes.at(-1).at > 170, "closing notes survive whole-length WAV export");
+});
+
 test("persistent pitched dynamics change live/offline gain without changing note times", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n!p!C !accent!D !f!E G |]";
   const f = fixture();
