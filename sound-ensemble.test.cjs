@@ -283,7 +283,9 @@ test("all ensemble arrangements can add or regenerate drums with their original 
       assert.equal(tracks.length, 1, "four V: voices consume only one instrument slot");
       assert.equal(added.prepared.length, 2);
     }
-    assert.equal(added.summary.totalBeats, summary.totalBeats, preset.id);
+    // Converting rational MusicXML tuplets to IEEE-754 ABC durations may
+    // accumulate sub-picobeat roundoff across the complete composition.
+    assert.ok(Math.abs(added.summary.totalBeats - summary.totalBeats) < 1e-7, preset.id);
     assert.ok(added.summary.eventCount > summary.eventCount, preset.id);
     const score = drumABC.parse(percussion.abc);
     assert.equal(score.bars.length, source.bars.length, preset.id);

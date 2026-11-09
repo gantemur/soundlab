@@ -510,6 +510,36 @@ test("RP2 complete Joplin Entertainer exports its final alternate ending with al
   assert.ok(sourceTimes.at(-1) > 244, "the alternate ending is not truncated");
 });
 
+test("RP3 complete Für Elise exports the true final cadence, grace attacks and pedal releases", async () => {
+  const input = arrangement(presets.create("furElise", "mn"));
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT, version: projects.VERSION,
+    title: "Beethoven · Für Elise", ...input }));
+  const parsed = ensemble.parseTracks(saved.content.tracks, "equal", temperament).prepared[0].score;
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  const notes = f.contexts[0].graph.sources;
+  const attacks = players.scheduledEvents(parsed);
+  const time = beat => require("./sound-score.js").beatToSeconds(parsed, beat);
+  assert.equal(parsed.bars.length, 126);
+  assert.equal(parsed.parts[0].voiceIds.length, 7);
+  assert.ok(output.duration > 156.09 && output.duration < 159,
+    "full 2:36 bagatelle and natural piano tail are retained");
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
+  assert.equal(notes.length, 1041, "1,038 notated attacks and three grace notes reach WAV");
+  for (const index of [0, 45, 320, 600, 800, 1040]) close(notes[index].at, time(attacks[index].startBeat));
+  assert.ok(notes.at(-1).at > 153, "final A-section cadence survives whole-score export");
+  const pedalNoteIndex = attacks.findIndex(e =>
+    e.startBeat >= 66.5 && e.pedalEndBeat > e.startBeat + e.durationBeats + .4);
+  assert.ok(pedalNoteIndex >= 0);
+  const pedalNote = notes[pedalNoteIndex];
+  assert.ok(pedalNote.gain.some(record => record[0] === "target" &&
+    Math.abs(record[2] - time(attacks[pedalNoteIndex].pedalEndBeat)) < 1e-8),
+  "offline piano damper follows the same absolute pedal-up beat as live playback");
+  const levels = notes.map(n => n.gain.find(record => record[0] === "set")?.[1]);
+  assert.ok(Math.min(...levels) < .6 * Math.max(...levels),
+    "source pp, editorial mf and soft grace attacks yield distinct WAV dynamics");
+});
+
 test("persistent pitched dynamics change live/offline gain without changing note times", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n!p!C !accent!D !f!E G |]";
   const f = fixture();

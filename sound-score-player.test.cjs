@@ -117,6 +117,36 @@ test("RP2 live Play/Pause/Seek uses integrated score seconds across changing tem
   player.stop();
 });
 
+test("E4 live piano pedal sustains through key release and survives mid-pedal late seek", async t => {
+  const piece = abc.parse("M:2/4\nL:1/4\nQ:1/4=60\nK:C\n" +
+    "!ped!C D | !ped-up!E F |]");
+  const { player, context } = audioFixture();
+  t.after(() => player.stop());
+  player.configure({ score: piece, instrument: "piano" });
+  await player.play();
+  const first = context.sources[0];
+  assert.equal(first.startedAt, .08);
+  assert.ok(context.gains.some(g => g.gain.records.some(record =>
+    record[0] === "target" && Math.abs(record[2] - 2.08) < 1e-8)),
+  "the piano damper must not fall at C's ordinary one-beat note-off");
+  context.currentTime = .92;
+  player.pause();
+  assert.equal(player.status, "paused");
+  player.positionBeat = 1.5;
+  context.currentTime = 10;
+  await player.play();
+  assert.equal(player.status, "playing");
+  assert.ok(context.sources.some(s => s.offset >= 1.49 && s.offset <= 1.51),
+    "a previously struck C is still ringing under the score's pedal at a late seek");
+  assert.ok(Math.abs(player.currentBeat - 1.5) < 1e-8);
+  context.currentTime = 10.28;
+  player.pause();
+  const frozen = player.currentBeat;
+  await player.play();
+  assert.ok(Math.abs(player.currentBeat - frozen) < 1e-7);
+  player.stop();
+});
+
 test("RP2 ensemble instruments and drums inherit a single explicit tempo map", async t => {
   const lead = abc.parse("M:2/4\nL:1/4\nQ:1/4=60\nK:C\nC2 |\nQ:1/4=120\nD2 |]");
   const kit = drumABC.parse("M:2/4\nL:1/4\nQ:1/4=60\nK:C clef=perc\nC2 | E2 |]");

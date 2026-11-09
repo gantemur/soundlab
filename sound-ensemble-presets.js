@@ -14,10 +14,12 @@
     require("./sound-classical-scores.js") : root.SoundLabClassicalScores;
   const joplin = typeof module === "object" && module.exports ?
     require("./sound-joplin-scores.js") : root.SoundLabJoplinScores;
-  const api = factory(compose, drumPatterns, drums, classical, joplin);
+  const beethoven = typeof module === "object" && module.exports ?
+    require("./sound-beethoven-scores.js") : root.SoundLabBeethovenScores;
+  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -58,8 +60,14 @@
     { id: "entertainer", category: "classics", en: "Joplin · The Entertainer (complete rag)",
       mn: "Жоплин · The Entertainer (бүтэн рэгтайм)",
       description: Object.freeze({
-        en: "Scott Joplin's complete 1902 piano rag: 152 played 2/4 bars with four repeated strains and their first/second endings. Both hands become eight independently editable piano voices. Original straight syncopation; modest section tempo changes (72/76/74) are Sound Lab's interpretation. Articulation is reserved for a later pass.",
-        mn: "Скотт Жоплины 1902 оны бүтэн төгөлдөр хуурын рэгтайм: давталт, хоёр өөр төгсгөлтэй 152 такт. Хоёр гарын нотыг 8 тусдаа засварлах хоолой болгон хөрвүүлэв. Бичсэн синкоп хэмнэлийг свинг нэмэлгүй хадгалсан; 72/76/74 хурдны өөрчлөлт нь Sound Lab-ын тайлбар юм. Нотны холбоосын нарийн илэрхийллийг дараа хэрэгжүүлнэ."
+        en: "Scott Joplin's complete 1902 piano rag: 152 played 2/4 bars with four repeated strains and their first/second endings. Both hands become eight independently editable piano voices. Original straight syncopation; modest section tempo changes (72/76/74) are Sound Lab's interpretation. Nine printed articulations are not yet mapped in this converted score.",
+        mn: "Скотт Жоплины 1902 оны бүтэн төгөлдөр хуурын рэгтайм: давталт, хоёр өөр төгсгөлтэй 152 такт. Хоёр гарын нотыг 8 тусдаа засварлах хоолой болгон хөрвүүлэв. Бичсэн синкоп хэмнэлийг свинг нэмэлгүй хадгалсан; 72/76/74 хурдны өөрчлөлт нь Sound Lab-ын тайлбар юм. Эх нотны 9 артикуляцийн тэмдэг энэ хөрвүүлсэн хувилбарт хараахан ороогүй."
+      }) },
+    { id: "furElise", category: "classics", en: "Beethoven · Für Elise (complete)",
+      mn: "Бетховен · Für Elise (бүтнээр)",
+      description: Object.freeze({
+        en: "Complete WoO 59 bagatelle: both hands, both repeated sections, contrasting F-major and darker episodes, and the closing reprise. Seven editable voices preserve all 1,038 pitched attacks, plus three written grace notes. The slurs are retained; sectional dynamics, pulse changes, a few staccatos and short pedal passages are explicitly editorial.",
+        mn: "WoO 59 бүтэн багатель: хоёр гарын нот, хоёр давталт, фа мажор болон бараан дунд хэсэг, төгсгөлийн дахилт. Засварлах 7 хоолойд 1038 үндсэн цохилт, 3 угтвар нот бий. Эхийн лигийг хадгалсан; хурд, динамик, зарим богино нот болон педаль нь Sound Lab-ын тайлбар юм."
       }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -204,6 +212,13 @@
       name: language === "en" ? "Ragtime piano · 8 voices" : "Рэгтайм төгөлдөр хуур · 8 хоолой",
       instrument: "piano", volume: 54, mute: false, solo: false,
       abc: joplin.ENTERTAINER_ABC }];
+  }
+
+  function createFurElise(language) {
+    return [{ id: 1,
+      name: language === "en" ? "Piano · 7 voices" : "Төгөлдөр хуур · 7 хоолой",
+      instrument: "piano", volume: 54, mute: false, solo: false,
+      abc: beethoven.FUR_ELISE_ABC }];
   }
 
   const STRUM_STUDY = Object.freeze({
@@ -902,6 +917,7 @@
     if (Object.hasOwn(DRUM_SOLOS, id)) return createDrumSolo(id, language);
     if (id === "turkishMarch") return createTurkishMarch(language);
     if (id === "entertainer") return createEntertainer(language);
+    if (id === "furElise") return createFurElise(language);
     if (id === "charleston") return createCharleston(language);
     if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);

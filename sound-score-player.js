@@ -114,7 +114,9 @@
     if (instrument === "mandolin") return [mandolinModel.MIN_HZ, mandolinModel.MAX_HZ];
     if (instrument === "harp") return [harpModel.MIN_HZ, harpModel.MAX_HZ];
     return [instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ,
-      instrument === "piano" ? 1760 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
+      // Acoustic piano extends to C8, not A6. High Für Elise right-hand
+      // notes must retain their register; modal synthesis bounds partials.
+      instrument === "piano" ? 4186.1 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
   }
 
   function guitarSettings(guitar = DEFAULT_GUITAR) {
@@ -164,7 +166,8 @@
         }
         ordered.forEach((pitch, index) => {
           const delayBeats = index * stepBeats;
-          notes.push({ ...notated, type: "note", pitch: { ...pitch }, chordSize: pitches.length,
+          notes.push({ ...notated, type: "note", pitch: { ...pitch },
+            ...(index ? { gracePitches: undefined } : {}), chordSize: pitches.length,
             startBeat: event.startBeat + delayBeats,
             durationBeats: event.durationBeats - delayBeats });
         });
@@ -183,12 +186,49 @@
         lastAttack.set(voiceId, attack);
       }
     }
-    // Keep each complete attack time when resuming inside a tie or strum.
+    // Interpret expressive marks after tie consolidation. Durations in the
+    // editable score remain notated durations; only audio attacks/releases
+    // change. A grace group steals up to 35% of its host note, with fixed
+    // deterministic 55 ms targets rather than adding score beats or drifting
+    // with repeated playback. The shared tempo map converts seconds to beats.
+    const expressiveNotes = [];
+    for (const original of notes) {
+      const event = { ...original };
+      const writtenEnd = event.startBeat + event.durationBeats;
+      const articulation = event.articulation;
+      if (articulation === "staccato") event.durationBeats *= .58;
+      else if (articulation === "tenuto") event.durationBeats *= .97;
+      else if (articulation === "legato") {
+        event.durationBeats += Math.min(.10, event.durationBeats * .07);
+      }
+      const gracePitches = event.gracePitches;
+      if (gracePitches?.length) {
+        const onsetSeconds = scoreModel.beatToSeconds(score, event.startBeat);
+        const hostSeconds = scoreModel.beatToSeconds(score, writtenEnd) - onsetSeconds;
+        const totalGraceSeconds = Math.min(gracePitches.length * .055, hostSeconds * .35);
+        const period = totalGraceSeconds / gracePitches.length;
+        for (const [index, pitch] of gracePitches.entries()) {
+          const startBeat = scoreModel.secondsToBeat(score, onsetSeconds + index * period);
+          const endBeat = scoreModel.secondsToBeat(score, onsetSeconds + (index + .9) * period);
+          expressiveNotes.push({ ...event, pitch: { ...pitch }, startBeat,
+            durationBeats: endBeat - startBeat, articulation: undefined, gracePitches: undefined,
+            isGrace: true, velocity: Math.min(1.5, (event.velocity ?? 1) * .82),
+            pedalEndBeat: scoreModel.pedalReleaseBeat(score, endBeat) });
+        }
+        const delayedBeat = scoreModel.secondsToBeat(score, onsetSeconds + totalGraceSeconds);
+        event.durationBeats = Math.max(1e-6, event.startBeat + event.durationBeats - delayedBeat);
+        event.startBeat = delayedBeat;
+      }
+      event.gracePitches = undefined;
+      event.pedalEndBeat = scoreModel.pedalReleaseBeat(score, event.startBeat + event.durationBeats);
+      expressiveNotes.push(event);
+    }
+    // Keep each complete attack time when resuming inside a tie, pedal or strum.
     // Expand the entire score first so alternating strokes also retain their
     // direction after a seek. The scheduler seeks each percussive buffer from
     // its own attack and leaves not-yet-plucked notes at their future times.
-    return notes.sort((a, b) => a.startBeat - b.startBeat)
-      .filter(event => event.startBeat + event.durationBeats > fromBeat);
+    return expressiveNotes.sort((a, b) => a.startBeat - b.startBeat)
+      .filter(event => Math.max(event.startBeat + event.durationBeats, event.pedalEndBeat || 0) > fromBeat);
   }
 
   class Player {
@@ -383,7 +423,7 @@
         const at = clippedBeat === this.originBeat ? this.baseTime :
           this.baseTime + scoreModel.beatToSeconds(this.score, clippedBeat) - originSeconds;
         const endsAt = this.baseTime +
-          scoreModel.beatToSeconds(this.score, event.startBeat + event.durationBeats) - originSeconds;
+          scoreModel.beatToSeconds(this.score, this.noteOffBeat(event)) - originSeconds;
         const startsAt = Math.max(at, now + .003);
         const originalAt = this.baseTime + scoreModel.beatToSeconds(this.score, event.startBeat) - originSeconds;
         const offsetSeconds = Math.max(0, startsAt - originalAt);
@@ -420,9 +460,15 @@
 
     eventInstrument() { return this.instrument; }
 
+    noteOffBeat(event) {
+      const written = event.startBeat + event.durationBeats;
+      return ["piano", "fmep"].includes(this.eventInstrument(event)) ?
+        Math.max(written, event.pedalEndBeat || written) : written;
+    }
+
     eventPending(event, fromBeat, sampleRate) {
       const at = scoreModel.beatToSeconds(this.score, event.startBeat);
-      const endsAt = scoreModel.beatToSeconds(this.score, event.startBeat + event.durationBeats);
+      const endsAt = scoreModel.beatToSeconds(this.score, this.noteOffBeat(event));
       // Plain oscillators are already silent at note-off. Held voices and
       // sampled instruments can still be sounding after their notation ends.
       const end = WAVEFORMS.includes(this.eventInstrument(event)) ? endsAt :

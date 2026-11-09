@@ -73,7 +73,7 @@
     for (const event of synth.playEvents) {
       if (!synth.isEventAudible(event)) continue;
       const at = scoreModel.beatToSeconds(synth.score, event.startBeat);
-      const endsAt = scoreModel.beatToSeconds(synth.score, event.startBeat + event.durationBeats);
+      const endsAt = scoreModel.beatToSeconds(synth.score, synth.noteOffBeat(event));
       sharedBytes = Math.max(sharedBytes, synth.sharedBufferBytes(event, SAMPLE_RATE));
       const spec = synth.bufferSpec(event, SAMPLE_RATE);
       if (spec && !specs.has(spec.key)) {

@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: MIT
  * A deliberately small, strict subset of ABC notation. One instrument can
  * contain independent V: blocks, each with its own rhythm and notation state.
- * Supports persistent !pp! .. !ff! dynamics, !accent!, and Q: tempo changes
- * at barlines (also inside the first V: block of a polyphonic score).
+ * Supports dynamics, articulation, grace notes, piano pedal and barline Q:
+ * tempo changes (also inside a block-form polyphonic score).
  */
 (function (root, factory) {
   const scoreModel = typeof module === "object" && module.exports ?
@@ -23,6 +23,7 @@
   const HEADERS = Object.freeze(["X", "T", "M", "L", "Q", "K"]);
   const DYNAMICS = Object.freeze({ pp: .42, p: .60, mp: .78, mf: 1,
     f: 1.17, ff: 1.32 });
+  const ARTICULATIONS = Object.freeze(["staccato", "tenuto", "legato"]);
   // A file-size protection for the browser, not a musical bar or duration limit.
   const MAX_SOURCE_CHARACTERS = 1024 * 1024;
 
@@ -143,14 +144,25 @@
     let startBeat = 0, barStart = 0, bar = 1, closed = false;
     let carried = {}, pendingTie = null, lastToken = null;
     let markedLevel = null, accentNext = false;
+    let articulationNext = null, graceNext = null, pedalDown = false;
+    const pedalMap = [];
     const tempoMap = [{ beat: 0, tempoQuarter }];
     const expressive = event => {
       if (event.type !== "rest" && (markedLevel !== null || accentNext)) {
         event.velocity = Math.min(1.5, (markedLevel ?? 1) * (accentNext ? 1.16 : 1));
       }
-      if (event.type !== "rest") accentNext = false;
+      if (event.type !== "rest") {
+        if (articulationNext) event.articulation = articulationNext;
+        if (graceNext) event.gracePitches = graceNext;
+        accentNext = false;
+        articulationNext = null;
+        graceNext = null;
+      }
     };
     const finishBar = (isLast, line) => {
+      if (articulationNext || graceNext) {
+        throw new ABCError("Articulation and grace notes must precede a pitched note in the same bar", line);
+      }
       const length = startBeat - barStart;
       if (length < 1e-8) throw new ABCError("Empty bar " + bar, line);
       if (length > meter.quarterBeats + 1e-7 ||
@@ -184,7 +196,42 @@
           const name = body.slice(i + 1, end);
           if (Object.hasOwn(DYNAMICS, name)) markedLevel = DYNAMICS[name];
           else if (name === "accent") accentNext = true;
+          else if (ARTICULATIONS.includes(name)) {
+            if (articulationNext) throw new ABCError("One articulation per note", line, i + 1);
+            articulationNext = name;
+          } else if (name === "ped" || name === "ped-up") {
+            const down = name === "ped";
+            if (down === pedalDown || pedalMap.at(-1)?.beat === startBeat) {
+              throw new ABCError("Piano pedal changes must alternate at distinct score positions", line, i + 1);
+            }
+            pedalMap.push({ beat: startBeat, down });
+            pedalDown = down;
+          }
           else throw new ABCError("Unsupported dynamic mark !" + name + "!", line, i + 1);
+          i = end + 1;
+          continue;
+        }
+        if (c === "{") {
+          const end = body.indexOf("}", i + 1);
+          if (end < 0 || graceNext) throw new ABCError("Use one closed grace-note group before a note", line, i + 1);
+          const group = body.slice(i + 1, end).replace(/^\//, "").trim();
+          const pitches = [];
+          for (let pos = 0; pos < group.length;) {
+            if (/\s/.test(group[pos])) { pos++; continue; }
+            const match = /^(\^\^|__|\^|_|=)?([A-Ga-g])([,']*)/.exec(group.slice(pos));
+            if (!match) throw new ABCError("Grace notes use pitches only", line, i + 1);
+            const octave = (/[a-g]/.test(match[2]) ? 5 : 4) +
+              [...match[3]].reduce((v, mark) => v + (mark === "," ? -1 : 1), 0);
+            if (octave < 1 || octave > 7) throw new ABCError("Grace pitch outside supported octaves", line, i + 1);
+            const letter = match[2].toUpperCase();
+            const accidental = match[1] === undefined ?
+              (carried[letter + octave] ?? key.accidentals[letter] ?? 0) :
+              { "^^": 2, "^": 1, "=": 0, _: -1, __: -2 }[match[1]];
+            pitches.push({ letter, accidental, octave });
+            pos += match[0].length;
+          }
+          if (!pitches.length || pitches.length > 8) throw new ABCError("A grace group needs 1–8 pitches", line, i + 1);
+          graceNext = pitches;
           i = end + 1;
           continue;
         }
@@ -277,6 +324,9 @@
         if (durationBeats > 32) throw new ABCError("One note/rest may not exceed 32 quarter beats", line, startIndex + 1);
         const event = { type: isRest ? "rest" : "note", startBeat,
           durationBeats, bar, abc: body.slice(startIndex, i) };
+        if (isRest && (articulationNext || graceNext)) {
+          throw new ABCError("Articulation and grace notes must precede a pitched note", line, startIndex + 1);
+        }
         if (pendingTie && isRest) {
           throw new ABCError("A tie must join notes of the same spelled pitch", line, startIndex + 1);
         }
@@ -291,6 +341,9 @@
           event.tieFromPrevious = Boolean(pendingTie);
           event.tieToNext = false;
           if (pendingTie) {
+            if (graceNext || articulationNext) {
+              throw new ABCError("A tied continuation cannot start an ornament or articulation", line, startIndex + 1);
+            }
             const previous = pendingTie.event.pitch;
             if (base !== previous.letter || octave !== previous.octave || accidental !== previous.accidental) {
               throw new ABCError("A tie must join notes of the same spelled pitch", line, startIndex + 1);
@@ -305,11 +358,13 @@
       }
     }
     if (pendingTie) throw new ABCError("A tie must continue to another note", pendingTie.line, pendingTie.column);
+    if (pedalDown) throw new ABCError("Release !ped! with !ped-up! before the score ends");
     if (startBeat > barStart + 1e-8) finishBar(true, lines.length);
     if (!events.length) throw new ABCError("Write at least one note or rest after K:");
     score.bars[0].pickup = score.bars.length > 1 && score.bars[0].partial;
     score.totalBeats = startBeat;
     if (tempoMap.length > 1) score.tempoMap = tempoMap;
+    if (pedalMap.length) score.pedalMap = pedalMap;
     scoreModel.validate(score);
     return score;
   }
@@ -380,6 +435,11 @@
       throw new ABCError("V: voice tempo maps must agree");
     }
     if (explicitMaps.length) first.tempoMap = explicitMaps[0];
+    const explicitPedals = voiceScores.filter(voice => voice.pedalMap).map(voice => voice.pedalMap);
+    if (explicitPedals.some(map => JSON.stringify(map) !== JSON.stringify(explicitPedals[0]))) {
+      throw new ABCError("V: voice pedal maps must agree");
+    }
+    if (explicitPedals.length) first.pedalMap = explicitPedals[0];
     first.parts[0].voiceIds = voiceIds;
     first.parts[0].events = voiceScores.flatMap((voice, i) =>
       voice.parts[0].events.map(event => ({ ...event, voiceId: voiceIds[i] })))
@@ -388,5 +448,5 @@
     return first;
   }
 
-  return Object.freeze({ MAX_SOURCE_CHARACTERS, DYNAMICS, ABCError, parse, parseKey });
+  return Object.freeze({ MAX_SOURCE_CHARACTERS, DYNAMICS, ARTICULATIONS, ABCError, parse, parseKey });
 });

@@ -97,6 +97,22 @@
     return segments.at(-1).beat;
   }
 
+  // Notation fixes the key-release time. If the piano damper pedal is down
+  // when a key is released, the damper only returns on the next pedal-up.
+  // This is an absolute score timeline, so Pause/Seek/Resume and WAV agree.
+  function pedalReleaseBeat(score, keyReleaseBeat) {
+    if (!Number.isFinite(keyReleaseBeat) || keyReleaseBeat < 0) {
+      throw new RangeError("Invalid key-release beat");
+    }
+    let down = false;
+    for (const change of score.pedalMap || []) {
+      if (change.beat <= keyReleaseBeat + 1e-9) down = change.down;
+      else if (down && !change.down) return change.beat;
+      else if (change.beat > keyReleaseBeat) break;
+    }
+    return keyReleaseBeat;
+  }
+
   function validate(score) {
     if (!score || score.version !== 1 || !Array.isArray(score.parts) || score.parts.length !== 1 ||
         !Array.isArray(score.parts[0].events) || !Number.isFinite(score.tempoQuarter) ||
@@ -121,6 +137,20 @@
             mark.tempoQuarter > 320 ||
             (index > 0 && mark.beat <= score.tempoMap[index - 1].beat))) {
         throw new RangeError("Invalid score tempo map");
+      }
+    }
+    if (score.pedalMap !== undefined) {
+      let held = false, previous = -1;
+      if (!Array.isArray(score.pedalMap) || score.pedalMap.length > 4096 ||
+          score.pedalMap.some(mark => {
+            const invalid = !Number.isFinite(mark?.beat) || mark.beat < 0 ||
+              mark.beat > score.totalBeats || mark.beat <= previous ||
+              typeof mark.down !== "boolean" || mark.down === held;
+            previous = mark?.beat;
+            held = mark?.down;
+            return invalid;
+          }) || held) {
+        throw new RangeError("Invalid piano pedal map");
       }
     }
     if (!Number.isFinite(beatToSeconds(score, score.totalBeats))) {
@@ -156,6 +186,18 @@
            event.velocity < .1 || event.velocity > 1.5)) {
         throw new RangeError("A pitched note dynamic must be between 0.1 and 1.5");
       }
+      if (event.articulation !== undefined &&
+          (event.type === "rest" || !["staccato", "tenuto", "legato"].includes(event.articulation))) {
+        throw new RangeError("Invalid score articulation");
+      }
+      if (event.gracePitches !== undefined &&
+          (event.type === "rest" || !Array.isArray(event.gracePitches) ||
+            !event.gracePitches.length || event.gracePitches.length > 8 ||
+            event.gracePitches.some(pitch => {
+              try { pitchNumber(pitch); return false; } catch (_) { return true; }
+            }))) {
+        throw new RangeError("Invalid grace-note pitches");
+      }
       if (event.type === "chord") {
         if (!Array.isArray(event.pitches) || event.pitches.length < 2 || event.pitches.length > 6 ||
             new Set(event.pitches.map(pitchNumber)).size !== event.pitches.length) {
@@ -187,6 +229,6 @@
 
   return Object.freeze({ LETTER_OFFSETS, MIN_NOTE_HZ, MAX_NOTE_HZ,
     TUNINGS, pitchNumber, pitchName, frequency, secondsPerBeat, tempoAtBeat,
-    beatToSeconds, secondsToBeat,
+    beatToSeconds, secondsToBeat, pedalReleaseBeat,
     validate });
 });
