@@ -1,11 +1,13 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const abc = require("./sound-abc.js");
 const score = require("./sound-score.js");
 const compose = require("./sound-compose.js");
 const presets = require("./sound-ensemble-presets.js");
 const ensemble = require("./sound-ensemble.js");
+const playerModel = require("./sound-score-player.js");
 const drums = require("./sound-drum-abc.js");
 const drumPatterns = require("./sound-drum-patterns.js");
 const temperament = require("./sound-temperaments.js");
@@ -67,18 +69,18 @@ test("Turkish March is the complete K.331 finale with all unfolded pitched/grace
   assert.equal(catalog.category, "classics");
   assert.match(catalog.description.en, /complete finale/i);
   const original = presets.create("turkishMarch", "en");
-  assert.deepEqual(original.map(track => track.instrument), ["piano", "piano", "piano", "piano"]);
-  assert.deepEqual(original.map(track => track.name),
-    ["Right hand", "Upper inner voice", "Middle inner voice", "Left hand"]);
-  assert.ok(original.every(track => track.abc.includes("CC0") &&
-    track.abc.includes("M:2/4") && track.abc.includes("Q:1/4=120")));
-  assert.ok(original.some(track => track.abc.includes("!p!")) &&
-    original.some(track => track.abc.includes("!f!")));
+  assert.deepEqual(original.map(track => track.instrument), ["piano"]);
+  assert.equal(original[0].name, "Piano · 4 voices");
+  assert.ok(original[0].abc.includes("CC0") && original[0].abc.includes("M:2/4") &&
+    original[0].abc.includes("Q:1/4=120"));
+  assert.ok(original[0].abc.includes("!p!") && original[0].abc.includes("!f!"));
   for (const language of ["en", "mn"]) {
     const tracks = presets.create("turkishMarch", language);
     const { summary, prepared } = ensemble.parseTracks(tracks, "equal", temperament);
-    assert.deepEqual(prepared.map(t => t.score.totalBeats), [447, 447, 447, 447]);
-    assert.deepEqual(prepared.map(t => t.score.bars.length), [224, 224, 224, 224]);
+    assert.equal(prepared.length, 1, "the movement leaves three instrument slots free");
+    assert.deepEqual(prepared[0].score.parts[0].voiceIds, ["RH", "Upper", "Middle", "LH"]);
+    assert.deepEqual(prepared.map(t => t.score.totalBeats), [447]);
+    assert.deepEqual(prepared.map(t => t.score.bars.length), [224]);
     assert.equal(prepared[0].score.bars[0].durationBeats, 1, "opening pickup retained");
     assert.equal(prepared[0].score.bars.at(-1).durationBeats, 2);
     assert.equal(summary.totalBeats, 447);
@@ -86,9 +88,20 @@ test("Turkish March is the complete K.331 finale with all unfolded pitched/grace
     assert.equal(447 * 60 / 120, 223.5);
     assert.equal(summary.eventCount, 2812,
       "2,530 unfolded written pitched notes and 282 sounded grace-note pitches are preserved");
-    assert.ok(prepared.every(t => t.score.parts[0].events.every(e =>
-      e.type === "rest" || !e.velocity || [.6, 1.17].includes(e.velocity))));
-    assert.ok(tracks[3].abc.includes("z8 |"), "silent left-hand pickup preserved");
+    assert.ok(prepared[0].score.parts[0].events.every(e =>
+      e.type === "rest" || !e.velocity || [.6, 1.17].includes(e.velocity)));
+    const attacks = playerModel.scheduledEvents(prepared[0].score);
+    assert.deepEqual(["RH", "Upper", "Middle", "LH"].map(id =>
+      attacks.filter(e => e.voiceId === id).length), [1431, 20, 39, 1322]);
+    // Pinned against the prior four-track score at public commit 8876d9a:
+    // every sounding pitch, quarter-beat onset, written release and dynamic.
+    const signature = ["RH", "Upper", "Middle", "LH"].flatMap(id =>
+      attacks.filter(event => event.voiceId === id).map(event =>
+        JSON.stringify([event.startBeat, event.durationBeats,
+          score.pitchNumber(event.pitch), event.velocity ?? 1]))).join("\n");
+    assert.equal(crypto.createHash("sha256").update(signature).digest("hex"),
+      "7815a7ba4d5c1bdd0b50c234f56e21a47494548dc6f1d0a24a5dca158daa0a3f");
+    assert.ok(tracks[0].abc.includes("V:LH\nz8 |"), "silent left-hand pickup preserved");
   }
   original[0].abc = "user edited";
   assert.notEqual(presets.create("turkishMarch")[0].abc, "user edited");

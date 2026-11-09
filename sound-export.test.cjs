@@ -448,7 +448,7 @@ test("complete El Choclo exports every tango section beyond 90 seconds and survi
     "melody, piano, bass and percussion all reach the render graph");
 });
 
-test("RP1 complete Turkish March saves, exports all piano voices, and retains a late coda", async () => {
+test("E2 complete Turkish March saves, exports four internal piano voices, and retains a late coda", async () => {
   const snapshot = arrangement(presets.create("turkishMarch", "mn"));
   const saved = projects.decode(projects.encode({ format: projects.FORMAT, version: projects.VERSION,
     title: "Mozart K.331 III", ...snapshot }));
@@ -459,12 +459,14 @@ test("RP1 complete Turkish March saves, exports all piano voices, and retains a 
   assert.ok(output.bytes.length > 223 * 44100 * 2);
   assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
   const graph = f.contexts[0].graph;
+  assert.equal(saved.content.tracks.length, 1,
+    "all four notated voices are edited inside one piano instrument track");
   assert.equal(graph.sources.length, 2812,
     "all unfolded normal notes and rapid grace notes reach the audio graph");
   assert.ok(graph.sources.some(source => source.at > 220),
     "the final coda, not just the recognizable opening, must sound");
-  assert.ok(new Set(graph.sources.map(source => source.chain[1])).size === 4,
-    "all independent source piano lines are retained");
+  assert.equal(new Set(graph.sources.map(source => source.chain[1])).size, 1,
+    "all four written voices now share one piano instrument bus");
   assert.ok(graph.sources.some(source => source.gain[0][1] < .12),
     "the quiet score-level dynamic is not silently ignored");
 });

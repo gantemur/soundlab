@@ -273,13 +273,16 @@ test("all ensemble arrangements can add or regenerate drums with their original 
     const percussion = { id, name: "Drums", instrument: "drums", volume: 65,
       abc: drumABC.groove({ ...summary, barDurations: source.bars.map(bar => bar.durationBeats) }, id) };
     if (tracks.length === playerModel.MAX_PARTS) {
-      // RP1's four notation voices currently occupy all four instrument
-      // slots. E2 will consolidate them without dropping inner voice notes.
+      // A genuine four-instrument arrangement still uses all available slots.
       assert.throws(() => ensemble.parseTracks([...tracks, percussion], "equal", temperament),
         /1–4 tracks/, preset.id);
       continue;
     }
     const added = ensemble.parseTracks([...tracks, percussion], "equal", temperament);
+    if (preset.id === "turkishMarch") {
+      assert.equal(tracks.length, 1, "four V: voices consume only one instrument slot");
+      assert.equal(added.prepared.length, 2);
+    }
     assert.equal(added.summary.totalBeats, summary.totalBeats, preset.id);
     assert.ok(added.summary.eventCount > summary.eventCount, preset.id);
     const score = drumABC.parse(percussion.abc);

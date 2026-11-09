@@ -136,9 +136,14 @@
     const technique = guitarSettings(guitar);
     const spb = scoreModel.secondsPerBeat(score);
     const notes = [];
-    let chordIndex = 0;
+    const lastAttack = new Map();
+    const chordCounts = new Map();
     for (const event of score.parts[0].events) {
-      if (event.type === "rest") continue;
+      const voiceId = event.voiceId ?? "melody";
+      if (event.type === "rest") {
+        lastAttack.delete(voiceId);
+        continue;
+      }
       if (event.type === "chord") {
         // Expand one written chord into exactly one voice per pitch. A strum
         // changes attacks, never its pitches, voice count or written release.
@@ -147,7 +152,8 @@
         let stepBeats = 0;
         if (technique.mode !== "pluck") {
           ordered.sort((a, b) => scoreModel.pitchNumber(a) - scoreModel.pitchNumber(b));
-          if (technique.mode === "up" || (technique.mode === "alternate" && chordIndex % 2)) {
+          if (technique.mode === "up" || (technique.mode === "alternate" &&
+              (chordCounts.get(voiceId) || 0) % 2)) {
             ordered.reverse();
           }
           // Fast, short chords must finish their sweep before the next event.
@@ -161,14 +167,19 @@
             startBeat: event.startBeat + delayBeats,
             durationBeats: event.durationBeats - delayBeats });
         });
-        chordIndex++;
+        chordCounts.set(voiceId, (chordCounts.get(voiceId) || 0) + 1);
+        lastAttack.delete(voiceId);
         continue;
       }
       if (event.tieFromPrevious) {
-        notes[notes.length - 1].durationBeats += event.durationBeats;
+        // Interleaved ABC voices need their own continuation target. The last
+        // globally scheduled note may belong to another independent voice.
+        lastAttack.get(voiceId).durationBeats += event.durationBeats;
       } else {
         const { tieFromPrevious, tieToNext, ...note } = event;
-        notes.push({ ...note, pitch: { ...event.pitch } });
+        const attack = { ...note, pitch: { ...event.pitch } };
+        notes.push(attack);
+        lastAttack.set(voiceId, attack);
       }
     }
     // Keep each complete attack time when resuming inside a tie or strum.

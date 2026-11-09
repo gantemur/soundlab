@@ -50,8 +50,8 @@
     { id: "turkishMarch", category: "classics", en: "Mozart · Turkish March (complete movement)",
       mn: "Моцарт · Турк марш (III анги бүтнээр)",
       description: Object.freeze({
-        en: "The complete finale of Sonata K.331, including repeats and second ending. Four editable piano-voice tracks preserve the notes of the CC0 edition; grace groups are accelerated on-beat and two trills simplified. Phrase dynamics are an interpretive layer.",
-        mn: "K.331 сонатын төгсгөлийн ангийг давталт, хоёрдугаар төгсгөлтэй нь тоглоно. CC0 эхийн нотууд дөрвөн засварлаж болох төгөлдөр хуурын хоолойд байна; угтвар чимэглэлүүдийн хугацааг ойролцоо болгож, хоёр триллийг хялбаршуулсан. Хэсгийн динамик нь тайлбарын шинжтэй."
+        en: "The complete finale of Sonata K.331, including repeats and second ending. One piano track holds four independently timed, editable ABC V: voice blocks, leaving room for added instruments. All CC0-edition note pitches are retained; rapid grace groups and two trills are simplified. Phrase dynamics are an interpretive layer.",
+        mn: "K.331 сонатын төгсгөлийн ангийг давталт, хоёрдугаар төгсгөлтэй нь тоглоно. Нэг төгөлдөр хуурын мөрөнд тусдаа хэмнэлтэй, засварлаж болох ABC V: дөрвөн хоолой бий; өөр хөгжим нэмж болно. CC0 эхийн нотыг хадгалж, угтвар чимэглэл, хоёр триллийг хялбаршуулсан. Хэсгийн динамик нь тайлбарын шинжтэй."
       }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -185,14 +185,10 @@
   });
 
   function createTurkishMarch(language) {
-    const en = language === "en";
-    const names = en ? ["Right hand", "Upper inner voice", "Middle inner voice", "Left hand"] :
-      ["Баруун гар", "Дээд дотоод хоолой", "Дунд дотоод хоолой", "Зүүн гар"];
-    const volumes = [62, 44, 42, 53];
-    return classical.TURKISH_MARCH_ABC.map((abc, index) => ({
-      id: index + 1, name: names[index], instrument: "piano", volume: volumes[index],
-      mute: false, solo: false, abc
-    }));
+    return [{ id: 1,
+      name: language === "en" ? "Piano · 4 voices" : "Төгөлдөр хуур · 4 хоолой",
+      instrument: "piano", volume: 54, mute: false, solo: false,
+      abc: classical.TURKISH_MARCH_ABC }];
   }
 
   const STRUM_STUDY = Object.freeze({

@@ -168,6 +168,46 @@ test("ABC bracketed chords keep simultaneous pitches, shared durations and accid
   }
 });
 
+test("ABC V: blocks preserve overlapping independent rhythms, ties and dynamic state", () => {
+  const source = piece("V:Right\n!p!C4- | C4 |]\n" +
+    "V:Left\nz2 !f!^F2 | F2 =F2 |]");
+  const parsed = abc.parse(source);
+  assert.deepEqual(parsed.parts[0].voiceIds, ["Right", "Left"]);
+  assert.equal(parsed.parts.length, 1, "the voices belong to one instrument");
+  assert.equal(parsed.bars.length, 2);
+  assert.equal(parsed.totalBeats, 8);
+  const right = parsed.parts[0].events.filter(e => e.voiceId === "Right");
+  const left = parsed.parts[0].events.filter(e => e.voiceId === "Left");
+  assert.deepEqual(right.map(e => e.startBeat), [0, 4]);
+  assert.deepEqual(left.map(e => e.startBeat), [0, 2, 4, 6]);
+  assert.ok(right.every(e => e.velocity === .6));
+  assert.equal(left[1].velocity, 1.17);
+  assert.deepEqual(left.slice(1).map(e => score.pitchName(e.pitch)),
+    ["F♯4", "F4", "F4"], "accidentals and bar resets belong to the voice");
+  assert.equal(score.validate(parsed), parsed);
+});
+
+test("V: blocks reject misaligned measures, stray music, repeated IDs and corrupt voice timing", () => {
+  const header = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n";
+  for (const bad of [
+    "C4 |]\nV:A\nC4 |]",
+    "V:A\nC4 |]\nV:A\nE4 |]",
+    "V:A\nC4 |]\nV:B\n",
+    "V:A\nC4 |]\nV:B\nC2 |]",
+    "V:A\nC | C4 | C3 |]\nV:B\nC4 | C4 |]",
+    "V:two words\nC4 |]",
+    "V:A\nC4 |]\nV:B\nD4 |]\nQ:1/4=90"
+  ]) assert.throws(() => abc.parse(header + bad), /./, bad);
+  assert.throws(() => abc.parse("V:A\n" + header + "C4 |]"), /K: before/);
+  const valid = abc.parse(header + "V:A\nC4 |]\nV:B\nE4 |]");
+  const corrupt = structuredClone(valid);
+  corrupt.parts[0].events[1].startBeat = .5;
+  assert.throws(() => score.validate(corrupt), /timing/);
+  const orphan = structuredClone(valid);
+  orphan.parts[0].events[0].voiceId = "missing";
+  assert.throws(() => score.validate(orphan), /voice/);
+});
+
 test("ABC note values, rests, split bars and double bars preserve exact timing", () => {
   const parsed = abc.parse(piece("C2 z D/ E/ | F G A B || c4 |]"));
   assert.deepEqual(parsed.parts[0].events.slice(0, 4).map(e =>

@@ -128,6 +128,21 @@ test("bracketed piano chords expand to independent simultaneous voices with one 
   player.stop();
 });
 
+test("polyphonic V: ties extend the correct voice even across other note attacks", () => {
+  const parsed = abc.parse("M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" +
+    "V:Right\n!p!C4- | C4 |]\n" +
+    "V:Left\nz2 !f!C2 | D2 E2 |]");
+  const events = playerModel.scheduledEvents(parsed);
+  assert.deepEqual(events.map(e => [e.voiceId, e.startBeat, e.durationBeats]), [
+    ["Right", 0, 8], ["Left", 2, 2], ["Left", 4, 2], ["Left", 6, 2]
+  ]);
+  assert.deepEqual(events.map(e => e.velocity), [.6, 1.17, 1.17, 1.17]);
+  const seek = playerModel.scheduledEvents(parsed, 5);
+  assert.deepEqual(seek.map(e => [e.voiceId, e.startBeat]),
+    [["Right", 0], ["Left", 4], ["Left", 6]],
+    "resuming includes still-sounding notes in both voices");
+});
+
 test("piano's extended range accepts low Chopin notes but other instruments keep bounds", () => {
   const bass = abc.parse("M:4/4\nL:1/4\nQ:1/4=96\nK:C\n[C,,,C,,]4 |]");
   const { player } = audioFixture();

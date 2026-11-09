@@ -64,10 +64,25 @@
         !Number.isFinite(score.totalBeats * secondsPerBeat(score))) {
       throw new RangeError("A score needs valid bars, events and finite playback duration");
     }
-    let cursor = 0, previous = null;
+    const ids = score.parts[0].voiceIds;
+    const polyphonic = ids !== undefined;
+    if (polyphonic && (!Array.isArray(ids) || !ids.length || ids.length > 16 ||
+        ids.some(id => typeof id !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(id)) ||
+        new Set(ids).size !== ids.length)) {
+      throw new RangeError("Invalid score voice IDs");
+    }
+    const states = new Map((polyphonic ? ids : ["melody"])
+      .map(id => [id, { cursor: 0, previous: null }]));
+    let lastStart = -Infinity;
     for (const event of events) {
+      const id = polyphonic ? event?.voiceId : "melody";
+      const state = states.get(id);
+      if (!state || (!polyphonic && event?.voiceId !== undefined) ||
+          (polyphonic && event.startBeat < lastStart - 1e-7)) {
+        throw new RangeError("Invalid event voice or ordering");
+      }
       if (!event || !["note", "chord", "rest"].includes(event.type) ||
-          !Number.isFinite(event.startBeat) || Math.abs(event.startBeat - cursor) > 1e-7 ||
+          !Number.isFinite(event.startBeat) || Math.abs(event.startBeat - state.cursor) > 1e-7 ||
           !Number.isFinite(event.durationBeats) || event.durationBeats <= 0 ||
           event.durationBeats > 32 || !Number.isInteger(event.bar) || event.bar < 1 ||
           event.bar > score.bars.length) {
@@ -88,20 +103,23 @@
       if (["tieToNext", "tieFromPrevious"].some(flag =>
         event[flag] !== undefined && typeof event[flag] !== "boolean") ||
           (event.type !== "note" && (event.tieToNext || event.tieFromPrevious)) ||
-          Boolean(event.tieFromPrevious) !== Boolean(previous && previous.tieToNext)) {
+          Boolean(event.tieFromPrevious) !== Boolean(state.previous && state.previous.tieToNext)) {
         throw new RangeError("Invalid note tie");
       }
-      if (event.tieFromPrevious && (previous.type !== "note" ||
-          previous.pitch.letter !== event.pitch.letter ||
-          previous.pitch.accidental !== event.pitch.accidental ||
-          previous.pitch.octave !== event.pitch.octave)) {
+      if (event.tieFromPrevious && (state.previous.type !== "note" ||
+          state.previous.pitch.letter !== event.pitch.letter ||
+          state.previous.pitch.accidental !== event.pitch.accidental ||
+          state.previous.pitch.octave !== event.pitch.octave)) {
         throw new RangeError("A tie must join notes of the same spelled pitch");
       }
-      cursor += event.durationBeats;
-      previous = event;
+      state.cursor += event.durationBeats;
+      state.previous = event;
+      lastStart = event.startBeat;
     }
-    if (previous.tieToNext) throw new RangeError("A tie must continue to another note");
-    if (Math.abs(cursor - score.totalBeats) > 1e-7) throw new RangeError("Score duration mismatch");
+    for (const { cursor, previous } of states.values()) {
+      if (previous?.tieToNext) throw new RangeError("A tie must continue to another note");
+      if (Math.abs(cursor - score.totalBeats) > 1e-7) throw new RangeError("Score duration mismatch");
+    }
     return score;
   }
 

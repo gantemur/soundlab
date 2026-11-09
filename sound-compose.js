@@ -450,6 +450,9 @@
       this.player.stop();
       try {
         const score = abc.parse(this.$("composeText").value);
+        if (score.parts[0].voiceIds) {
+          throw new abc.ABCError("V: voice blocks play in Many instruments; the single-staff view supports one voice.");
+        }
         this.player.configure({ score, instrument: this.$("composeInstrument").value,
           tuning: this.$("composeTuning").value, volume: Number(this.$("composeVolume").value),
           guitar: { mode: this.$("composeGuitarMode").value, spacingMs: Number(this.$("composeGuitarSpacing").value) } });

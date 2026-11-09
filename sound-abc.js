@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 Tsogt Gantumur
  * SPDX-License-Identifier: MIT
- * A deliberately small, strict subset of ABC notation (one melody / part).
+ * A deliberately small, strict subset of ABC notation. One instrument can
+ * contain independent V: blocks, each with its own rhythm and notation state.
  * Supports persistent !pp! .. !ff! dynamic marks and one-note !accent!.
  */
 (function (root, factory) {
@@ -96,7 +97,7 @@
     return { factor, consumed: raw.length };
   }
 
-  function parse(source) {
+  function parseSingle(source) {
     if (typeof source !== "string" || source.length > MAX_SOURCE_CHARACTERS) {
       throw new ABCError("The ABC text exceeds the 1 MiB editor safety budget");
     }
@@ -296,6 +297,74 @@
     score.totalBeats = startBeat;
     scoreModel.validate(score);
     return score;
+  }
+
+  function parse(source) {
+    if (typeof source !== "string" || source.length > MAX_SOURCE_CHARACTERS) {
+      throw new ABCError("The ABC text exceeds the 1 MiB editor safety budget");
+    }
+    const lines = source.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split("\n");
+    const firstVoice = lines.findIndex(line => /^\s*V:/.test(line));
+    if (firstVoice < 0) return parseSingle(source);
+
+    // Only the standard block form of V: is supported, not interleaved inline
+    // voices or staff directives. Leave the original line positions intact in
+    // each isolated voice so syntax errors still point to the editable text.
+    const voiceIds = [];
+    const voiceLines = new Map();
+    let current = null, sawKey = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i], trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("%")) continue;
+      const field = /^([A-Za-z]):\s*(.*?)\s*(?:%.*)?$/.exec(trimmed);
+      if (i < firstVoice) {
+        if (field?.[1].toUpperCase() === "K") sawKey = true;
+        else if (!field) throw new ABCError("Put all notes inside a V: voice block", i + 1);
+        continue;
+      }
+      if (field?.[1].toUpperCase() === "V") {
+        if (!sawKey) throw new ABCError("Write K: before the first V: voice", i + 1);
+        const id = field[2];
+        if (!/^[A-Za-z][A-Za-z0-9_-]{0,31}$/.test(id)) {
+          throw new ABCError("V: needs a short voice ID (letters, digits, _ or -)", i + 1);
+        }
+        if (voiceLines.has(id)) throw new ABCError("Repeated V: voice " + id, i + 1);
+        if (voiceIds.length >= 16) throw new ABCError("At most 16 V: voices per instrument", i + 1);
+        current = id;
+        voiceIds.push(id);
+        voiceLines.set(id, []);
+      } else if (field) {
+        throw new ABCError("Only V: voice headers are allowed after K:", i + 1);
+      } else if (!current) {
+        throw new ABCError("Put all notes inside a V: voice block", i + 1);
+      } else {
+        voiceLines.get(current).push(i);
+      }
+    }
+    if (!voiceIds.length) throw new ABCError("Write at least one V: voice");
+    const voiceScores = voiceIds.map(id => {
+      const included = new Set(voiceLines.get(id));
+      if (!included.size) throw new ABCError("V:" + id + " has no notes or rests");
+      const isolated = lines.map((line, i) => i < firstVoice || included.has(i) ? line : "").join("\n");
+      return parseSingle(isolated);
+    });
+    const first = voiceScores[0];
+    voiceScores.slice(1).forEach((other, index) => {
+      if (first.bars.length !== other.bars.length ||
+          Math.abs(first.totalBeats - other.totalBeats) > 1e-7 ||
+          first.bars.some((bar, i) =>
+            Math.abs(bar.startBeat - other.bars[i].startBeat) > 1e-7 ||
+            Math.abs(bar.durationBeats - other.bars[i].durationBeats) > 1e-7)) {
+        throw new ABCError("V:" + voiceIds[index + 1] +
+          " must have the same barlines and duration as the first voice");
+      }
+    });
+    first.parts[0].voiceIds = voiceIds;
+    first.parts[0].events = voiceScores.flatMap((voice, i) =>
+      voice.parts[0].events.map(event => ({ ...event, voiceId: voiceIds[i] })))
+      .sort((a, b) => a.startBeat - b.startBeat);
+    scoreModel.validate(first);
+    return first;
   }
 
   return Object.freeze({ MAX_SOURCE_CHARACTERS, DYNAMICS, ABCError, parse, parseKey });
