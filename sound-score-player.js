@@ -181,7 +181,9 @@
 
   class Player {
     constructor({ contextOwner, transientModel, sustainModel, temperamentModel, onUpdate,
-      bufferCacheLimit = 24, maxBufferBytes = Infinity, strictBufferFrames = false } = {}) {
+      // A complete K.331/III piano movement uses 44 distinct pitches. Keeping
+      // 48 common timbres avoids repeated synthesis at every returned refrain.
+      bufferCacheLimit = 48, maxBufferBytes = Infinity, strictBufferFrames = false } = {}) {
       if (!contextOwner || !transientModel || !sustainModel) {
         throw new Error("Sound Lab audio models unavailable");
       }
@@ -512,7 +514,7 @@
       const volume = settings?.volume ?? this.volume;
       const balance = this.instrument === "ensemble" ? (ENSEMBLE_VOICE_GAIN[instrument] ?? 1) : 1;
       const level = Math.min(.35, .19 * volume / 100 * (instrument === "piano" ? 2.35 : 1)) /
-        Math.sqrt(event.chordSize || 1) * balance;
+        Math.sqrt(event.chordSize || 1) * balance * (event.velocity ?? 1);
       const output = settings?.output || this.outputBus || this.contextOwner.output;
       if (HELD_INSTRUMENTS.includes(instrument)) {
         let voice;

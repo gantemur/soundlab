@@ -1093,7 +1093,8 @@ test("D2a extended kit events use distinct timed buffers in the shared player", 
   assert.equal(new Set(specs.map(item => item.spec.key)).size, 6);
 });
 
-test("the default live cache remains FIFO 24 while an offline cache reuses more than 24 pitches", () => {
+test("the live cache defaults to 48 while an explicitly small FIFO still evicts at 24", () => {
+  assert.equal(audioFixture().player.bufferCacheLimit, 48);
   for (const limit of [24, 1024]) {
     const { player, context, recipes } = audioFixture();
     player.bufferCacheLimit = limit;

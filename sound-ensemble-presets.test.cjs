@@ -59,7 +59,39 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 21);
+  assert.equal(presets.CATALOG.length, 22);
+});
+
+test("Turkish March is the complete K.331 finale with all unfolded pitched/grace attacks", () => {
+  const catalog = presets.CATALOG.find(piece => piece.id === "turkishMarch");
+  assert.equal(catalog.category, "classics");
+  assert.match(catalog.description.en, /complete finale/i);
+  const original = presets.create("turkishMarch", "en");
+  assert.deepEqual(original.map(track => track.instrument), ["piano", "piano", "piano", "piano"]);
+  assert.deepEqual(original.map(track => track.name),
+    ["Right hand", "Upper inner voice", "Middle inner voice", "Left hand"]);
+  assert.ok(original.every(track => track.abc.includes("CC0") &&
+    track.abc.includes("M:2/4") && track.abc.includes("Q:1/4=120")));
+  assert.ok(original.some(track => track.abc.includes("!p!")) &&
+    original.some(track => track.abc.includes("!f!")));
+  for (const language of ["en", "mn"]) {
+    const tracks = presets.create("turkishMarch", language);
+    const { summary, prepared } = ensemble.parseTracks(tracks, "equal", temperament);
+    assert.deepEqual(prepared.map(t => t.score.totalBeats), [447, 447, 447, 447]);
+    assert.deepEqual(prepared.map(t => t.score.bars.length), [224, 224, 224, 224]);
+    assert.equal(prepared[0].score.bars[0].durationBeats, 1, "opening pickup retained");
+    assert.equal(prepared[0].score.bars.at(-1).durationBeats, 2);
+    assert.equal(summary.totalBeats, 447);
+    assert.equal(summary.tempoQuarter, 120);
+    assert.equal(447 * 60 / 120, 223.5);
+    assert.equal(summary.eventCount, 2812,
+      "2,530 unfolded written pitched notes and 282 sounded grace-note pitches are preserved");
+    assert.ok(prepared.every(t => t.score.parts[0].events.every(e =>
+      e.type === "rest" || !e.velocity || [.6, 1.17].includes(e.velocity))));
+    assert.ok(tracks[3].abc.includes("z8 |"), "silent left-hand pickup preserved");
+  }
+  original[0].abc = "user edited";
+  assert.notEqual(presets.create("turkishMarch")[0].abc, "user edited");
 });
 
 test("El Choclo is a complete contrasting minor/major tango with synchronized original parts", () => {

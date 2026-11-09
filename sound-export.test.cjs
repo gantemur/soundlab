@@ -448,6 +448,39 @@ test("complete El Choclo exports every tango section beyond 90 seconds and survi
     "melody, piano, bass and percussion all reach the render graph");
 });
 
+test("RP1 complete Turkish March saves, exports all piano voices, and retains a late coda", async () => {
+  const snapshot = arrangement(presets.create("turkishMarch", "mn"));
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT, version: projects.VERSION,
+    title: "Mozart K.331 III", ...snapshot }));
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  assert.ok(output.duration > 223.5 && output.duration < 229,
+    "the 223.5-second complete movement plus the piano's natural release is exported");
+  assert.ok(output.bytes.length > 223 * 44100 * 2);
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
+  const graph = f.contexts[0].graph;
+  assert.equal(graph.sources.length, 2812,
+    "all unfolded normal notes and rapid grace notes reach the audio graph");
+  assert.ok(graph.sources.some(source => source.at > 220),
+    "the final coda, not just the recognizable opening, must sound");
+  assert.ok(new Set(graph.sources.map(source => source.chain[1])).size === 4,
+    "all independent source piano lines are retained");
+  assert.ok(graph.sources.some(source => source.gain[0][1] < .12),
+    "the quiet score-level dynamic is not silently ignored");
+});
+
+test("persistent pitched dynamics change live/offline gain without changing note times", async () => {
+  const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n!p!C !accent!D !f!E G |]";
+  const f = fixture();
+  await exporter.render(solo({ abc: text, instrument: "piano", volume: 40 }), f.deps);
+  const notes = f.contexts[0].graph.sources;
+  assert.deepEqual(notes.map(note => note.at), [0, .5, 1, 1.5]);
+  const levels = notes.map(note => note.gain[0][1]);
+  const unit = .19 * .4 * 2.35;
+  [0.60, .60 * 1.16, 1.17, 1.17].forEach((dynamic, i) => close(levels[i], unit * dynamic));
+  assert.equal(f.modelCalls.length, 4, "changes in loudness do not yet require new sample timbres");
+});
+
 test("ties are single attacks and non-equal tuning reaches the scheduled oscillator frequency", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC4- | C2 D2 |]";
   for (const tuning of ["equal", "pythagorean", "just"]) {

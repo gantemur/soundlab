@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 Tsogt Gantumur
  * SPDX-License-Identifier: MIT
  * A deliberately small, strict subset of ABC notation (one melody / part).
+ * Supports persistent !pp! .. !ff! dynamic marks and one-note !accent!.
  */
 (function (root, factory) {
   const scoreModel = typeof module === "object" && module.exports ?
@@ -18,6 +19,8 @@
   const SHARPS = "FCGDAEB";
   const FLATS = "BEADGCF";
   const HEADERS = Object.freeze(["X", "T", "M", "L", "Q", "K"]);
+  const DYNAMICS = Object.freeze({ pp: .42, p: .60, mp: .78, mf: 1,
+    f: 1.17, ff: 1.32 });
   // A file-size protection for the browser, not a musical bar or duration limit.
   const MAX_SOURCE_CHARACTERS = 1024 * 1024;
 
@@ -133,6 +136,13 @@
     const events = score.parts[0].events;
     let startBeat = 0, barStart = 0, bar = 1, closed = false;
     let carried = {}, pendingTie = null, lastToken = null;
+    let markedLevel = null, accentNext = false;
+    const expressive = event => {
+      if (event.type !== "rest" && (markedLevel !== null || accentNext)) {
+        event.velocity = Math.min(1.5, (markedLevel ?? 1) * (accentNext ? 1.16 : 1));
+      }
+      if (event.type !== "rest") accentNext = false;
+    };
     const finishBar = (isLast, line) => {
       const length = startBeat - barStart;
       if (length < 1e-8) throw new ABCError("Empty bar " + bar, line);
@@ -153,6 +163,16 @@
         const c = body[i];
         if (/\s/.test(c)) { i++; continue; }
         if (closed) throw new ABCError("Nothing may follow the final |]", line, i + 1);
+        if (c === "!") {
+          const end = body.indexOf("!", i + 1);
+          if (end < 0) throw new ABCError("Close each dynamic mark with !", line, i + 1);
+          const name = body.slice(i + 1, end);
+          if (Object.hasOwn(DYNAMICS, name)) markedLevel = DYNAMICS[name];
+          else if (name === "accent") accentNext = true;
+          else throw new ABCError("Unsupported dynamic mark !" + name + "!", line, i + 1);
+          i = end + 1;
+          continue;
+        }
         if (c === "-") {
           if (!lastToken || lastToken.type !== "note" || pendingTie) {
             throw new ABCError("A tie must follow a note", line, i + 1);
@@ -209,6 +229,7 @@
           }
           const event = { type: "chord", startBeat, durationBeats, bar,
             pitches, abc: body.slice(startIndex, i) };
+          expressive(event);
           events.push(event);
           lastToken = event;
           startBeat += durationBeats;
@@ -262,6 +283,7 @@
             pendingTie = null;
           }
         }
+        expressive(event);
         events.push(event);
         lastToken = event;
         startBeat += durationBeats;
@@ -276,5 +298,5 @@
     return score;
   }
 
-  return Object.freeze({ MAX_SOURCE_CHARACTERS, ABCError, parse, parseKey });
+  return Object.freeze({ MAX_SOURCE_CHARACTERS, DYNAMICS, ABCError, parse, parseKey });
 });

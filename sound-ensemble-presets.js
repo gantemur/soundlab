@@ -10,10 +10,12 @@
     require("./sound-drum-patterns.js") : root.SoundLabDrumPatterns;
   const drums = typeof module === "object" && module.exports ?
     require("./sound-drum-abc.js") : root.SoundLabDrumABC;
-  const api = factory(compose, drumPatterns, drums);
+  const classical = typeof module === "object" && module.exports ?
+    require("./sound-classical-scores.js") : root.SoundLabClassicalScores;
+  const api = factory(compose, drumPatterns, drums, classical);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -45,6 +47,12 @@
     { id: "tomCymbalStudy", category: "drumSolo", en: "Toms and cymbals · Eight-bar fills",
       mn: "Том бөмбөр ба цан · 8 тактын шилжилт" },
     { id: "minuet", en: "Petzold · Minuet in G (32 bars)", mn: "Петцольд · Соль мажор менуэт (32 такт)" },
+    { id: "turkishMarch", category: "classics", en: "Mozart · Turkish March (complete movement)",
+      mn: "Моцарт · Турк марш (III анги бүтнээр)",
+      description: Object.freeze({
+        en: "The complete finale of Sonata K.331, including repeats and second ending. Four editable piano-voice tracks preserve the notes of the CC0 edition; grace groups are accelerated on-beat and two trills simplified. Phrase dynamics are an interpretive layer.",
+        mn: "K.331 сонатын төгсгөлийн ангийг давталт, хоёрдугаар төгсгөлтэй нь тоглоно. CC0 эхийн нотууд дөрвөн засварлаж болох төгөлдөр хуурын хоолойд байна; угтвар чимэглэлүүдийн хугацааг ойролцоо болгож, хоёр триллийг хялбаршуулсан. Хэсгийн динамик нь тайлбарын шинжтэй."
+      }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
     { id: "bella", en: "Bella Ciao · folk · with drums", mn: "Bella Ciao · бөмбөртэй найруулга" },
@@ -175,6 +183,17 @@
         "% Original quiet percussion; linked repeating waltz and ending patterns."
     })
   });
+
+  function createTurkishMarch(language) {
+    const en = language === "en";
+    const names = en ? ["Right hand", "Upper inner voice", "Middle inner voice", "Left hand"] :
+      ["Баруун гар", "Дээд дотоод хоолой", "Дунд дотоод хоолой", "Зүүн гар"];
+    const volumes = [62, 44, 42, 53];
+    return classical.TURKISH_MARCH_ABC.map((abc, index) => ({
+      id: index + 1, name: names[index], instrument: "piano", volume: volumes[index],
+      mute: false, solo: false, abc
+    }));
+  }
 
   const STRUM_STUDY = Object.freeze({
     guitar: Object.freeze({ mode: "alternate", spacingMs: 20 }),
@@ -870,6 +889,7 @@
 
   function create(id, language = "mn") {
     if (Object.hasOwn(DRUM_SOLOS, id)) return createDrumSolo(id, language);
+    if (id === "turkishMarch") return createTurkishMarch(language);
     if (id === "charleston") return createCharleston(language);
     if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);

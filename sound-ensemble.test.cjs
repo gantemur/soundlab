@@ -272,6 +272,13 @@ test("all ensemble arrangements can add or regenerate drums with their original 
     const id = Math.max(...tracks.map(track => track.id)) + 1;
     const percussion = { id, name: "Drums", instrument: "drums", volume: 65,
       abc: drumABC.groove({ ...summary, barDurations: source.bars.map(bar => bar.durationBeats) }, id) };
+    if (tracks.length === playerModel.MAX_PARTS) {
+      // RP1's four notation voices currently occupy all four instrument
+      // slots. E2 will consolidate them without dropping inner voice notes.
+      assert.throws(() => ensemble.parseTracks([...tracks, percussion], "equal", temperament),
+        /1–4 tracks/, preset.id);
+      continue;
+    }
     const added = ensemble.parseTracks([...tracks, percussion], "equal", temperament);
     assert.equal(added.summary.totalBeats, summary.totalBeats, preset.id);
     assert.ok(added.summary.eventCount > summary.eventCount, preset.id);

@@ -74,6 +74,11 @@
         throw new RangeError("Invalid event timing");
       }
       if (event.type === "note") pitchNumber(event.pitch);
+      if (event.velocity !== undefined &&
+          (event.type === "rest" || !Number.isFinite(event.velocity) ||
+           event.velocity < .1 || event.velocity > 1.5)) {
+        throw new RangeError("A pitched note dynamic must be between 0.1 and 1.5");
+      }
       if (event.type === "chord") {
         if (!Array.isArray(event.pitches) || event.pitches.length < 2 || event.pitches.length > 6 ||
             new Set(event.pitches.map(pitchNumber)).size !== event.pitches.length) {

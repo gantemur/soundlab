@@ -295,6 +295,25 @@ test("the score model rejects broken, orphaned and nonboolean tie metadata", () 
   }
 });
 
+test("persistent score-level dynamics and one-shot accents keep written pitches and timing", () => {
+  const scoreWithDynamics = abc.parse(piece("!p!C !accent!D E !mf![CEG] | !ff!G A B c |]"));
+  assert.equal(scoreWithDynamics.totalBeats, 8);
+  const events = scoreWithDynamics.parts[0].events;
+  assert.deepEqual(events.map(event => event.velocity),
+    [.6, Math.min(1.5, .6 * 1.16), .6, 1, 1.32, 1.32, 1.32, 1.32]);
+  assert.deepEqual(events.map(event => event.startBeat), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.equal(events[3].type, "chord");
+  assert.equal(score.validate(scoreWithDynamics), scoreWithDynamics);
+  for (const invalid of ["!ppp!C4", "!fermata!C4", "!p C4"]) {
+    assert.throws(() => abc.parse(piece(invalid + " |]")), /dynamic|Close each/);
+  }
+  for (const value of [-.1, 0, 1.6, Infinity, NaN]) {
+    const invalid = structuredClone(scoreWithDynamics);
+    invalid.parts[0].events[0].velocity = value;
+    assert.throws(() => score.validate(invalid), RangeError);
+  }
+});
+
 test("complete scores can exceed former bar, event, beat and 90-second cutoffs", () => {
   const fullBars = count => Array(count).fill("C4").join(" | ") + " |]";
   const longPiece = abc.parse(piece(fullBars(200), { tempo: "1/4=80" }));
