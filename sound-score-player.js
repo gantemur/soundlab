@@ -107,6 +107,10 @@
   }
 
   function instrumentRange(instrument) {
+    // A digital oscillator has no A2–A5 instrumental register. The score
+    // parser currently accepts spelled pitches in octaves 1–7; this bound
+    // covers those notes (including double accidentals) with safe headroom.
+    if (WAVEFORMS.includes(instrument)) return [20, 5000];
     if (i3Held.KINDS.includes(instrument)) return i3Held.rangeFor(instrument);
     if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.rangeFor(instrument);
     if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
@@ -117,6 +121,29 @@
       // Acoustic piano extends to C8, not A6. High Für Elise right-hand
       // notes must retain their register; modal synthesis bounds partials.
       instrument === "piano" ? 4186.1 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
+  }
+
+  function instrumentRecommendedRange(instrument) {
+    if (i3Held.KINDS.includes(instrument)) return i3Held.recommendedRangeFor(instrument);
+    if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.recommendedRangeFor(instrument);
+    return instrumentRange(instrument);
+  }
+
+  // An approximate timbre should be disclosed without blocking otherwise
+  // renderable notes. Keep this distinct from hard synthesis validation.
+  function rangeWarning(events, instrument, tuning = "equal", temperamentModel = null) {
+    const [lower, upper] = instrumentRecommendedRange(instrument);
+    const [hardLower, hardUpper] = instrumentRange(instrument);
+    if (lower === hardLower && upper === hardUpper) return null;
+    let count = 0, example = null;
+    for (const event of events) {
+      const hz = noteFrequency(event, tuning, temperamentModel);
+      if (hz < lower || hz > upper) {
+        count++;
+        if (!example) example = scoreModel.pitchName(event.pitch);
+      }
+    }
+    return count ? { instrument, example, count, lower, upper } : null;
   }
 
   function guitarSettings(guitar = DEFAULT_GUITAR) {
@@ -293,6 +320,7 @@
       this.strictBufferFrames = strictBufferFrames;
       this.score = null;
       this.playEvents = [];
+      this.warnings = [];
       this.instrument = "flute";
       this.tuning = "equal";
       this.volume = 38;
@@ -332,6 +360,7 @@
       this.instrument = instrument;
       this.tuning = tuning;
       this.volume = volume;
+      this.warnings = [rangeWarning(soundingEvents, instrument, tuning, this.temperamentModel)].filter(Boolean);
     }
 
     get playbackBeat() {
@@ -678,6 +707,7 @@
     const first = tracks[0]?.score;
     if (!first) throw new Error("Missing ABC score");
     let events = 0, totalBeats = 0;
+    const warnings = [];
     // A Q: change in any pitched voice controls the shared score clock;
     // unmarked instruments (including drums) inherit this global map.
     const marked = tracks.map(track => track.score.tempoMap).filter(Boolean);
@@ -711,13 +741,15 @@
             " range (" + lower + "–" + upper + " Hz)");
         }
       }
+      const warning = rangeWarning(soundingEvents, instrument, tuning, temperamentModel);
+      if (warning) warnings.push({ ...warning, trackId: track.id, trackName: track.name });
     }
     if (!Number.isSafeInteger(events) || !Number.isFinite(scoreModel.beatToSeconds(
       { ...first, tempoMap }, totalBeats))) {
       throw new RangeError("The ensemble duration or event count is invalid");
     }
     return { tempoQuarter: first.tempoQuarter, ...(tempoMap ? { tempoMap } : {}),
-      meter: first.meter, totalBeats, eventCount: events };
+      meter: first.meter, totalBeats, eventCount: events, warnings };
   }
 
   class EnsemblePlayer extends Player {
@@ -733,6 +765,7 @@
       this.score = summary;
       this.tuning = tuning;
       this.instrument = "ensemble";
+      this.warnings = summary.warnings;
       this.partSettings = tracks.map(t => ({ id: t.id, instrument: t.instrument, volume: t.volume,
         mute: Boolean(t.mute), solo: Boolean(t.solo) }));
       this.playEvents = tracks.flatMap((t, partIndex) => (t.instrument === "drums" ?
@@ -845,5 +878,6 @@
   return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES,
     AHEAD_SECONDS, HAT_CHOKE_SECONDS,
     MAX_PARTS, MAX_BUFFER_CACHE,
-    noteFrequency, instrumentRange, scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
+    noteFrequency, instrumentRange, instrumentRecommendedRange, rangeWarning,
+    scheduledEvents, validateEnsemble, Player, EnsemblePlayer });
 });

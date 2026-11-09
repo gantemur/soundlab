@@ -13,6 +13,10 @@
   "use strict";
   const KINDS = Object.freeze(["organ-stopped", "organ-principal", "accordion", "bayan"]);
   const STOP_PAD = .025, MAX_PARTIALS = 12, MAX_MODE_HZ = 7500;
+  // This is a *synthetic* reed bank: the fundamental stays pitch-correct at
+  // these extra registers, but the modeled harmonics thin toward the top.
+  // The familiar A2–G6 demonstration register remains the recommendation.
+  const EXTENDED_REED_RANGE = Object.freeze([65.40639132514966, 3135.9634878539946]);
   const RECIPES = Object.freeze({
     "organ-stopped": Object.freeze({ range: [65.406, 1568], attack: .075, release: .16,
       soft: [1, .018, .36, .012, .14, .008, .06, .005, .025],
@@ -22,11 +26,11 @@
       soft: [1, .52, .30, .18, .12, .070, .044, .025, .016, .012],
       bright: [1, .68, .42, .30, .22, .14, .095, .062, .036, .024],
       chiff: .045, detune: [0], gain: .72 }),
-    accordion: Object.freeze({ range: [110, 1568], attack: .085, release: .21,
+    accordion: Object.freeze({ range: EXTENDED_REED_RANGE, attack: .085, release: .21,
       soft: [1, .46, .27, .17, .12, .08, .054, .038, .027],
       bright: [1, .64, .42, .32, .24, .16, .12, .085, .055],
       chiff: 0, detune: [-5.5, 5.5], gain: .60 }),
-    bayan: Object.freeze({ range: [110, 1568], attack: .065, release: .17,
+    bayan: Object.freeze({ range: EXTENDED_REED_RANGE, attack: .065, release: .17,
       soft: [1, .27, .26, .10, .08, .052, .030, .020],
       bright: [1, .40, .35, .18, .13, .085, .055, .037],
       chiff: 0, detune: [0], gain: .82 })
@@ -48,6 +52,10 @@
     return { attack: r.attack, release: r.release, strength: 60 };
   }
   function rangeFor(kind) { return [...recipe(kind).range]; }
+  function recommendedRangeFor(kind) {
+    const range = rangeFor(kind);
+    return kind === "accordion" || kind === "bayan" ? [110, 1568] : range;
+  }
   function sliderToHz(position, kind) {
     const [a, b] = rangeFor(kind);
     return a * Math.pow(b / a, position / 1000);
@@ -213,6 +221,6 @@
       return voice;
     } catch (error) { finish(false); throw error; }
   }
-  return Object.freeze({ KINDS, STOP_PAD, MAX_PARTIALS, defaults, rangeFor, validate,
+  return Object.freeze({ KINDS, STOP_PAD, MAX_PARTIALS, defaults, rangeFor, recommendedRangeFor, validate,
     sliderToHz, hzToSlider, partials, waveAt, createVoice });
 });

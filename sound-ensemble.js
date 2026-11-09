@@ -74,6 +74,7 @@
       patternsNotGrid: "This ABC uses rhythms outside the sixteenth-note grid; it stays editable as text.",
       now: "Beat", selected: "Selected", maxTracks: "Four tracks is the current maximum.",
       minTracks: "Keep at least one track.", fileError: "Choose a .abc / .txt score up to 1 MiB.",
+      approximateRange: "Approximate timbre beyond modeled register",
       error: "Score error", trackError: "Track", noAudio: "Sound could not start. Check audio settings." },
     mn: { heading: "Олон хөгжим тоглуулах", intro: "Бүгд нэг хэмнэлтэй. Хөгжим сонговол нотыг нь засна; тоглуулахад дуугүй болгоогүй бүгд дуугарна. «Ганцаар» нэгийг сонсгоно.",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын", just: "Цэвэр · До төвтэй",
@@ -119,6 +120,7 @@
       patternsNotGrid: "ABC-д арван зургаатын торонд багтахгүй хэмнэл байна. Эх бичиг хэвээр үлдэнэ.",
       now: "Цохилт", selected: "Сонгосон", maxTracks: "Одоогоор дээд тал нь дөрвөн хөгжим.",
       minTracks: "Ядаж нэг хөгжмийг үлдээнэ.", fileError: "1 МиБ-аас бага .abc эсвэл .txt файл сонгоно уу.",
+      approximateRange: "Загварын хүрээнээс гадуурх нотыг ойролцоогоор дуугаргана",
       error: "Нотын алдаа", trackError: "Хөгжим", noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу." }
   });
   const DEFAULTS = Object.freeze([
@@ -149,6 +151,7 @@
       this.nextId = 3;
       this.summary = null;
       this.error = null;
+      this.warnings = [];
       this.status = "ready";
       this.playheadNodes = [];
       this.parseTimer = null;
@@ -235,8 +238,15 @@
     }
     setStatus(keyOrMessage, error = false) {
       this.status = error ? "error" : keyOrMessage;
-      this.$("ensembleStatus").textContent = error ? keyOrMessage : this.t(keyOrMessage);
+      this.$("ensembleStatus").textContent = error ? keyOrMessage : this.statusText(keyOrMessage);
       this.$("ensembleStatus").classList.toggle("error", error);
+      this.$("ensembleStatus").classList.toggle("warning", !error && this.warnings.length > 0);
+    }
+    statusText(status) {
+      const notices = this.warnings.map(warning =>
+        (VOICES[this.language][warning.instrument] || warning.instrument) + " " + warning.example);
+      return (this.t(status) || this.t("ready")) +
+        (notices.length ? " ⚠ " + this.t("approximateRange") + ": " + notices.join(", ") + "." : "");
     }
     resetTimer() {
       if (this.parseTimer !== null) { clearTimeout(this.parseTimer); this.parseTimer = null; }
@@ -384,12 +394,14 @@
         this.player.configure({ tracks: prepared, tuning: this.$("ensembleTuning").value });
         this.summary = summary;
         this.error = null;
+        this.warnings = summary.warnings;
         this.$("ensemblePlayPause").disabled = false;
         this.setStatus("ready");
       } catch (error) {
         this.player.stop();
         this.summary = null;
         this.error = error;
+        this.warnings = [];
         this.$("ensemblePlayPause").disabled = true;
         this.setStatus(this.t("error") + ": " + error.message, true);
       }
@@ -661,7 +673,8 @@
         this.player.status === "paused" ? "resume" : "play");
       this.$("ensembleStop").textContent = this.t("stop");
       if (this.error) return;
-      this.$("ensembleStatus").textContent = this.t(this.status) || this.t("ready");
+      this.$("ensembleStatus").textContent = this.statusText(this.status);
+      this.$("ensembleStatus").classList.toggle("warning", this.warnings.length > 0);
     }
     renderPatternPanel() {
       const track = this.selected(), panel = this.$("ensemblePatternPanel");

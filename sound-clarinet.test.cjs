@@ -10,11 +10,17 @@ function approx(actual, expected, epsilon = 1e-10) {
   assert.ok(Math.abs(actual - expected) < epsilon, `${actual} != ${expected}`);
 }
 
-test("I2b clarinet has a limited concert-pitch compass, bounded partials, and exact silence", () => {
+test("clarinet keeps its E5 reference while synthesizing an extended upper register", () => {
   assert.deepEqual(sustain.rangeFor("clarinet"), [clarinet.MIN_HZ, clarinet.MAX_HZ]);
-  assert.ok(clarinet.MIN_HZ >= 140 && clarinet.MAX_HZ <= 660);
-  assert.ok(clarinet.PARTIALS * clarinet.MAX_HZ < 8000,
-    "Every prescribed harmonic fits at the minimum 16 kHz supported rate");
+  assert.ok(clarinet.MIN_HZ >= 140 && clarinet.REFERENCE_MAX_HZ <= 660);
+  assert.ok(clarinet.MAX_HZ >= 1046 && clarinet.MAX_HZ < 1047);
+  assert.deepEqual(sustain.recommendedRangeFor("clarinet"),
+    [clarinet.MIN_HZ, clarinet.REFERENCE_MAX_HZ]);
+  assert.ok(clarinet.PARTIALS * clarinet.REFERENCE_MAX_HZ < 8000,
+    "The reference-range harmonics fit at the minimum 16 kHz supported rate");
+  const extended = sustain.clarinetComponents(60, clarinet.MAX_HZ, 16000);
+  assert.ok(extended.slice(7).every(c => c.sin === 0 && c.cos === 0),
+    "High-register analysis does not fold partials above 8 kHz");
   assert.deepEqual(sustain.partials("clarinet", 0, clarinet.MIN_HZ), Array(clarinet.PARTIALS).fill(0));
   assert.equal(sustain.waveAt(1.6, "clarinet", 0), 0);
   assert.equal(clarinet.noiseGain(0), 0);
@@ -35,7 +41,7 @@ test("I2b clarinet has a limited concert-pitch compass, bounded partials, and ex
       assert.ok(amplitudes[0] > amplitudes[2]);
     }
   }
-  for (const hz of [120, 146, 660, 880, NaN, Infinity]) {
+  for (const hz of [120, 146, 1047, 1200, NaN, Infinity]) {
     assert.throws(() => sustain.clarinetComponents(60, hz), RangeError);
   }
   for (const breath of [-1, 101, NaN, Infinity]) {

@@ -391,7 +391,7 @@
   }
 
   return Object.freeze({ createVoice, defaults, bufferFrames, clearNoiseBuffer,
-    rangeFor: defaultModel.rangeFor,
+    rangeFor: defaultModel.rangeFor, recommendedRangeFor: defaultModel.recommendedRangeFor,
     STOP_PAD, NOISE_SECONDS, RESUME_FADE, KINDS: defaultModel.KINDS,
     MIN_HZ: defaultModel.MIN_HZ, MAX_HZ: defaultModel.MAX_HZ });
 });

@@ -419,6 +419,28 @@ test("complete Bella Ciao arrangement synchronizes four distinct instruments and
   assert.match(tracks[1].abc, /Original|original/);
 });
 
+test("creative instrument substitutions retain all attacks with non-blocking register warnings", () => {
+  for (const { id, instrument, attacks, warnings, example } of [
+    { id: "bella", instrument: "clarinet", attacks: 335, warnings: 8, example: "F5" },
+    { id: "minuteWaltz", instrument: "bayan", attacks: 1440, warnings: 44, example: "A♭2" }
+  ]) {
+    const original = presets.create(id, "en");
+    const source = ensemble.parseTracks(original, "equal", temperament);
+    const before = playerModel.scheduledEvents(source.prepared[0].score)
+      .map(note => [note.startBeat, note.durationBeats, score.pitchNumber(note.pitch)]);
+    const replacement = presets.create(id, "en");
+    replacement[0].instrument = instrument;
+    const { prepared, summary } = ensemble.parseTracks(replacement, "equal", temperament);
+    assert.equal(summary.eventCount, attacks, id + " keeps the complete arrangement");
+    assert.deepEqual(summary.warnings.map(item => [item.instrument, item.count, item.example]),
+      [[instrument, warnings, example]]);
+    assert.equal(summary.warnings[0].trackId, replacement[0].id);
+    assert.deepEqual(playerModel.scheduledEvents(prepared[0].score)
+      .map(note => [note.startBeat, note.durationBeats, score.pitchNumber(note.pitch)]), before,
+    id + " changes timbre, not any pitch, duration or attack");
+  }
+});
+
 test("complete Chopin preludes have two synchronized piano hands and preserved chord harmony", () => {
   for (const { id, bars, beats, key } of [
     { id: "chopin7", bars: 17, beats: 49, key: "A" },

@@ -303,6 +303,30 @@ test("I2b Clarinet exports its complete release with the shared reed graph in so
   cleaned(mixed.contexts[0]);
 });
 
+test("extended Clarinet F5 and Bayan A-flat2 preserve pitch in offline WAV", async () => {
+  const header = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n";
+  const upper = header + "f4 |]", lower = header + "_A,,4 |]";
+  const one = fixture();
+  const single = await exporter.render(solo({ abc: upper, instrument: "clarinet" }), one.deps);
+  assert.equal(single.sampleRate, 44100);
+  assert.ok(one.contexts[0].graph.sources.some(source =>
+    source.kind === "oscillator" && Math.abs(source.frequency - 698.4564628660078) < 1e-6));
+  cleaned(one.contexts[0]);
+
+  const many = fixture();
+  const result = await exporter.render(arrangement([
+    track(1, "clarinet", upper), track(2, "bayan", lower)
+  ]), many.deps);
+  assert.equal(result.sampleRate, 44100);
+  const oscillators = many.contexts[0].graph.sources.filter(source => source.kind === "oscillator");
+  assert.ok(oscillators.some(source => Math.abs(source.frequency - 698.4564628660078) < 1e-6),
+    "F5 arrives at the clarinet oscillator unchanged");
+  assert.ok(oscillators.some(source => Math.abs(source.frequency - 103.82617439498628) < 1e-6),
+    "A-flat2 arrives at the Bayan oscillator unchanged");
+  assert.ok(result.duration >= 2, "The WAV includes the full written bar");
+  cleaned(many.contexts[0]);
+});
+
 test("I2a exports independent xylophone and marimba bar tails from both Compose modes", async () => {
   const score = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\nC z3 |]";
   const x = fixture(), xResult = await exporter.render(solo({

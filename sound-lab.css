@@ -390,6 +390,10 @@ h1, h2, p { margin-top: 0; }
 .compose-stop:hover { background: #d9e9f8; }
 .compose-controls .audio-status { margin: -4px 0 4px; }
 .compose-controls .audio-status.error { color: #ae453e; background: #fff0ee; border-color: #efbcb3; }
+.compose-controls .audio-status.warning, .ensemble-workspace .audio-status.warning {
+  color: #81541a; background: #fff8e8; border: 1px solid #ebd4a6;
+  border-radius: 7px; padding: 7px 9px; line-height: 1.45;
+}
 .compose-score-editor textarea { display: block; width: 100%; min-height: 190px; resize: vertical;
   line-height: 1.5; padding: 12px; border-radius: 9px; border: 1px solid #b4cce4;
   background: #f8fbff; color: #233f61; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;

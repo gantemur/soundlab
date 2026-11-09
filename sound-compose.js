@@ -238,6 +238,7 @@
       loadError: "Choose a text score (.abc or .txt, up to 1 MiB).",
       noAudio: "Sound could not start. Check the browser's audio settings.",
       parseError: "Score error", rangeError: "Note outside the selected instrument's range",
+      approximateRange: "Approximate timbre beyond modeled register",
       bar: "Bar", rest: "Rest", notes: "notes", bars: "bars", seconds: "sec",
       empty: "No valid score yet", now: "Now", model: "Modeled instruments · one part · ABC subset",
       footer: "This tab plays one ABC part, including chords, with a readable staff. The Many instruments tab combines parts and also has reusable drum patterns."
@@ -291,6 +292,7 @@
       loadError: "1 МиБ-аас бага хэмжээтэй .abc эсвэл .txt файл сонгоно уу.",
       noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу.",
       parseError: "Нотын бичгийн алдаа", rangeError: "Нотын өндөр сонгосон зэмсгийн хүрээнээс хэтэрлээ",
+      approximateRange: "Загварын хүрээнээс гадуурх нотыг ойролцоогоор дуугаргана",
       bar: "Такт", rest: "Завсарлага", notes: "нот", bars: "такт", seconds: "сек",
       empty: "Зөв аялгуу хараахан байхгүй", now: "Одоо", model: "Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ",
       footer: "Энд аккордтойгоо нэг ABC хоолойг нотын мөртэй нь тоглуулна. Олон хөгжим хэсэгт хэд хэдэн хоолой болон давталттай бөмбөрийн загваруудыг хамт тоглуулж болно."
@@ -326,6 +328,7 @@
       this.score = null;
       this.lastError = null;
       this.lastStatus = "ready";
+      this.warnings = [];
       this.noteGroups = [];
       this.lastHighlighted = -2;
       this.parseTimer = null;
@@ -424,8 +427,9 @@
       this.$("composeStop").textContent = this.t("stop");
       this.$("composeVolumeValue").textContent = this.$("composeVolume").value + "%";
       this.$("composeStatus").textContent = this.lastError ?
-        this.errorText(this.lastError) : this.t(this.lastStatus) || this.t("ready");
+        this.errorText(this.lastError) : this.statusText(this.lastStatus);
       this.$("composeStatus").classList.toggle("error", Boolean(this.lastError));
+      this.$("composeStatus").classList.toggle("warning", !this.lastError && this.warnings.length > 0);
       this.$("composeScoreSvg").setAttribute("aria-label", this.t("staff"));
       if (!this.score) this.$("composeNow").textContent = this.t("empty");
       this.renderMeta();
@@ -437,6 +441,13 @@
     errorText(error) {
       return error instanceof abc.ABCError || /^The score must contain/.test(error.message) ? localError(error, this.language) :
         this.t("rangeError") + ": " + error.message;
+    }
+
+    statusText(status) {
+      const notices = this.warnings.map(warning =>
+        (this.t(warning.instrument) || warning.instrument) + " " + warning.example);
+      return (this.t(status) || this.t("ready")) +
+        (notices.length ? " ⚠ " + this.t("approximateRange") + ": " + notices.join(", ") + "." : "");
     }
 
     renderGuitarControls() {
@@ -459,16 +470,20 @@
         this.score = score;
         this.lastError = null;
         this.lastStatus = "ready";
-        this.$("composeStatus").textContent = this.t("ready");
+        this.warnings = this.player.warnings;
+        this.$("composeStatus").textContent = this.statusText("ready");
         this.$("composeStatus").classList.toggle("error", false);
+        this.$("composeStatus").classList.toggle("warning", this.warnings.length > 0);
         this.$("composePlayPause").disabled = false;
         this.renderStaff();
       } catch (error) {
         this.score = null;
         this.lastError = error;
         this.lastStatus = "ready";
+        this.warnings = [];
         this.$("composeStatus").textContent = this.errorText(error);
         this.$("composeStatus").classList.toggle("error", true);
+        this.$("composeStatus").classList.toggle("warning", false);
         this.$("composePlayPause").disabled = true;
         this.noteGroups = [];
         if (typeof this.$("composeScoreSvg").replaceChildren === "function") {
@@ -541,8 +556,9 @@
       this.lastStatus = status === "starting" ? "starting" : status === "playing" ? "playing" :
         status === "paused" ? "paused" : "stopped";
       if (this.$("composeStatus")) {
-        this.$("composeStatus").textContent = this.t(this.lastStatus);
+        this.$("composeStatus").textContent = this.statusText(this.lastStatus);
         this.$("composeStatus").classList.toggle("error", false);
+        this.$("composeStatus").classList.toggle("warning", this.warnings.length > 0);
         this.$("composePlayPause").textContent = this.t(["playing", "starting"].includes(status) ? "pause" :
           status === "paused" ? "resume" : "play");
       }

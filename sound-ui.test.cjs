@@ -67,10 +67,10 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
   assert.match(html, /src="sound-harp\.js\?v=s066"/);
   assert.match(html, /src="sound-transient\.js\?v=s073"/);
-  assert.match(html, /src="sound-clarinet\.js\?v=s061"/);
-  assert.match(html, /src="sound-sustain\.js\?v=s061"/);
-  assert.match(html, /src="sound-held-voice\.js\?v=s061"/);
-  assert.match(html, /src="sound-i3-held\.js\?v=s066"/);
+  assert.match(html, /src="sound-clarinet\.js\?v=range1"/);
+  assert.match(html, /src="sound-sustain\.js\?v=range1"/);
+  assert.match(html, /src="sound-held-voice\.js\?v=range1"/);
+  assert.match(html, /src="sound-i3-held\.js\?v=range1"/);
   assert.ok(html.indexOf('src="sound-marimba.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-xylophone.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-string.js') < html.indexOf('src="sound-mandolin.js'));
@@ -94,15 +94,15 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-fm\.js\?v=s044"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s087"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s087"/);
-  assert.match(html, /src="sound-score-player\.js\?v=rp4"/);
-  assert.match(html, /src="sound-compose\.js\?v=rp2"/);
+  assert.match(html, /src="sound-score-player\.js\?v=range1"/);
+  assert.match(html, /src="sound-compose\.js\?v=range1"/);
   assert.match(html, /src="sound-classical-scores\.js\?v=rp1b"/);
   assert.match(html, /src="sound-joplin-scores\.js\?v=rp2"/);
   assert.match(html, /src="sound-beethoven-scores\.js\?v=rp3"/);
   assert.match(html, /src="sound-chopin-scores\.js\?v=rp4"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=rp4"/);
   assert.match(html, /src="sound-export\.js\?v=rp3"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=rp3b"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=range1"/);
   assert.match(html, /src="sound-project\.js\?v=s087"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s087"/);
   assert.match(html, /src="sound-wav\.js\?v=s087"/);
@@ -134,7 +134,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.ok(html.indexOf('src="sound-project-ui.js') < html.indexOf('src="sound-lab.js'));
   assert.ok(html.indexOf('src="sound-fm.js') < html.indexOf('src="sound-transient.js'),
     "FM must load before the shared transient synthesizer");
-  assert.match(html, /href="sound-lab\.css\?v=s085"/);
+  assert.match(html, /href="sound-lab\.css\?v=range1"/);
   assert.match(html, /id="recordAnalyze"[^>]*data-i18n="recordAnalyze"/);
   assert.match(html, /id="exportAnalyze"[^>]*hidden/);
   assert.match(html, /id="projectToolbar"[^>]*hidden/);
@@ -3174,7 +3174,7 @@ test("I2b Clarinet shows bounded Aerophone controls, odd harmonics and a releasa
   assert.equal(app.elements.get("sustainFrequencyInput").min, String(sustainModel.clarinet.MIN_HZ));
   assert.equal(app.elements.get("sustainFrequencyInput").max, String(sustainModel.clarinet.MAX_HZ));
   assert.match(app.elements.get("sustainMinHz").textContent, /146/);
-  assert.match(app.elements.get("sustainMaxHz").textContent, /659/);
+  assert.match(app.elements.get("sustainMaxHz").textContent, /1,046/);
   assert.match(app.elements.get("sustainBreathHint").textContent, /odd harmonics/);
   assert.match(app.elements.get("sustainDetailHint").textContent, /reed-inspired/);
   assert.match(app.elements.get("sustainDescription").textContent, /concert pitch/i);
@@ -3585,6 +3585,45 @@ test("published melody choices, including Russian folk tunes, load silently and 
   assert.equal(app.elements.get("composeInstrument").value, "guitar",
     "Language switching preserves the instrument chosen after loading a preset");
   assert.equal(app.elements.get("composeSource").textContent, "Нотын эх сурвалж");
+  assert.equal(app.contexts.length, 0);
+});
+
+test("Compose registers report approximations but keep clarinet F5 playable in both languages", async () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.elements.get("composeText").value = "M:4/4\nL:1/4\nQ:1/4=104\nK:C\nf4 |]";
+  app.fire("composeText", "input");
+  app.elements.get("composeInstrument").value = "clarinet";
+  app.fire("composeInstrument", "change");
+  assert.equal(app.elements.get("composePlayPause").disabled, false);
+  assert.match(app.elements.get("composeStatus").textContent, /Approximate timbre.*Clarinet F5/);
+  assert.ok(app.elements.get("composeStatus").classList.contains("warning"));
+  assert.equal(app.contexts.length, 0, "Changing the score and instrument stays silent");
+  app.fire("langMn", "click");
+  assert.match(app.elements.get("composeStatus").textContent, /Загварын хүрээнээс.*Кларнет F5/);
+  await app.fire("composePlayPause", "click");
+  assert.ok(app.contexts[0].oscillators.length >= 2, "The reed plays with its two excitation sources");
+  assert.match(app.elements.get("composeStatus").textContent, /Загварын хүрээнээс/);
+  app.fire("stopAll", "click");
+  assert.match(app.elements.get("composeStatus").textContent, /Загварын хүрээнээс/);
+});
+
+test("Bella Ciao clarinet substitution is playable and warnings survive UI translation", () => {
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "bella";
+  app.fire("ensembleApplyPreset", "click");
+  const instrument = projectTrackControl(app, 0, "ensemble-instrument");
+  instrument.value = "clarinet";
+  instrument.events.change();
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.match(app.elements.get("ensembleStatus").textContent, /Approximate timbre.*Clarinet F5/);
+  assert.ok(app.elements.get("ensembleStatus").classList.contains("warning"));
+  assert.equal(app.contexts.length, 0);
+  app.fire("langMn", "click");
+  assert.match(app.elements.get("ensembleStatus").textContent, /Загварын хүрээнээс.*Кларнет F5/);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
   assert.equal(app.contexts.length, 0);
 });
 

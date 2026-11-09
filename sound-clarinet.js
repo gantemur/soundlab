@@ -17,8 +17,11 @@
   "use strict";
 
   const MIN_HZ = 146.8323839587038; // Concert D3.
-  const MAX_HZ = 659.2551138257398; // Concert E5; bounded lower/middle demonstration.
-  const PARTIALS = 12; // At MAX_HZ, every partial remains below 8 kHz (16 kHz hosts).
+  // The original demonstration stops at E5. Above that we extrapolate the
+  // same reed spectrum (without claiming a simulated clarion/altissimo shift).
+  const REFERENCE_MAX_HZ = 659.2551138257398; // Concert E5.
+  const MAX_HZ = 1046.5022612023945; // Concert C6, approximate extension.
+  const PARTIALS = 12; // Plotting drops components beyond the host's Nyquist.
   const DEFAULT_BREATH = 60;
   const TONGUE_SECONDS = .095;
   const NOISE_SECONDS = .07;
@@ -74,7 +77,7 @@
     return 1 + 1.7 * (1 - smoothstep(age / NOISE_SECONDS));
   }
 
-  return Object.freeze({ MIN_HZ, MAX_HZ, PARTIALS, DEFAULT_BREATH,
+  return Object.freeze({ MIN_HZ, MAX_HZ, REFERENCE_MAX_HZ, PARTIALS, DEFAULT_BREATH,
     TONGUE_SECONDS, NOISE_SECONDS, BODY, SOURCES,
     sourceComponents, strengthWeights, noiseGain, brightOnset, noiseOnset });
 });

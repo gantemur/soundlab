@@ -390,6 +390,55 @@ test("four electronic oscillators retain their exact waveforms, pitches and stop
   }
 });
 
+test("electronic waves accept the entire supported score register, in solo and ensemble", async () => {
+  const extremes = abc.parse("M:2/4\nL:1/4\nQ:1/4=80\nK:C\n__C,,, ^b'' |]");
+  const frequencies = playerModel.scheduledEvents(extremes).map(event =>
+    playerModel.noteFrequency(event, "equal"));
+  assert.ok(frequencies[0] < 110 && frequencies[1] > 880);
+  for (const instrument of ["sine", "triangle", "square", "sawtooth"]) {
+    const { player, context } = audioFixture();
+    assert.deepEqual(playerModel.instrumentRange(instrument), [20, 5000]);
+    assert.doesNotThrow(() => player.configure({ score: extremes, instrument }));
+    assert.deepEqual(player.warnings, [], "purely electronic pitches have no arbitrary register warning");
+    assert.doesNotThrow(() => playerModel.validateEnsemble([
+      { id: 1, score: extremes, instrument, volume: 50 }]));
+    await player.play();
+    context.currentTime = 1;
+    player.tick();
+    assert.deepEqual(context.sources.map(s => s.frequency.value), frequencies);
+    player.stop();
+  }
+});
+
+test("Bella Ciao F5 and Chopin A-flat2 receive warnings, never pitch shifts or hard errors", async () => {
+  const score = body => abc.parse("M:4/4\nL:1/4\nQ:1/4=104\nK:C\n" + body + " |]");
+  const clarinetLine = score("f z3");
+  const bayanLine = score("_A,,4");
+  const examples = [["clarinet", clarinetLine, "F5"], ["bayan", bayanLine, "A♭2"]];
+  const { player, context } = audioFixture(playerModel.EnsemblePlayer);
+  const tracks = examples.map(([instrument, item], index) => ({
+    id: index + 1, name: instrument, instrument, score: item, volume: 50 }));
+  for (const [instrument, item, note] of examples) {
+    const { player: single } = audioFixture();
+    single.configure({ score: item, instrument });
+    assert.deepEqual(single.warnings.map(w => w.example), [note]);
+    assert.equal(single.warnings[0].count, 1);
+    assert.deepEqual(playerModel.scheduledEvents(item).map(e => e.pitch), single.playEvents.map(e => e.pitch));
+    const [modelLow, modelHigh] = playerModel.instrumentRecommendedRange(instrument);
+    const hz = playerModel.noteFrequency(single.playEvents[0], "equal");
+    assert.ok(hz < modelLow || hz > modelHigh);
+  }
+  const summary = playerModel.validateEnsemble(tracks);
+  assert.deepEqual(summary.warnings.map(w => w.example), ["F5", "A♭2"]);
+  player.configure({ tracks });
+  await player.play();
+  assert.equal(context.sources.filter(s => s.wave).length, 3,
+    "both instruments use their actual modeled harmonic voices");
+  assert.ok(Math.abs(context.sources[0].frequency.value - 698.4564628660078) < 1e-9);
+  assert.ok(Math.abs(context.sources.at(-1).frequency.value - 103.82617439498628) < 1e-9);
+  player.stop();
+});
+
 test("FM electric piano uses original decaying samples, note-off damping and pause seek", async () => {
   const { player, context, recipes } = audioFixture();
   player.configure({ score: melody, instrument: "fmep" });
@@ -426,7 +475,7 @@ test("held and marimba score ranges are checked before audio starts in both host
   for (const instrument of heldVoice.KINDS) {
     assert.deepEqual(playerModel.instrumentRange(instrument), sustain.rangeFor(instrument));
     const [lower, upper] = sustain.rangeFor(instrument);
-    for (const part of [score("G,,4"), score("b4")]) {
+    for (const part of [score("G,,4"), score(instrument === "clarinet" ? "c''4" : "b4")]) {
       assert.throws(() => player.configure({ score: part, instrument }), new RegExp(lower + "–" + upper));
       assert.throws(() => playerModel.validateEnsemble([{ score: part, instrument, volume: 50 }]),
         new RegExp(lower + "–" + upper));
@@ -1118,10 +1167,13 @@ test("solo and ensemble guitars admit low open strings while other instrument bo
   assert.doesNotThrow(() => playerModel.validateEnsemble([{ score: openE, instrument: "guitar", volume: 40 }]));
   assert.throws(() => player.configure({ score: belowGuitar, instrument: "guitar" }), /80–880/);
   assert.throws(() => playerModel.validateEnsemble([{ score: belowGuitar, instrument: "guitar", volume: 40 }]), /80–880/);
-  for (const instrument of ["flute", "violin", "morin", "chimes", "triangle", "fmep"]) {
+  for (const instrument of ["flute", "violin", "morin", "chimes", "fmep"]) {
     assert.throws(() => player.configure({ score: openE, instrument }), /outside/);
     assert.throws(() => playerModel.validateEnsemble([{ score: openE, instrument, volume: 40 }]), /outside/);
   }
+  assert.doesNotThrow(() => player.configure({ score: openE, instrument: "triangle" }));
+  assert.doesNotThrow(() => playerModel.validateEnsemble([
+    { score: openE, instrument: "triangle", volume: 40 }]));
   assert.equal(calls.length, 0);
 });
 

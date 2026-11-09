@@ -223,6 +223,10 @@
     if (!KINDS.includes(kind)) throw new RangeError("Unknown held-sound model");
     return kind === "clarinet" ? [clarinet.MIN_HZ, clarinet.MAX_HZ] : [MIN_HZ, MAX_HZ];
   }
+  function recommendedRangeFor(kind) {
+    const range = rangeFor(kind);
+    return kind === "clarinet" ? [range[0], clarinet.REFERENCE_MAX_HZ] : range;
+  }
   function clarinetComponents(breath = DEFAULT_BREATH, hz = 440,
     sampleRate = FLUTE_PLOT_SAMPLE_RATE) {
     if (!Number.isFinite(hz) || hz < clarinet.MIN_HZ || hz > clarinet.MAX_HZ ||
@@ -232,6 +236,10 @@
     const weights = clarinet.strengthWeights(breath);
     const body = clarinet.BODY;
     return clarinet.SOURCES.soft.map((soft, index) => {
+      // At extended pitches not all twelve modes fit below Nyquist, especially
+      // on the 16 kHz analysis host. Native PeriodicWave playback band-limits
+      // them too; keep the plotted ideal tone free of folded high partials.
+      if ((index + 1) * hz >= sampleRate * .5) return Object.freeze({ sin: 0, cos: 0 });
       const bright = clarinet.SOURCES.bright[index];
       const frequency = (index + 1) * hz;
       const hp = biquadResponse("highpass", frequency, body.highpass, sampleRate);
@@ -310,7 +318,7 @@
     KINDS, MIN_HZ, MAX_HZ, MIN_ATTACK, MAX_ATTACK, MIN_RELEASE, MAX_RELEASE,
     EXAMPLE_HOLD, DEFAULT_BREATH, DEFAULT_BOW_PRESSURE, BOW_PARTIALS,
     FLUTE_TONE_GAIN, FLUTE_HIGHPASS, FLUTE_LOWPASS, FLUTE_Q,
-    validate, defaults, rangeFor, partials, waveAt, fluteDrive, fluteJetAt, fluteNoiseGain,
+    validate, defaults, rangeFor, recommendedRangeFor, partials, waveAt, fluteDrive, fluteJetAt, fluteNoiseGain,
     fluteComponents, fluteWaveFromComponents, bowBody, bowPressureWeights,
     bowNoiseGain, bowSourceComponents, bowedComponents, bowedWaveFromComponents, smoothstep,
     clarinet, clarinetComponents, clarinetWaveFromComponents,
