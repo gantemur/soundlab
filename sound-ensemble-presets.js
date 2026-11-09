@@ -18,10 +18,12 @@
     require("./sound-beethoven-scores.js") : root.SoundLabBeethovenScores;
   const chopin = typeof module === "object" && module.exports ?
     require("./sound-chopin-scores.js") : root.SoundLabChopinScores;
-  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven, chopin);
+  const bach = typeof module === "object" && module.exports ?
+    require("./sound-bach-scores.js") : root.SoundLabBachScores;
+  const api = factory(compose, drumPatterns, drums, classical, joplin, beethoven, chopin, bach);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven, chopin) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin, beethoven, chopin, bach) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -76,6 +78,12 @@
       description: Object.freeze({
         en: "Complete D-flat major waltz with first/second endings: 140 played bars, both hands and four editable piano voices. Ten grace notes, two trilled notes and eight upper mordents are separately realized. Printed dynamics are retained; gradual tempo ramps and selected hairpin endpoints are Sound Lab's interpretive choices. About 2 minutes 11 seconds.",
         mn: "Ре-бемоль мажорын бүтэн вальс: хоёр өөр төгсгөлтэй, нийт 140 такт, хоёр гарын засварлах 4 хоолой. 10 угтвар нот, 2 трилль, 8 дээд мордентийг тус тусад нь тоглуулна. Эхийн динамикийг хадгалсан; хурдыг аажмаар өөрчлөх болон зарим чанга-сулын шилжилтийг Sound Lab тайлбарлан нэмсэн. Ойролцоогоор 2 минут 11 секунд."
+      }) },
+    { id: "bachPrelude", category: "classics", en: "Bach · Prelude in C, BWV 846 (complete)",
+      mn: "Бах · До мажор прелюд, BWV 846 (бүтнээр)",
+      description: Object.freeze({
+        en: "The complete 35-bar Prelude from The Well-Tempered Clavier I, in three independently editable piano voices. All 549 sounding pitches, tied bass sustains, and the final chord follow a CC0 score. The source specifies quarter=66 and has no printed dynamics or pedal; this version adds none. About 2 minutes 7 seconds.",
+        mn: "Сайн хөглөгдсөн клавир I дэвтрийн 35 такттай бүтэн прелюд. Гурван засварлах төгөлдөр хуурын хоолойд CC0 эхийн 549 цохилт, удаан үргэлжлэх басс, төгсгөлийн аккордыг хадгалав. Эхэд дөрөвтийн нот=66 хурдтай, нэмэлт динамик буюу педалийн тэмдэггүй; энд ч нэмж оруулаагүй. Ойролцоогоор 2 минут 7 секунд."
       }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -234,6 +242,13 @@
       name: language === "en" ? "Waltz piano · 4 voices" : "Вальсын төгөлдөр хуур · 4 хоолой",
       instrument: "piano", volume: 54, mute: false, solo: false,
       abc: chopin.MINUTE_WALTZ_ABC }];
+  }
+
+  function createBachPrelude(language) {
+    return [{ id: 1,
+      name: language === "en" ? "Piano · 3 voices" : "Төгөлдөр хуур · 3 хоолой",
+      instrument: "piano", volume: 54, mute: false, solo: false,
+      abc: bach.PRELUDE_C_MAJOR_ABC }];
   }
 
   const STRUM_STUDY = Object.freeze({
@@ -934,6 +949,7 @@
     if (id === "entertainer") return createEntertainer(language);
     if (id === "furElise") return createFurElise(language);
     if (id === "minuteWaltz") return createMinuteWaltz(language);
+    if (id === "bachPrelude") return createBachPrelude(language);
     if (id === "charleston") return createCharleston(language);
     if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);

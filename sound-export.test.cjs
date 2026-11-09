@@ -630,6 +630,29 @@ test("RP4 Minute Waltz saves, reopens and exports all ornaments with an analytic
     "written pp dynamics and hairpins survive offline piano gain scheduling");
 });
 
+test("RP5a complete Bach Prelude exports all 549 attacks, long bass holds and final chord", async () => {
+  const input = arrangement(presets.create("bachPrelude", "en"));
+  const saved = projects.decode(projects.encode({ format: projects.FORMAT,
+    version: projects.VERSION, title: "Bach · Prelude BWV 846", ...input }));
+  const parsed = ensemble.parseTracks(saved.content.tracks, "equal", temperament).prepared[0].score;
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  const notes = f.contexts[0].graph.sources;
+  const attacks = players.scheduledEvents(parsed);
+  const time = beat => require("./sound-score.js").beatToSeconds(parsed, beat);
+  assert.equal(parsed.bars.length, 35);
+  assert.equal(parsed.parts[0].voiceIds.length, 3);
+  assert.ok(output.duration > 127.27 && output.duration < 130,
+    "the complete 2:07 Prelude renders beyond any former 90-second limit");
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
+  assert.equal(notes.length, 549, "68 source tie continuations are not restruck");
+  for (const index of [0, 66, 150, 320, 460, 548]) {
+    close(notes[index].at, time(attacks[index].startBeat));
+  }
+  assert.equal(notes.filter(note => Math.abs(note.at - time(136)) < 1e-8).length, 5);
+  assert.ok(notes.at(-1).at >= time(136), "the closing full-bar chord survives export");
+});
+
 test("persistent pitched dynamics change live/offline gain without changing note times", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n!p!C !accent!D !f!E G |]";
   const f = fixture();
