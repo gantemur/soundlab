@@ -61,14 +61,15 @@
     rimshot: Object.freeze({ voice: "rimshot", size: "small", decay: .20 })
   });
 
-  function hatPedalPlan(event, at, offsetSeconds, secondsPerBeat) {
+  function hatPedalPlan(event, at, offsetSeconds, score) {
     if (event.type !== "drum" || !Object.hasOwn(drumModel.HAT_PEDAL_POSITIONS, event.drum)) return [];
     // Keep compatibility with events created before the pedalChanges field.
     const changes = event.pedalChanges || (Number.isFinite(event.chokeBeat) ?
       [{ beat: event.chokeBeat, openness: 0 }] : []);
     const onset = at - offsetSeconds;
     return changes.map(change => ({
-      at: onset + (change.beat - event.startBeat) * secondsPerBeat,
+      at: onset + scoreModel.beatToSeconds(score, change.beat) -
+        scoreModel.beatToSeconds(score, event.startBeat),
       ...(drumModel.hatPedalRelease(change.openness) || { timeConstant: null, seconds: null }),
       openness: change.openness
     }));
@@ -134,7 +135,6 @@
       throw new RangeError("Invalid score offset");
     }
     const technique = guitarSettings(guitar);
-    const spb = scoreModel.secondsPerBeat(score);
     const notes = [];
     const lastAttack = new Map();
     const chordCounts = new Map();
@@ -158,7 +158,8 @@
           }
           // Fast, short chords must finish their sweep before the next event.
           // Reserve at least half the written duration for every plucked note.
-          stepBeats = Math.min(technique.spacingMs / 1000 / spb,
+          stepBeats = Math.min(scoreModel.secondsToBeat(score,
+            scoreModel.beatToSeconds(score, event.startBeat) + technique.spacingMs / 1000) - event.startBeat,
             event.durationBeats / (2 * (pitches.length - 1)));
         }
         ordered.forEach((pitch, index) => {
@@ -262,7 +263,8 @@
     get playbackBeat() {
       if (this.status !== "playing" || !this.context) return this.positionBeat;
       const seconds = Math.max(0, this.context.currentTime - this.baseTime);
-      return this.originBeat + seconds / scoreModel.secondsPerBeat(this.score);
+      return scoreModel.secondsToBeat(this.score,
+        scoreModel.beatToSeconds(this.score, this.originBeat) + seconds);
     }
 
     get currentBeat() {
@@ -345,7 +347,8 @@
         this.originBeat = this.positionBeat;
         this.baseTime = context.currentTime + .08;
         this.playbackEndTime = this.baseTime +
-          (this.score.totalBeats - this.originBeat) * scoreModel.secondsPerBeat(this.score);
+          scoreModel.beatToSeconds(this.score, this.score.totalBeats) -
+          scoreModel.beatToSeconds(this.score, this.originBeat);
         this.nextIndex = this.playEvents.findIndex(event =>
           this.eventPending(event, this.originBeat, context.sampleRate));
         if (this.nextIndex < 0) this.nextIndex = this.playEvents.length;
@@ -368,16 +371,21 @@
     tick() {
       if (this.status !== "playing" || !this.context) return;
       const now = this.context.currentTime;
-      const spb = scoreModel.secondsPerBeat(this.score);
-      const aheadBeat = this.originBeat + (now + AHEAD_SECONDS - this.baseTime) / spb;
+      const originSeconds = scoreModel.beatToSeconds(this.score, this.originBeat);
+      const aheadBeat = scoreModel.secondsToBeat(this.score,
+        Math.max(0, originSeconds + now + AHEAD_SECONDS - this.baseTime));
       const events = this.playEvents;
       while (this.nextIndex < events.length && events[this.nextIndex].startBeat < aheadBeat) {
         const event = events[this.nextIndex++];
         const clippedBeat = Math.max(this.originBeat, event.startBeat);
-        const at = this.baseTime + (clippedBeat - this.originBeat) * spb;
-        const endsAt = this.baseTime + (event.startBeat + event.durationBeats - this.originBeat) * spb;
+        // Avoid cancellation noise at exactly the resumed origin: an event
+        // starting there must be scheduled at baseTime itself.
+        const at = clippedBeat === this.originBeat ? this.baseTime :
+          this.baseTime + scoreModel.beatToSeconds(this.score, clippedBeat) - originSeconds;
+        const endsAt = this.baseTime +
+          scoreModel.beatToSeconds(this.score, event.startBeat + event.durationBeats) - originSeconds;
         const startsAt = Math.max(at, now + .003);
-        const originalAt = this.baseTime + (event.startBeat - this.originBeat) * spb;
+        const originalAt = this.baseTime + scoreModel.beatToSeconds(this.score, event.startBeat) - originSeconds;
         const offsetSeconds = Math.max(0, startsAt - originalAt);
         const voiceEnd = this.voiceEndTime(event, startsAt, endsAt, this.context.sampleRate, offsetSeconds);
         if (voiceEnd <= startsAt || (WAVEFORMS.includes(this.eventInstrument(event)) && endsAt <= startsAt)) continue;
@@ -413,13 +421,13 @@
     eventInstrument() { return this.instrument; }
 
     eventPending(event, fromBeat, sampleRate) {
-      const spb = scoreModel.secondsPerBeat(this.score);
-      const at = event.startBeat * spb, endsAt = (event.startBeat + event.durationBeats) * spb;
+      const at = scoreModel.beatToSeconds(this.score, event.startBeat);
+      const endsAt = scoreModel.beatToSeconds(this.score, event.startBeat + event.durationBeats);
       // Plain oscillators are already silent at note-off. Held voices and
       // sampled instruments can still be sounding after their notation ends.
       const end = WAVEFORMS.includes(this.eventInstrument(event)) ? endsAt :
         this.voiceEndTime(event, at, endsAt, sampleRate);
-      return end > fromBeat * spb;
+      return end > scoreModel.beatToSeconds(this.score, fromBeat);
     }
 
     // The held graph caches a single noise buffer per AudioContext, shared by
@@ -510,8 +518,7 @@
       if (!spec) return endsAt + .005;
       const bufferEnd = at + spec.frames / sampleRate - offsetSeconds;
       if (event.type === "drum" && (event.drum === "openHat" || event.drum === "halfHat")) {
-        return hatPedalEndAt(hatPedalPlan(event, at, offsetSeconds,
-          scoreModel.secondsPerBeat(this.score)), bufferEnd);
+        return hatPedalEndAt(hatPedalPlan(event, at, offsetSeconds, this.score), bufferEnd);
       }
       return spec.damper ? Math.min(bufferEnd, endsAt + .19) : bufferEnd;
     }
@@ -591,6 +598,13 @@
     const first = tracks[0]?.score;
     if (!first) throw new Error("Missing ABC score");
     let events = 0, totalBeats = 0;
+    // A Q: change in any pitched voice controls the shared score clock;
+    // unmarked instruments (including drums) inherit this global map.
+    const marked = tracks.map(track => track.score.tempoMap).filter(Boolean);
+    const tempoMap = marked[0];
+    if (marked.some(map => JSON.stringify(map) !== JSON.stringify(tempoMap))) {
+      throw new RangeError("All explicitly marked track tempo maps must agree");
+    }
     for (const track of tracks) {
       const { score, instrument, volume } = track;
       if (instrument === "drums") drumModel.validate(score);
@@ -618,10 +632,12 @@
         }
       }
     }
-    if (!Number.isSafeInteger(events) || !Number.isFinite(totalBeats * scoreModel.secondsPerBeat(first))) {
+    if (!Number.isSafeInteger(events) || !Number.isFinite(scoreModel.beatToSeconds(
+      { ...first, tempoMap }, totalBeats))) {
       throw new RangeError("The ensemble duration or event count is invalid");
     }
-    return { tempoQuarter: first.tempoQuarter, meter: first.meter, totalBeats, eventCount: events };
+    return { tempoQuarter: first.tempoQuarter, ...(tempoMap ? { tempoMap } : {}),
+      meter: first.meter, totalBeats, eventCount: events };
   }
 
   class EnsemblePlayer extends Player {
@@ -712,7 +728,7 @@
     }
     scheduleDrumHit(event, at, offsetSeconds = 0) {
       const context = this.context;
-      const plan = hatPedalPlan(event, at, offsetSeconds, scoreModel.secondsPerBeat(this.score));
+      const plan = hatPedalPlan(event, at, offsetSeconds, this.score);
       const first = plan[0];
       if (first && (hatPedalEndAt(plan, Infinity) <= at ||
           first.at === at && offsetSeconds === 0 &&

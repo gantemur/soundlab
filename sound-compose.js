@@ -486,7 +486,8 @@
       this.$("composeMeta").textContent = this.score ?
         this.score.title + " · " + this.score.bars.length + " " + this.t("bars") +
         " · " + this.score.key.name + " · " + this.score.meter.numerator + "/" + this.score.meter.denominator +
-        " · ♩=" + this.score.tempoQuarter + " · " + (this.score.totalBeats * scoreModel.secondsPerBeat(this.score)).toFixed(1) +
+        " · ♩=" + this.score.tempoQuarter + (this.score.tempoMap ? " ↝" : "") + " · " +
+        scoreModel.beatToSeconds(this.score, this.score.totalBeats).toFixed(1) +
         " " + this.t("seconds") : this.t("empty");
       const id = Object.keys(EXAMPLES).find(key => EXAMPLES[key] === this.$("composeText").value.trim());
       const info = EXAMPLE_INFO[id];
@@ -666,7 +667,7 @@
         this.t("bar") + " " + (event.bar - (this.score.bars[0].pickup ? 1 : 0)) + " · " +
         (event.type === "rest" ? this.t("rest") : event.type === "chord" ?
           event.pitches.map(scoreModel.pitchName).join(" ") : scoreModel.pitchName(event.pitch)) +
-        " · " + (beat * scoreModel.secondsPerBeat(this.score)).toFixed(1) + " " +
+        " · " + scoreModel.beatToSeconds(this.score, beat).toFixed(1) + " " +
         this.t("seconds") : this.t("ready");
       if (event && this.noteGroups[index]) {
         const view = this.$("composeScoreScroll");

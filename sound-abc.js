@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: MIT
  * A deliberately small, strict subset of ABC notation. One instrument can
  * contain independent V: blocks, each with its own rhythm and notation state.
- * Supports persistent !pp! .. !ff! dynamic marks and one-note !accent!.
+ * Supports persistent !pp! .. !ff! dynamics, !accent!, and Q: tempo changes
+ * at barlines (also inside the first V: block of a polyphonic score).
  */
 (function (root, factory) {
   const scoreModel = typeof module === "object" && module.exports ?
@@ -118,7 +119,11 @@
         return;
       }
       if (!keyFound) throw new ABCError("Add K:C (or another key) before the notes", index + 1);
-      if (header) throw new ABCError("Only one melody is supported; headers belong before the notes", index + 1);
+      if (header && header[1].toUpperCase() === "Q" && musicStarted) {
+        bodyLines.push({ tempo: parseTempo(header[2]), line: index + 1 });
+        return;
+      }
+      if (header) throw new ABCError("Only Q: tempo changes are allowed after the notes begin", index + 1);
       musicStarted = true;
       bodyLines.push({ text: line.replace(/%.*/, ""), line: index + 1 });
     });
@@ -138,6 +143,7 @@
     let startBeat = 0, barStart = 0, bar = 1, closed = false;
     let carried = {}, pendingTie = null, lastToken = null;
     let markedLevel = null, accentNext = false;
+    const tempoMap = [{ beat: 0, tempoQuarter }];
     const expressive = event => {
       if (event.type !== "rest" && (markedLevel !== null || accentNext)) {
         event.velocity = Math.min(1.5, (markedLevel ?? 1) * (accentNext ? 1.16 : 1));
@@ -159,7 +165,15 @@
       barStart = startBeat;
       carried = {};
     };
-    for (const { text: body, line } of bodyLines) {
+    for (const { text: body, line, tempo } of bodyLines) {
+      if (tempo !== undefined) {
+        if (Math.abs(startBeat - barStart) > 1e-8 || closed || startBeat <= 0) {
+          throw new ABCError("Q: tempo changes must be between complete bars", line);
+        }
+        if (tempoMap.at(-1).beat === startBeat) tempoMap.at(-1).tempoQuarter = tempo;
+        else tempoMap.push({ beat: startBeat, tempoQuarter: tempo });
+        continue;
+      }
       for (let i = 0; i < body.length;) {
         const c = body[i];
         if (/\s/.test(c)) { i++; continue; }
@@ -295,6 +309,7 @@
     if (!events.length) throw new ABCError("Write at least one note or rest after K:");
     score.bars[0].pickup = score.bars.length > 1 && score.bars[0].partial;
     score.totalBeats = startBeat;
+    if (tempoMap.length > 1) score.tempoMap = tempoMap;
     scoreModel.validate(score);
     return score;
   }
@@ -334,7 +349,8 @@
         voiceIds.push(id);
         voiceLines.set(id, []);
       } else if (field) {
-        throw new ABCError("Only V: voice headers are allowed after K:", i + 1);
+        if (field[1].toUpperCase() === "Q" && current) voiceLines.get(current).push(i);
+        else throw new ABCError("Only V: voices and Q: tempo changes are allowed after K:", i + 1);
       } else if (!current) {
         throw new ABCError("Put all notes inside a V: voice block", i + 1);
       } else {
@@ -359,6 +375,11 @@
           " must have the same barlines and duration as the first voice");
       }
     });
+    const explicitMaps = voiceScores.filter(voice => voice.tempoMap).map(voice => voice.tempoMap);
+    if (explicitMaps.some(map => JSON.stringify(map) !== JSON.stringify(explicitMaps[0]))) {
+      throw new ABCError("V: voice tempo maps must agree");
+    }
+    if (explicitMaps.length) first.tempoMap = explicitMaps[0];
     first.parts[0].voiceIds = voiceIds;
     first.parts[0].events = voiceScores.flatMap((voice, i) =>
       voice.parts[0].events.map(event => ({ ...event, voiceId: voiceIds[i] })))

@@ -66,15 +66,14 @@
       // Validate every part, even a muted one. Export never hides bad drafts.
       synth.configure({ tracks, tuning: content.tuning });
     }
-    const spb = scoreModel.secondsPerBeat(synth.score);
-    let end = synth.score.totalBeats * spb;
+    let end = scoreModel.beatToSeconds(synth.score, synth.score.totalBeats);
     if (!Number.isFinite(end) || end <= 0) limit("The score has an invalid playback length");
     const schedule = [], specs = new Map();
     let bufferBytes = 0, sharedBytes = 0;
     for (const event of synth.playEvents) {
       if (!synth.isEventAudible(event)) continue;
-      const at = event.startBeat * spb;
-      const endsAt = (event.startBeat + event.durationBeats) * spb;
+      const at = scoreModel.beatToSeconds(synth.score, event.startBeat);
+      const endsAt = scoreModel.beatToSeconds(synth.score, event.startBeat + event.durationBeats);
       sharedBytes = Math.max(sharedBytes, synth.sharedBufferBytes(event, SAMPLE_RATE));
       const spec = synth.bufferSpec(event, SAMPLE_RATE);
       if (spec && !specs.has(spec.key)) {

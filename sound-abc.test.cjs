@@ -187,6 +187,37 @@ test("ABC V: blocks preserve overlapping independent rhythms, ties and dynamic s
   assert.equal(score.validate(parsed), parsed);
 });
 
+test("RP2 Q: changes form one exact monotone clock, including inside the first polyphonic voice", () => {
+  const source = "M:2/4\nL:1/4\nQ:1/4=60\nK:C\n" +
+    "V:RH\nC2 |\nQ:1/4=120\nD2 |\nQ:1/4=80\nE2 |]\n" +
+    "V:LH\nC,2 | D,2 | E,2 |]";
+  const parsed = abc.parse(source);
+  assert.deepEqual(parsed.tempoMap, [{ beat: 0, tempoQuarter: 60 },
+    { beat: 2, tempoQuarter: 120 }, { beat: 4, tempoQuarter: 80 }]);
+  assert.equal(score.beatToSeconds(parsed, 2), 2);
+  assert.equal(score.beatToSeconds(parsed, 4), 3);
+  assert.equal(score.beatToSeconds(parsed, 6), 4.5);
+  assert.equal(score.tempoAtBeat(parsed, 3), 120);
+  for (const beat of [0, .25, 1.75, 2, 2.5, 3.99, 4, 5, 6]) {
+    assert.ok(Math.abs(score.secondsToBeat(parsed, score.beatToSeconds(parsed, beat)) - beat) < 1e-11);
+  }
+  assert.equal(score.beatToSeconds(abc.parse(piece("C4 |]")), 4), 2.5,
+    "old scores remain fixed-tempo without additional fields");
+  assert.throws(() => score.secondsToBeat(parsed, -1), /Invalid score time/);
+  assert.throws(() => score.beatToSeconds(parsed, NaN), /Invalid score beat/);
+  for (const bad of [
+    "C2\nQ:1/4=120\nD2 |]",
+    "C2 |]\nQ:1/4=120",
+    "C2 |\nQ:1/4=20\nD2 |]"
+  ]) assert.throws(() => abc.parse(piece(bad, { meter: "2/4", tempo: "1/4=60" })), /./);
+  const mismatched = source.replace("V:LH\nC,2 | D,2 | E,2 |]",
+    "V:LH\nC,2 |\nQ:1/4=100\nD,2 |\nQ:1/4=80\nE,2 |]");
+  assert.throws(() => abc.parse(mismatched), /tempo maps must agree/);
+  const badModel = structuredClone(parsed);
+  badModel.tempoMap[1].beat = 0;
+  assert.throws(() => score.validate(badModel), /tempo map/);
+});
+
 test("V: blocks reject misaligned measures, stray music, repeated IDs and corrupt voice timing", () => {
   const header = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n";
   for (const bad of [

@@ -51,6 +51,52 @@
     return 60 / score.tempoQuarter;
   }
 
+  // Quarter-beat score positions are mapped to an absolute audio-clock time.
+  // Each entry changes tempo instantaneously at its beat; integrate 60/Q
+  // across the intervening intervals. This map is shared by the player and
+  // the offline renderer, so seeking does not accumulate rounded durations.
+  function tempoSegments(score) {
+    return score.tempoMap?.length ? score.tempoMap :
+      [{ beat: 0, tempoQuarter: score.tempoQuarter }];
+  }
+
+  function tempoAtBeat(score, beat) {
+    if (!Number.isFinite(beat) || beat < 0) throw new RangeError("Invalid score beat");
+    const segments = tempoSegments(score);
+    for (let i = segments.length - 1; i >= 0; i--) {
+      if (beat >= segments[i].beat) return segments[i].tempoQuarter;
+    }
+    return score.tempoQuarter;
+  }
+
+  function beatToSeconds(score, beat) {
+    if (!Number.isFinite(beat) || beat < 0) throw new RangeError("Invalid score beat");
+    const segments = tempoSegments(score);
+    let seconds = 0;
+    for (let i = 0; i < segments.length; i++) {
+      const item = segments[i], next = segments[i + 1]?.beat ?? Infinity;
+      const span = Math.min(beat, next) - item.beat;
+      if (span > 0) seconds += 60 * span / item.tempoQuarter;
+      if (beat <= next) break;
+    }
+    return seconds;
+  }
+
+  function secondsToBeat(score, seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) throw new RangeError("Invalid score time");
+    const segments = tempoSegments(score);
+    let elapsed = 0;
+    for (let i = 0; i < segments.length; i++) {
+      const item = segments[i], next = segments[i + 1]?.beat ?? Infinity;
+      const duration = (next - item.beat) * 60 / item.tempoQuarter;
+      if (seconds <= elapsed + duration) {
+        return item.beat + (seconds - elapsed) * item.tempoQuarter / 60;
+      }
+      elapsed += duration;
+    }
+    return segments.at(-1).beat;
+  }
+
   function validate(score) {
     if (!score || score.version !== 1 || !Array.isArray(score.parts) || score.parts.length !== 1 ||
         !Array.isArray(score.parts[0].events) || !Number.isFinite(score.tempoQuarter) ||
@@ -63,6 +109,22 @@
         !Number.isFinite(score.totalBeats) || score.totalBeats <= 0 ||
         !Number.isFinite(score.totalBeats * secondsPerBeat(score))) {
       throw new RangeError("A score needs valid bars, events and finite playback duration");
+    }
+    if (score.tempoMap !== undefined) {
+      if (!Array.isArray(score.tempoMap) || !score.tempoMap.length ||
+          score.tempoMap.length > score.bars.length + 1 ||
+          score.tempoMap[0]?.beat !== 0 ||
+          score.tempoMap[0]?.tempoQuarter !== score.tempoQuarter ||
+          score.tempoMap.some((mark, index) => !Number.isFinite(mark?.beat) ||
+            mark.beat < 0 || mark.beat >= score.totalBeats ||
+            !Number.isFinite(mark.tempoQuarter) || mark.tempoQuarter < 30 ||
+            mark.tempoQuarter > 320 ||
+            (index > 0 && mark.beat <= score.tempoMap[index - 1].beat))) {
+        throw new RangeError("Invalid score tempo map");
+      }
+    }
+    if (!Number.isFinite(beatToSeconds(score, score.totalBeats))) {
+      throw new RangeError("A score needs a finite tempo-mapped duration");
     }
     const ids = score.parts[0].voiceIds;
     const polyphonic = ids !== undefined;
@@ -124,6 +186,7 @@
   }
 
   return Object.freeze({ LETTER_OFFSETS, MIN_NOTE_HZ, MAX_NOTE_HZ,
-    TUNINGS, pitchNumber, pitchName, frequency, secondsPerBeat,
+    TUNINGS, pitchNumber, pitchName, frequency, secondsPerBeat, tempoAtBeat,
+    beatToSeconds, secondsToBeat,
     validate });
 });

@@ -471,6 +471,45 @@ test("E2 complete Turkish March saves, exports four internal piano voices, and r
     "the quiet score-level dynamic is not silently ignored");
 });
 
+test("RP2 variable-tempo WAV timing matches the exact live score clock for pitched and drum tracks", async () => {
+  const marked = "M:2/4\nL:1/4\nQ:1/4=60\nK:C\nC2 |\nQ:1/4=120\nD2 |\nQ:1/4=80\nE2 |]";
+  const drum = "M:2/4\nL:1/4\nQ:1/4=60\nK:C clef=perc\nC2 | D2 | E2 |]";
+  const f = fixture();
+  const output = await exporter.render(arrangement([track(1, "sine", marked), track(2, "drums", drum)]), f.deps);
+  const notes = f.contexts[0].graph.sources;
+  assert.equal(notes.length, 6);
+  assert.deepEqual(notes.map(event => +event.at.toFixed(6)), [0, 0, 2, 2, 3, 3],
+    "all tracks share 60 -> 120 -> 80 quarter-note tempo changes");
+  assert.ok(output.duration > 4.5 && output.duration < 7,
+    "the final bar extends to beatToSeconds(6)=4.5, with natural percussion tails");
+  assert.ok(output.bytes.byteLength > 4.5 * 44100 * 2);
+});
+
+test("RP2 complete Joplin Entertainer exports its final alternate ending with all eight piano voices", async () => {
+  const input = arrangement(presets.create("entertainer", "en"));
+  const encoded = projects.encode({ format: projects.FORMAT, version: projects.VERSION,
+    title: "Joplin · The Entertainer", ...input });
+  const saved = projects.decode(encoded);
+  const { score: parsed } = ensemble.parseTracks(saved.content.tracks, "equal", temperament).prepared[0];
+  const f = fixture();
+  const output = await exporter.render({ mode: "ensemble", content: saved.content }, f.deps);
+  assert.equal(saved.content.tracks.length, 1);
+  assert.equal(parsed.parts[0].voiceIds.length, 8);
+  assert.equal(parsed.bars.length, 152);
+  assert.equal(parsed.totalBeats, 304);
+  close(require("./sound-score.js").beatToSeconds(parsed, 304), 246.3655761024182);
+  assert.ok(output.duration > 246.36 && output.duration < 250);
+  assert.equal(waveReader.inspect(output.bytes).duration, output.duration);
+  assert.equal(f.contexts[0].graph.sources.length, 2623,
+    "repeat expansion and all 236 tied continuations produce 2,623 actual attacks");
+  const attacks = players.scheduledEvents(parsed);
+  const sourceTimes = f.contexts[0].graph.sources.map(source => source.at);
+  for (const index of [0, 250, 1000, 1800, 2600, 2622]) {
+    close(sourceTimes[index], require("./sound-score.js").beatToSeconds(parsed, attacks[index].startBeat));
+  }
+  assert.ok(sourceTimes.at(-1) > 244, "the alternate ending is not truncated");
+});
+
 test("persistent pitched dynamics change live/offline gain without changing note times", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n!p!C !accent!D !f!E G |]";
   const f = fixture();

@@ -82,6 +82,63 @@ function audioFixture(Player = playerModel.Player) {
 
 const melody = abc.parse("M:4/4\nL:1/4\nQ:1/4=96\nK:C\nC z D E | G4 |]");
 
+test("RP2 live Play/Pause/Seek uses integrated score seconds across changing tempos", async t => {
+  const tempo = abc.parse("M:2/4\nL:1/4\nQ:1/4=60\nK:C\n" +
+    "C2 |\nQ:1/4=120\nD2 |\nQ:1/4=80\nE2 |]");
+  const { player, context } = audioFixture();
+  t.after(() => player.stop());
+  player.configure({ score: tempo, instrument: "sine" });
+  await player.play();
+  assert.equal(player.playbackEndTime, 4.58);
+  assert.equal(context.sources[0].startedAt, .08);
+  context.currentTime = 1.9;
+  player.tick();
+  assert.ok(Math.abs(context.sources[1].startedAt - 2.08) < 1e-10);
+  context.currentTime = 2.45;
+  player.pause();
+  const resumedBeat = player.currentBeat;
+  assert.ok(Math.abs(resumedBeat - 2.74) < 1e-10);
+  context.currentTime = 10;
+  await player.play();
+  const resumed = context.sources.at(-1);
+  assert.ok(Math.abs(resumed.startedAt - 10.08) < 1e-10);
+  assert.ok(Math.abs(resumed.stoppedAt - (10.08 + .63 + .005)) < 1e-10);
+  assert.ok(Math.abs(player.playbackEndTime - (10.08 + 4.5 - 2.37)) < 1e-10);
+  context.currentTime = 10.3;
+  assert.ok(Math.abs(player.currentBeat - 3.18) < 1e-10);
+  player.pause();
+  player.positionBeat = 4.5; // late seek into the final, slower bar
+  context.currentTime = 30;
+  await player.play();
+  assert.ok(player.playbackEndTime >= 30.08 + 4.5 - 3.375 &&
+    player.playbackEndTime < 30.08 + 4.5 - 3.375 + .01,
+  "the audible waveform release can extend a few milliseconds beyond the score");
+  assert.ok(Math.abs(player.currentBeat - 4.5) < 1e-10);
+  player.stop();
+});
+
+test("RP2 ensemble instruments and drums inherit a single explicit tempo map", async t => {
+  const lead = abc.parse("M:2/4\nL:1/4\nQ:1/4=60\nK:C\nC2 |\nQ:1/4=120\nD2 |]");
+  const kit = drumABC.parse("M:2/4\nL:1/4\nQ:1/4=60\nK:C clef=perc\nC2 | E2 |]");
+  const tracks = [
+    { id: 1, score: lead, instrument: "sine", volume: 60 },
+    { id: 2, score: kit, instrument: "drums", volume: 40 }
+  ];
+  const { context, player } = audioFixture(playerModel.EnsemblePlayer);
+  t.after(() => player.stop());
+  player.configure({ tracks });
+  assert.deepEqual(player.score.tempoMap, lead.tempoMap);
+  assert.equal(player.score.totalBeats, 4);
+  await player.play();
+  context.currentTime = 1.9;
+  player.tick();
+  const notes = context.sources.filter(source => source.type === "sine");
+  assert.equal(notes.length, 2);
+  assert.ok(Math.abs(notes[1].startedAt - 2.08) < 1e-10);
+  assert.equal(player.playbackEndTime >= 3.08, true);
+  player.stop();
+});
+
 test("a score never starts audio on load; uses the audio clock and skips rests", async () => {
   const { context, player, calls, updates } = audioFixture();
   player.configure({ score: melody, instrument: "flute", volume: 38 });

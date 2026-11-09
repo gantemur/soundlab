@@ -12,10 +12,12 @@
     require("./sound-drum-abc.js") : root.SoundLabDrumABC;
   const classical = typeof module === "object" && module.exports ?
     require("./sound-classical-scores.js") : root.SoundLabClassicalScores;
-  const api = factory(compose, drumPatterns, drums, classical);
+  const joplin = typeof module === "object" && module.exports ?
+    require("./sound-joplin-scores.js") : root.SoundLabJoplinScores;
+  const api = factory(compose, drumPatterns, drums, classical, joplin);
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.SoundLabEnsemblePresets = api;
-})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical) {
+})(typeof window !== "undefined" ? window : null, function (compose, drumPatterns, drums, classical, joplin) {
   "use strict";
 
   const CATALOG = Object.freeze([
@@ -52,6 +54,12 @@
       description: Object.freeze({
         en: "The complete finale of Sonata K.331, including repeats and second ending. One piano track holds four independently timed, editable ABC V: voice blocks, leaving room for added instruments. All CC0-edition note pitches are retained; rapid grace groups and two trills are simplified. Phrase dynamics are an interpretive layer.",
         mn: "K.331 сонатын төгсгөлийн ангийг давталт, хоёрдугаар төгсгөлтэй нь тоглоно. Нэг төгөлдөр хуурын мөрөнд тусдаа хэмнэлтэй, засварлаж болох ABC V: дөрвөн хоолой бий; өөр хөгжим нэмж болно. CC0 эхийн нотыг хадгалж, угтвар чимэглэл, хоёр триллийг хялбаршуулсан. Хэсгийн динамик нь тайлбарын шинжтэй."
+      }) },
+    { id: "entertainer", category: "classics", en: "Joplin · The Entertainer (complete rag)",
+      mn: "Жоплин · The Entertainer (бүтэн рэгтайм)",
+      description: Object.freeze({
+        en: "Scott Joplin's complete 1902 piano rag: 152 played 2/4 bars with four repeated strains and their first/second endings. Both hands become eight independently editable piano voices. Original straight syncopation; modest section tempo changes (72/76/74) are Sound Lab's interpretation. Articulation is reserved for a later pass.",
+        mn: "Скотт Жоплины 1902 оны бүтэн төгөлдөр хуурын рэгтайм: давталт, хоёр өөр төгсгөлтэй 152 такт. Хоёр гарын нотыг 8 тусдаа засварлах хоолой болгон хөрвүүлэв. Бичсэн синкоп хэмнэлийг свинг нэмэлгүй хадгалсан; 72/76/74 хурдны өөрчлөлт нь Sound Lab-ын тайлбар юм. Нотны холбоосын нарийн илэрхийллийг дараа хэрэгжүүлнэ."
       }) },
     { id: "korobeiniki", en: "Коробейники · folk (16 bars)", mn: "Коробейники · ардын дуу (16 такт)" },
     { id: "kalinka", en: "Калинка · Larionov (27 bars)", mn: "Калинка · Ларионов (27 такт)" },
@@ -189,6 +197,13 @@
       name: language === "en" ? "Piano · 4 voices" : "Төгөлдөр хуур · 4 хоолой",
       instrument: "piano", volume: 54, mute: false, solo: false,
       abc: classical.TURKISH_MARCH_ABC }];
+  }
+
+  function createEntertainer(language) {
+    return [{ id: 1,
+      name: language === "en" ? "Ragtime piano · 8 voices" : "Рэгтайм төгөлдөр хуур · 8 хоолой",
+      instrument: "piano", volume: 54, mute: false, solo: false,
+      abc: joplin.ENTERTAINER_ABC }];
   }
 
   const STRUM_STUDY = Object.freeze({
@@ -886,6 +901,7 @@
   function create(id, language = "mn") {
     if (Object.hasOwn(DRUM_SOLOS, id)) return createDrumSolo(id, language);
     if (id === "turkishMarch") return createTurkishMarch(language);
+    if (id === "entertainer") return createEntertainer(language);
     if (id === "charleston") return createCharleston(language);
     if (id === "elChoclo") return createElChoclo(language);
     if (id === "guitarStrum") return createGuitarStrum(language);

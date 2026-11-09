@@ -61,7 +61,7 @@ test("loading a preset makes independent track objects and local ABC edits do no
   assert.equal(again[0].name, "Аялгуу");
   assert.equal(again[1].mute, false);
   assert.throws(() => presets.create("not-present"), /Unknown ensemble preset/);
-  assert.equal(presets.CATALOG.length, 22);
+  assert.equal(presets.CATALOG.length, 23);
 });
 
 test("Turkish March is the complete K.331 finale with all unfolded pitched/grace attacks", () => {
@@ -105,6 +105,40 @@ test("Turkish March is the complete K.331 finale with all unfolded pitched/grace
   }
   original[0].abc = "user edited";
   assert.notEqual(presets.create("turkishMarch")[0].abc, "user edited");
+});
+
+test("RP2 Entertainer retains all four repeated strains, alternate endings and exact piano attacks", () => {
+  const entry = presets.CATALOG.find(item => item.id === "entertainer");
+  assert.equal(entry.category, "classics");
+  assert.match(entry.description.en, /152 played/);
+  for (const language of ["en", "mn"]) {
+    const original = presets.create("entertainer", language);
+    assert.deepEqual(original.map(track => track.instrument), ["piano"]);
+    assert.ok(original[0].abc.includes("CC0 1.0") && original[0].abc.includes("Q:1/4=76"));
+    const { summary, prepared } = ensemble.parseTracks(original, "equal", temperament);
+    const parsed = prepared[0].score;
+    assert.equal(parsed.bars.length, 152);
+    assert.equal(parsed.totalBeats, 304);
+    assert.equal(summary.eventCount, 2623);
+    assert.deepEqual(parsed.parts[0].voiceIds,
+      ["RH1", "RH2", "RH3", "RH4", "LH1", "LH2", "LH3", "LH4"]);
+    assert.deepEqual(parsed.tempoMap, [
+      { beat: 0, tempoQuarter: 72 }, { beat: 72, tempoQuarter: 76 },
+      { beat: 136, tempoQuarter: 72 }, { beat: 168, tempoQuarter: 74 },
+      { beat: 232, tempoQuarter: 72 }, { beat: 240, tempoQuarter: 76 },
+      { beat: 302, tempoQuarter: 72 }
+    ]);
+    assert.ok(Math.abs(score.beatToSeconds(parsed, 304) - 246.3655761024182) < 1e-10);
+    const attacks = playerModel.scheduledEvents(parsed);
+    assert.deepEqual(parsed.parts[0].voiceIds.map(id =>
+      attacks.filter(event => event.voiceId === id).length),
+    [747, 405, 196, 46, 581, 419, 210, 19]);
+    const signature = parsed.parts[0].voiceIds.flatMap(id =>
+      attacks.filter(event => event.voiceId === id).map(event =>
+        JSON.stringify([event.startBeat, event.durationBeats, score.pitchNumber(event.pitch)]))).join("\n");
+    assert.equal(crypto.createHash("sha256").update(signature).digest("hex"),
+      "6f041441f38bc47ec699ca614fb5afa866a8f613d1a0b69cb4ea028e8d604581");
+  }
 });
 
 test("El Choclo is a complete contrasting minor/major tango with synchronized original parts", () => {
