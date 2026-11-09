@@ -18,7 +18,8 @@ test("a feedback-plucked string is finite, pitched and decays", () => {
     }
   }
   assert.notEqual(guitar.pluckAt(.018, 220, .65, .12), guitar.pluckAt(.018, 220, .65, .45));
-  assert.throws(() => guitar.pluckAt(.1, 40, .65), RangeError);
+  assert.doesNotThrow(() => guitar.pluckAt(.1, 40, .65));
+  assert.throws(() => guitar.pluckAt(.1, 17, .65), RangeError);
   assert.throws(() => guitar.pluckAt(.1, 220, .65, .65), RangeError);
 });
 

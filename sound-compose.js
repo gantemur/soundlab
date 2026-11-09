@@ -238,7 +238,7 @@
       loadError: "Choose a text score (.abc or .txt, up to 1 MiB).",
       noAudio: "Sound could not start. Check the browser's audio settings.",
       parseError: "Score error", rangeError: "Note outside the selected instrument's range",
-      approximateRange: "Approximate timbre beyond modeled register",
+      approximateRange: "Approximate timbre outside usual register",
       bar: "Bar", rest: "Rest", notes: "notes", bars: "bars", seconds: "sec",
       empty: "No valid score yet", now: "Now", model: "Modeled instruments · one part · ABC subset",
       footer: "This tab plays one ABC part, including chords, with a readable staff. The Many instruments tab combines parts and also has reusable drum patterns."
@@ -292,7 +292,7 @@
       loadError: "1 МиБ-аас бага хэмжээтэй .abc эсвэл .txt файл сонгоно уу.",
       noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу.",
       parseError: "Нотын бичгийн алдаа", rangeError: "Нотын өндөр сонгосон зэмсгийн хүрээнээс хэтэрлээ",
-      approximateRange: "Загварын хүрээнээс гадуурх нотыг ойролцоогоор дуугаргана",
+      approximateRange: "Ердийн хүрээнээс гадуурх нотыг ойролцоогоор дуугаргана",
       bar: "Такт", rest: "Завсарлага", notes: "нот", bars: "такт", seconds: "сек",
       empty: "Зөв аялгуу хараахан байхгүй", now: "Одоо", model: "Загварчилсан зэмсгүүд · нэг хоолой · ABC-ийн үндсэн тэмдэглэгээ",
       footer: "Энд аккордтойгоо нэг ABC хоолойг нотын мөртэй нь тоглуулна. Олон хөгжим хэсэгт хэд хэдэн хоолой болон давталттай бөмбөрийн загваруудыг хамт тоглуулж болно."

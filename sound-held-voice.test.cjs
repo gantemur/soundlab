@@ -563,7 +563,7 @@ test("natural end stops looped noise and disconnects every node exactly once", (
 });
 
 test("invalid parameters fail before allocating any Web Audio nodes or buffers", () => {
-  for (const options of [{ kind: "reed" }, { hz: 109 }, { hz: 881 }, { hz: NaN },
+  for (const options of [{ kind: "reed" }, { hz: 19.99 }, { hz: 5000.01 }, { hz: NaN },
     { strength: -1 }, { strength: 101 }, { strength: Infinity }, { level: -1 }, { level: 2 },
     { level: NaN }, { attack: .001 }, { release: 2 }, { offsetSeconds: -1 },
     { offsetSeconds: Infinity }, { noteDurationSeconds: -1 }, { noteDurationSeconds: NaN },

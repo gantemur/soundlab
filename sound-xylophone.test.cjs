@@ -44,7 +44,7 @@ test("xylophone is an independently bounded hard-struck bar with a shorter tail"
 });
 
 test("xylophone rejects invalid pitch, strength, decay, rate or time", () => {
-  for (const pitch of [NaN, Infinity, -Infinity, 261.6254, 2093.006]) {
+  for (const pitch of [NaN, Infinity, -Infinity, 19.999, 5000.001]) {
     assert.throws(() => xylo.sampleAt(.01, pitch), RangeError);
   }
   for (const decay of [NaN, Infinity, -.1, 0, .1199, 1.2001]) {
@@ -61,7 +61,7 @@ test("xylophone rejects invalid pitch, strength, decay, rate or time", () => {
     assert.throws(() => xylo.sampleAt(time, 523.251131), RangeError);
     assert.throws(() => xylo.envelope(time), RangeError);
   }
-  for (const pitch of [xylo.MIN_HZ, xylo.MAX_HZ]) {
+  for (const pitch of [20, xylo.MIN_HZ, xylo.MAX_HZ, 5000]) {
     for (const rate of [8000, 192000]) {
       assert.doesNotThrow(() => xylo.validate(pitch, .32, .66, rate));
     }

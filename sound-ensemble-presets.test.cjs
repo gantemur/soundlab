@@ -441,6 +441,28 @@ test("creative instrument substitutions retain all attacks with non-blocking reg
   }
 });
 
+test("every pitched timbre can replace a lead in folk, dance, ragtime and classical arrangements", () => {
+  for (const id of ["bella", "minuet", "charleston", "entertainer", "furElise", "minuteWaltz"]) {
+    const original = presets.create(id, "en");
+    const reference = ensemble.parseTracks(original, "equal", temperament);
+    const written = playerModel.scheduledEvents(reference.prepared[0].score).map(event =>
+      [event.startBeat, event.durationBeats, score.pitchNumber(event.pitch)]);
+    for (const instrument of playerModel.INSTRUMENTS) {
+      const tracks = presets.create(id, "en");
+      tracks[0].instrument = instrument;
+      const { prepared, summary } = ensemble.parseTracks(tracks, "equal", temperament);
+      const heard = playerModel.scheduledEvents(prepared[0].score).map(event =>
+        [event.startBeat, event.durationBeats, score.pitchNumber(event.pitch)]);
+      assert.deepEqual(heard, written, `${id} on ${instrument} preserves all notes`);
+      assert.equal(summary.eventCount, reference.summary.eventCount,
+        `${id} on ${instrument} preserves the entire ensemble`);
+      assert.ok(summary.warnings.every(w => w.trackId === tracks[0].id ||
+        reference.summary.warnings.some(old => old.trackId === w.trackId)),
+      `${id} on ${instrument} only adds advisory register warnings`);
+    }
+  }
+});
+
 test("complete Chopin preludes have two synchronized piano hands and preserved chord harmony", () => {
   for (const { id, bars, beats, key } of [
     { id: "chopin7", bars: 17, beats: 49, key: "A" },

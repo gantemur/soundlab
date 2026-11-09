@@ -36,7 +36,7 @@ test("xylophone shares the finite transient plot/playback path with bounded, rat
   assert.equal(sound.plottedSampleAt("xylophone", 1.28, 523.251131, .32), 0);
   assert.ok(sound.makeSamples("xylophone", 523.251131, .32, 8000, "medium",
     { velocity: 0 }).every(value => value === 0));
-  assert.throws(() => sound.validate("xylophone", 220, .32), RangeError);
+  assert.doesNotThrow(() => sound.validate("xylophone", 220, .32));
   assert.throws(() => sound.validate("xylophone", 523.251131, .32, "medium", { velocity: 1.1 }), RangeError);
   assert.deepEqual(sound.DRUM_VOICES, ["membrane", "snare", "cymbal", "steelpan", "chimes", "woodblock"]);
 });
@@ -59,13 +59,13 @@ test("marimba transient playback and plots share one finite pitched-hit recipe",
 
 test("marimba recipe validation preserves the existing percussion mapping", () => {
   assert.deepEqual(sound.DRUM_VOICES, ["membrane", "snare", "cymbal", "steelpan", "chimes", "woodblock"]);
-  for (const pitch of [NaN, 109.99, 1760.01]) {
+  for (const pitch of [NaN, 19.99, 5000.01]) {
     assert.throws(() => sound.validate("marimba", pitch, .65), RangeError);
   }
   for (const velocity of [-.01, 1.01, NaN, Infinity]) {
     assert.throws(() => sound.validate("marimba", 440, .65, "medium", { velocity }), RangeError);
   }
-  for (const pitch of [110, 1760]) assert.doesNotThrow(() => sound.validate("marimba", pitch, .65));
+  for (const pitch of [20, 110, 1760, 5000]) assert.doesNotThrow(() => sound.validate("marimba", pitch, .65));
 });
 
 test("acoustic piano can synthesize low and high score chords beyond the guitar's pitch range", () => {
@@ -75,9 +75,9 @@ test("acoustic piano can synthesize low and high score chords beyond the guitar'
     assert.ok(sample.every(Number.isFinite));
     assert.ok(sample.some(value => Math.abs(value) > 1e-4), "Piano note is audible at " + pitchHz + " Hz");
   }
-  assert.throws(() => sound.makeSamples("pluck", 43.6535, .4, 8000), /supported range/);
-  assert.throws(() => sound.makeSamples("piano", 24, .4, 8000), /supported range/);
-  assert.throws(() => sound.makeSamples("piano", 2000, .4, 8000), /supported range/);
+  assert.doesNotThrow(() => sound.makeSamples("pluck", 43.6535, .4, 8000));
+  assert.doesNotThrow(() => sound.makeSamples("piano", 24, .4, 8000));
+  assert.doesNotThrow(() => sound.makeSamples("piano", 2000, .4, 8000));
 });
 
 test("guitar score voicings synthesize the low E and G strings without clipping", () => {
@@ -87,7 +87,7 @@ test("guitar score voicings synthesize the low E and G strings without clipping"
     assert.ok(samples.some(value => Math.abs(value) > .01), "Low string has an audible signal");
     assert.ok(Math.abs(samples.at(-1)) < .001, "The low string still fades to silence");
   }
-  assert.throws(() => sound.makeSamples("pluck", 79, .65, 16000), /supported range/);
+  assert.doesNotThrow(() => sound.makeSamples("pluck", 79, .65, 16000));
 });
 
 test("membrane fundamentals depend on size and the square root of tension", () => {
@@ -242,8 +242,8 @@ test("struck chimes have definite pitches and long metallic resonance unlike woo
 
 test("invalid or unbounded transient recipes are rejected", () => {
   assert.throws(() => sound.makeSamples("other", 220, 0.5, 44100), RangeError);
-  assert.throws(() => sound.makeSamples("pluck", 2000, 0.5, 44100), RangeError);
-  assert.throws(() => sound.makeSamples("piano", 2000, 0.5, 44100), RangeError);
+  assert.throws(() => sound.makeSamples("pluck", 5001, 0.5, 44100), RangeError);
+  assert.throws(() => sound.makeSamples("piano", 5001, 0.5, 44100), RangeError);
   assert.throws(() => sound.makeSamples("pluck", 220, 10, 44100), RangeError);
   assert.throws(() => sound.makeSamples("kick", 220, 0.3, 0), RangeError);
   assert.throws(() => sound.makeSamples("kick", 220, 0.3, 44100, "giant"), RangeError);

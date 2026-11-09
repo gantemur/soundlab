@@ -146,7 +146,9 @@ test("ensemble validates event limits, instrument names and 1–4 tracks", () =>
   assert.throws(() => playerModel.validateEnsemble([{ ...prepared[0], volume: -2 }], "equal", temperament), /Invalid track/);
   assert.throws(() => playerModel.validateEnsemble([prepared[0]], "unknown", temperament), /1–4/);
   const high = mk({ ...prepared[0], abc: prepared[0].abc.replace(/C D E G/, "c' d' e' g'") });
-  assert.throws(() => playerModel.validateEnsemble([high], "equal", temperament), /outside flute range/);
+  const result = playerModel.validateEnsemble([high], "equal", temperament);
+  assert.ok(result.warnings.some(warning => warning.instrument === "flute"),
+    "out-of-reference flute notes remain playable with an advisory warning");
 });
 
 test("the stable pitched instrument list has bilingual labels including Mandolin, Marimba, Xylophone and Clarinet", () => {

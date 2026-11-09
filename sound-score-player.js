@@ -28,6 +28,10 @@
   "use strict";
 
   const WAVEFORMS = Object.freeze(["sine", "triangle", "square", "sawtooth"]);
+  // Every spelled ABC pitch (octaves 1–7, including double accidentals)
+  // fits inside this safe 16 kHz-host fundamental range. The instrument's
+  // realistic/modelled register is a separate advisory value below.
+  const SCORE_SYNTH_RANGE = Object.freeze([20, 5000]);
   // Approximate relative loudness calibration for Ensemble only. The source
   // models have very different native RMS levels (especially periodic waves,
   // piano/FM and plucked courses). Keep each track fader linear and separate;
@@ -107,25 +111,21 @@
   }
 
   function instrumentRange(instrument) {
-    // A digital oscillator has no A2–A5 instrumental register. The score
-    // parser currently accepts spelled pitches in octaves 1–7; this bound
-    // covers those notes (including double accidentals) with safe headroom.
-    if (WAVEFORMS.includes(instrument)) return [20, 5000];
-    if (i3Held.KINDS.includes(instrument)) return i3Held.rangeFor(instrument);
-    if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.rangeFor(instrument);
-    if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
-    if (instrument === "xylophone") return [xylophoneModel.MIN_HZ, xylophoneModel.MAX_HZ];
-    if (instrument === "mandolin") return [mandolinModel.MIN_HZ, mandolinModel.MAX_HZ];
-    if (instrument === "harp") return [harpModel.MIN_HZ, harpModel.MAX_HZ];
-    return [instrument === "piano" ? 27.5 : instrument === "guitar" ? 80 : scoreModel.MIN_NOTE_HZ,
-      // Acoustic piano extends to C8, not A6. High Für Elise right-hand
-      // notes must retain their register; modal synthesis bounds partials.
-      instrument === "piano" ? 4186.1 : instrument === "chimes" ? 1200 : scoreModel.MAX_NOTE_HZ];
+    if (!INSTRUMENTS.includes(instrument)) throw new RangeError("Unknown pitched instrument");
+    return [...SCORE_SYNTH_RANGE];
   }
 
   function instrumentRecommendedRange(instrument) {
     if (i3Held.KINDS.includes(instrument)) return i3Held.recommendedRangeFor(instrument);
     if (HELD_INSTRUMENTS.includes(instrument)) return heldVoice.recommendedRangeFor(instrument);
+    if (instrument === "marimba") return [marimbaModel.MIN_HZ, marimbaModel.MAX_HZ];
+    if (instrument === "xylophone") return [xylophoneModel.MIN_HZ, xylophoneModel.MAX_HZ];
+    if (instrument === "mandolin") return [mandolinModel.MIN_HZ, mandolinModel.MAX_HZ];
+    if (instrument === "harp") return [harpModel.MIN_HZ, harpModel.MAX_HZ];
+    if (instrument === "piano") return [27.5, 4186.1];
+    if (instrument === "guitar") return [80, 880];
+    if (instrument === "chimes") return [110, 1200];
+    if (instrument === "fmep") return [110, 880];
     return instrumentRange(instrument);
   }
 
@@ -875,7 +875,7 @@
     }
   }
 
-  return Object.freeze({ INSTRUMENTS, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES,
+  return Object.freeze({ INSTRUMENTS, SCORE_SYNTH_RANGE, ENSEMBLE_VOICE_GAIN, GUITAR_MODES, DEFAULT_GUITAR, DRUM_RECIPES,
     AHEAD_SECONDS, HAT_CHOKE_SECONDS,
     MAX_PARTS, MAX_BUFFER_CACHE,
     noteFrequency, instrumentRange, instrumentRecommendedRange, rangeWarning,

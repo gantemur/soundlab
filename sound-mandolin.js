@@ -35,7 +35,9 @@
   const cache = new Map();
 
   function courseFrequencies(hz) {
-    if (!Number.isFinite(hz) || hz < MIN_HZ || hz > MAX_HZ) {
+    // Reference tuning/frets above are pedagogical, not the feedback-string
+    // synthesizer's full pitch reach. Keep the former for UI and warnings.
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000) {
       throw new RangeError("Mandolin pitch outside the supported range");
     }
     return [hz * Math.pow(2, -COURSE_DETUNE_CENTS / 2400),

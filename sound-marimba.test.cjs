@@ -45,7 +45,7 @@ test("marimba has one stable pitched-hit contract and illustrative bar modes", (
 });
 
 test("marimba rejects nonfinite and unsupported pitches, strengths, decays and rates", () => {
-  for (const pitch of [NaN, Infinity, -Infinity, 109.999, 1760.001]) {
+  for (const pitch of [NaN, Infinity, -Infinity, 19.999, 5000.001]) {
     assert.throws(() => marimba.sampleAt(.1, pitch), RangeError);
   }
   for (const decay of [NaN, Infinity, -.1, 0, .119, 1.201]) {
@@ -62,7 +62,7 @@ test("marimba rejects nonfinite and unsupported pitches, strengths, decays and r
     assert.throws(() => marimba.sampleAt(time, 440), RangeError);
     assert.throws(() => marimba.envelope(time), RangeError);
   }
-  for (const pitch of [marimba.MIN_HZ, marimba.MAX_HZ]) {
+  for (const pitch of [20, marimba.MIN_HZ, marimba.MAX_HZ, 5000]) {
     for (const rate of [8000, 192000]) assert.doesNotThrow(() => marimba.validate(pitch, .65, .62, rate));
   }
 });

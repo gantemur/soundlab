@@ -42,7 +42,9 @@
   }
 
   function makeElectricPianoSamples(hz, sampleRate, options = {}) {
-    if (!Number.isFinite(hz) || hz < 110 || hz > 880 ||
+    // The FM oscillator has no physical keyboard register. Its high carrier
+    // retains a fundamental while the modulation index rolls off.
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000 ||
         !Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 192000 ||
         !Number.isFinite(options.decaySec ?? .8) || (options.decaySec ?? .8) < .12 ||
         (options.decaySec ?? .8) > 1.2 || !Number.isFinite(options.velocity ?? .62) ||

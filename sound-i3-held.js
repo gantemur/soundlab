@@ -41,7 +41,7 @@
   }
   function validate(kind, hz, attack, release) {
     const r = recipe(kind);
-    if (!Number.isFinite(hz) || hz < r.range[0] || hz > r.range[1] ||
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000 ||
         !Number.isFinite(attack) || attack < .02 || attack > .6 ||
         !Number.isFinite(release) || release < .04 || release > 1.2) {
       throw new RangeError("Held pitch or articulation outside instrument range");
@@ -71,7 +71,7 @@
   function weights(kind, strength = 60, hz = 440, sampleRate = 48000) {
     const r = recipe(kind);
     if (!Number.isFinite(strength) || strength < 0 || strength > 100 ||
-        !Number.isFinite(hz) || hz < r.range[0] || hz > r.range[1]) {
+        !Number.isFinite(hz) || hz < 20 || hz > 5000) {
       throw new RangeError("Invalid pipe or bellows pressure or frequency");
     }
     const bright = .12 + .75 * strength / 100;

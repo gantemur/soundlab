@@ -51,7 +51,9 @@
   }
 
   function validate(frequency, decay, position) {
-    if (!Number.isFinite(frequency) || frequency < 60 || frequency > 1400 ||
+    // The 48 kHz feedback delay is stable well beyond real guitar registers.
+    // Leave headroom for the mandolin course's slight pairwise detuning.
+    if (!Number.isFinite(frequency) || frequency < 18 || frequency > 5100 ||
         !Number.isFinite(decay) || decay < 0.12 || decay > 1.2 ||
         !validPosition(position)) throw new RangeError("Invalid plucked-string parameters");
   }

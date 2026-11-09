@@ -61,7 +61,8 @@ test("flute jet model grows from silence, responds to blowing and respects the p
   assert.throws(() => sound.fluteDrive(-1), RangeError);
   assert.throws(() => sound.fluteDrive(101), RangeError);
   assert.throws(() => sound.fluteJetAt(NaN), RangeError);
-  assert.throws(() => sound.fluteComponents(60, 2000), RangeError);
+  assert.ok(sound.fluteComponents(60, 2000)[0].sin !== 0);
+  assert.throws(() => sound.fluteComponents(60, 5001), RangeError);
 });
 
 test("flute breath turbulence stays far below the musical fundamental", () => {
@@ -175,7 +176,8 @@ test("bow pressure changes a bounded stick/slip source while preserving pitch an
   assert.throws(() => sound.bowPressureWeights(101), RangeError);
   assert.throws(() => sound.bowNoiseGain("flute", 40), RangeError);
   assert.throws(() => sound.bowSourceComponents("violin", "unknown"), RangeError);
-  assert.throws(() => sound.bowedComponents("morin", 60, 2000), RangeError);
+  assert.ok(sound.bowedComponents("morin", 60, 2000)[0].sin !== 0);
+  assert.throws(() => sound.bowedComponents("morin", 60, 5001), RangeError);
 });
 
 test("bowed waveform and 24 harmonic bars describe the same periodic tone", () => {
@@ -287,7 +289,8 @@ test("pitch slider, bounds and invalid values are handled safely", () => {
     assert.ok(Math.abs(sound.sliderToHz(sound.hzToSlider(hz)) - hz) < 1e-9);
   }
   assert.throws(() => sound.validate("unknown", 220, .2, .3), RangeError);
-  assert.throws(() => sound.validate("flute", 5000, .2, .3), RangeError);
+  assert.doesNotThrow(() => sound.validate("flute", 5000, .2, .3));
+  assert.throws(() => sound.validate("flute", 5001, .2, .3), RangeError);
   assert.throws(() => sound.validate("flute", 220, 0, .3), RangeError);
   assert.throws(() => sound.validate("flute", 220, .2, 5), RangeError);
   assert.throws(() => sound.waveAt(NaN, "violin"), RangeError);

@@ -85,8 +85,9 @@ test("All Mandolin samples in explainer and 16, 44.1 and 48 kHz PCM share their 
   }
 });
 
-test("Invalid Mandolin register, articulation, strength, decay and sample rate fail before playback", () => {
-  for (const hz of [195, 1320, -220, NaN]) assert.throws(() => mandolin.wave(hz), RangeError);
+test("Invalid Mandolin synthesis limits, articulation, strength, decay and sample rate fail before playback", () => {
+  for (const hz of [19.99, 5000.01, -220, NaN]) assert.throws(() => mandolin.wave(hz), RangeError);
+  for (const hz of [195, 1320]) assert.doesNotThrow(() => mandolin.courseFrequencies(hz));
   for (const [decay, velocity, rate, articulation] of [[.05, .5, 48000, "pick"],
     [.52, 1.1, 48000, "pick"], [.52, .5, 2000, "pick"], [.52, .5, 48000, "vibrato"]]) {
     assert.throws(() => mandolin.wave(440, decay, velocity, rate, articulation), RangeError);

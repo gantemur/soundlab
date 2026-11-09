@@ -68,10 +68,8 @@
     }
     // Compose guitar chords include the open low E (about 82 Hz). The string
     // model already supports this range; keep the exploratory slider unchanged.
-    const lowPitch = kind === "piano" ? 27.5 : kind === "pluck" ? 80 : MIN_PITCH_HZ;
-    const highPitch = kind === "piano" ? 1760 : MAX_PITCH_HZ;
     if ((kind === "pluck" || kind === "piano") &&
-        (!Number.isFinite(pitchHz) || pitchHz < lowPitch || pitchHz > highPitch)) {
+        (!Number.isFinite(pitchHz) || pitchHz < 20 || pitchHz > 5000)) {
       throw new RangeError("Pitched-string frequency outside the supported range");
     }
     if (kind === "marimba") marimba.validate(pitchHz, decaySec,
@@ -91,8 +89,8 @@
         !Number.isFinite(options.velocity ?? .8) ||
         (options.velocity ?? .8) < 0 || (options.velocity ?? .8) > 1 ||
         (options.drumVoice === "chimes" && (!Number.isFinite(options.chimeHz ?? CHIME_PITCHES[kickSize]) ||
-          (options.chimeHz ?? CHIME_PITCHES[kickSize]) < 110 ||
-          (options.chimeHz ?? CHIME_PITCHES[kickSize]) > 1200)))) {
+          (options.chimeHz ?? CHIME_PITCHES[kickSize]) < 20 ||
+          (options.chimeHz ?? CHIME_PITCHES[kickSize]) > 5000)))) {
       throw new RangeError("Unknown drum-size preset");
     }
     if (kind === "pluck" && (!strings.validPosition(options.position ?? .22) ||
@@ -288,9 +286,10 @@
 
   // One struck chime with a crisp attack and decaying inharmonic ringing.
   // No stochastic sequence of collisions: repeated taps are separate hits.
-  function chimeAt(time, pitchHz, decaySec) {
+  function chimeAt(time, pitchHz, decaySec, sampleRate = 48000) {
     let ring = 0;
     for (let mode = 0; mode < CHIME_MODES.length; mode++) {
+      if (pitchHz * CHIME_MODES[mode] >= Math.min(7500, sampleRate * .47)) continue;
       const partialDecay = decaySec * (1.35 - .21 * mode);
       ring += CHIME_WEIGHTS[mode] * Math.exp(-time / partialDecay) *
         Math.sin(TAU * pitchHz * CHIME_MODES[mode] * time + mode * .18);
@@ -326,7 +325,8 @@
       if (voice === "crash") return crashAt(time, decaySec, velocity);
       if (voice === "rimshot") return rimshotAt(time, decaySec, velocity);
       if (voice === "steelpan") return steelpanAt(time, kickSize, decaySec);
-      if (voice === "chimes") return chimeAt(time, options.chimeHz ?? CHIME_PITCHES[kickSize], decaySec);
+      if (voice === "chimes") return chimeAt(time, options.chimeHz ?? CHIME_PITCHES[kickSize],
+        decaySec, options.sampleRate ?? 48000);
       if (voice === "woodblock") return woodblockAt(time, kickSize, decaySec, velocity);
       // Circular-membrane eigenfrequencies are Bessel zeros, not integer harmonics.
       return membraneAt(time, kickSize, options.drumTension ?? 1, decaySec, velocity);
@@ -382,6 +382,7 @@
     // Supply the playback sample rate to models with sample-rate-aware mode
     // suppression. Tuned bars' fixed band caps also match the 16 kHz plots.
     const modelOptions = kind === "marimba" || kind === "xylophone" || kind === "mandolin" || kind === "harp" ||
+      (kind === "kick" && options.drumVoice === "chimes") ||
       (kind === "piano" && options.pianoVoice === "electric") ?
       { ...options, sampleRate } : options;
     for (let i = 0; i < count; i++) {

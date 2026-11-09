@@ -29,7 +29,8 @@ test("I3 harp has a soft, register-dependent pluck, reproducible bounded samples
     }
   }
   assert.ok(harp.envelope(1, .92, .62) > harp.envelope(2, .92, .62));
-  assert.throws(() => transient.makeSamples("harp", 40, .92, 16000), /range/);
+  assert.doesNotThrow(() => transient.makeSamples("harp", 40, .92, 16000));
+  assert.throws(() => transient.makeSamples("harp", 10, .92, 16000), /range/);
   assert.throws(() => harp.sampleAt(.2, 440, .92, -1), /range/);
 });
 
@@ -105,7 +106,7 @@ test("I3 held voices start only on command; pressure/pitch updates, note-off and
   }
 });
 
-test("I3 score selection enforces each instrument's range and preserves standard ABC concert pitches", () => {
+test("I3 score selection warns outside reference registers while preserving standard ABC concert pitches", () => {
   const dummyOwner = { output: {}, readyContext() { throw new Error("unexpected audio"); } };
   const dummyModel = { makeSamples() { throw new Error("unexpected sample rendering"); } };
   const player = new scorePlayer.Player({ contextOwner: dummyOwner, transientModel: dummyModel,
@@ -115,6 +116,11 @@ test("I3 score selection enforces each instrument's range and preserves standard
     assert.doesNotThrow(() => player.configure({ score: tune, instrument }));
   }
   const bass = abc.parse("M:4/4\nL:1/4\nQ:1/4=100\nK:C\nC,,,4 |]");
-  assert.throws(() => player.configure({ score: bass, instrument: "harp" }), /outside/);
-  assert.throws(() => player.configure({ score: bass, instrument: "accordion" }), /outside/);
+  for (const instrument of ["harp", "accordion"]) {
+    assert.doesNotThrow(() => player.configure({ score: bass, instrument }));
+    assert.equal(player.warnings.length, 1);
+    assert.equal(player.warnings[0].count, 1);
+    assert.deepEqual(player.playEvents.map(event => event.pitch),
+      scorePlayer.scheduledEvents(bass).map(event => event.pitch));
+  }
 });

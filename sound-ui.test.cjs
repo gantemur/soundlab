@@ -60,17 +60,17 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /id="modeStrike"[^>]*>Цохих\/татах<\/button>/);
   assert.match(html, /id="modeSustain"[^>]*>Үлээх\/нумдах<\/button>/);
   assert.match(html, /id="fixedTimeCheck" checked/);
-  assert.match(html, /src="sound-string\.js\?v=s062"/);
-  assert.match(html, /src="sound-mandolin\.js\?v=s063"/);
+  assert.match(html, /src="sound-string\.js\?v=range2"/);
+  assert.match(html, /src="sound-mandolin\.js\?v=range2"/);
   assert.match(html, /src="sound-piano\.js\?v=s019"/);
-  assert.match(html, /src="sound-marimba\.js\?v=s059"/);
-  assert.match(html, /src="sound-xylophone\.js\?v=s060"/);
-  assert.match(html, /src="sound-harp\.js\?v=s066"/);
-  assert.match(html, /src="sound-transient\.js\?v=s073"/);
+  assert.match(html, /src="sound-marimba\.js\?v=range2"/);
+  assert.match(html, /src="sound-xylophone\.js\?v=range2"/);
+  assert.match(html, /src="sound-harp\.js\?v=range2"/);
+  assert.match(html, /src="sound-transient\.js\?v=range2"/);
   assert.match(html, /src="sound-clarinet\.js\?v=range1"/);
-  assert.match(html, /src="sound-sustain\.js\?v=range1"/);
+  assert.match(html, /src="sound-sustain\.js\?v=range2"/);
   assert.match(html, /src="sound-held-voice\.js\?v=range1"/);
-  assert.match(html, /src="sound-i3-held\.js\?v=range1"/);
+  assert.match(html, /src="sound-i3-held\.js\?v=range2"/);
   assert.ok(html.indexOf('src="sound-marimba.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-xylophone.js') < html.indexOf('src="sound-transient.js'));
   assert.ok(html.indexOf('src="sound-string.js') < html.indexOf('src="sound-mandolin.js'));
@@ -91,18 +91,18 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-temperaments\.js\?v=s036"/);
   assert.match(html, /src="sound-score\.js\?v=rp4"/);
   assert.match(html, /src="sound-abc\.js\?v=rp4"/);
-  assert.match(html, /src="sound-fm\.js\?v=s044"/);
+  assert.match(html, /src="sound-fm\.js\?v=range2"/);
   assert.match(html, /src="sound-drum-abc\.js\?v=s087"/);
   assert.match(html, /src="sound-drum-patterns\.js\?v=s087"/);
-  assert.match(html, /src="sound-score-player\.js\?v=range1"/);
-  assert.match(html, /src="sound-compose\.js\?v=range1"/);
+  assert.match(html, /src="sound-score-player\.js\?v=range2"/);
+  assert.match(html, /src="sound-compose\.js\?v=range2"/);
   assert.match(html, /src="sound-classical-scores\.js\?v=rp1b"/);
   assert.match(html, /src="sound-joplin-scores\.js\?v=rp2"/);
   assert.match(html, /src="sound-beethoven-scores\.js\?v=rp3"/);
   assert.match(html, /src="sound-chopin-scores\.js\?v=rp4"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=rp4"/);
   assert.match(html, /src="sound-export\.js\?v=rp3"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=range1"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=range2"/);
   assert.match(html, /src="sound-project\.js\?v=s087"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s087"/);
   assert.match(html, /src="sound-wav\.js\?v=s087"/);
@@ -3600,12 +3600,12 @@ test("Compose registers report approximations but keep clarinet F5 playable in b
   assert.ok(app.elements.get("composeStatus").classList.contains("warning"));
   assert.equal(app.contexts.length, 0, "Changing the score and instrument stays silent");
   app.fire("langMn", "click");
-  assert.match(app.elements.get("composeStatus").textContent, /Загварын хүрээнээс.*Кларнет F5/);
+  assert.match(app.elements.get("composeStatus").textContent, /Ердийн хүрээнээс.*Кларнет F5/);
   await app.fire("composePlayPause", "click");
   assert.ok(app.contexts[0].oscillators.length >= 2, "The reed plays with its two excitation sources");
-  assert.match(app.elements.get("composeStatus").textContent, /Загварын хүрээнээс/);
+  assert.match(app.elements.get("composeStatus").textContent, /Ердийн хүрээнээс/);
   app.fire("stopAll", "click");
-  assert.match(app.elements.get("composeStatus").textContent, /Загварын хүрээнээс/);
+  assert.match(app.elements.get("composeStatus").textContent, /Ердийн хүрээнээс/);
 });
 
 test("Bella Ciao clarinet substitution is playable and warnings survive UI translation", () => {
@@ -3622,7 +3622,39 @@ test("Bella Ciao clarinet substitution is playable and warnings survive UI trans
   assert.ok(app.elements.get("ensembleStatus").classList.contains("warning"));
   assert.equal(app.contexts.length, 0);
   app.fire("langMn", "click");
-  assert.match(app.elements.get("ensembleStatus").textContent, /Загварын хүрээнээс.*Кларнет F5/);
+  assert.match(app.elements.get("ensembleStatus").textContent, /Ердийн хүрээнээс.*Кларнет F5/);
+  assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
+  assert.equal(app.contexts.length, 0);
+});
+
+test("all 20 Compose instrument swaps remain playable, silent until Play, and warn only when needed", () => {
+  const core = require("./sound-score-player.js");
+  const app = fakePage("?lang=en");
+  app.fire("modeCompose", "click");
+  app.composeSubtabButtons[1].click();
+  app.elements.get("ensemblePreset").value = "bella";
+  app.fire("ensembleApplyPreset", "click");
+  for (const instrument of core.INSTRUMENTS) {
+    const picker = projectTrackControl(app, 0, "ensemble-instrument");
+    picker.value = instrument;
+    picker.events.change();
+    assert.equal(app.elements.get("ensemblePlayPause").disabled, false,
+      `${instrument} should be playable after substitution`);
+    assert.equal(app.elements.get("ensembleStatus").classList.contains("error"), false,
+      `${instrument} must not cause a score error`);
+    const tracks = ensemblePresets.create("bella", "en");
+    tracks[0].instrument = instrument;
+    const { summary } = ensembleModel.parseTracks(tracks, "equal", tempModel);
+    assert.equal(app.elements.get("ensembleStatus").classList.contains("warning"),
+      summary.warnings.length > 0, `${instrument} warning state matches advisory register`);
+    assert.equal(app.contexts.length, 0, "Changing instruments must never begin playback");
+  }
+  const picker = projectTrackControl(app, 0, "ensemble-instrument");
+  picker.value = "clarinet";
+  picker.events.change();
+  assert.match(app.elements.get("ensembleStatus").textContent, /Approximate timbre/);
+  app.fire("langMn", "click");
+  assert.match(app.elements.get("ensembleStatus").textContent, /Ердийн хүрээнээс/);
   assert.equal(app.elements.get("ensemblePlayPause").disabled, false);
   assert.equal(app.contexts.length, 0);
 });

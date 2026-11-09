@@ -41,7 +41,9 @@
 
   function validate(pitchHz, decaySec = DEFAULT_DECAY,
     velocity = DEFAULT_VELOCITY, sampleRate = REFERENCE_RATE) {
-    if (!Number.isFinite(pitchHz) || pitchHz < MIN_HZ || pitchHz > MAX_HZ) {
+    // The flexural modes can be extrapolated beyond a real bar's register.
+    // MIN_HZ/MAX_HZ remain the original teaching and warning bounds.
+    if (!Number.isFinite(pitchHz) || pitchHz < 20 || pitchHz > 5000) {
       throw new RangeError("Marimba pitch outside the supported range");
     }
     if (!Number.isFinite(decaySec) || decaySec < MIN_DECAY || decaySec > MAX_DECAY) {

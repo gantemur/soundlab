@@ -16,7 +16,9 @@
   let cachedKey = null, cachedRecipe = null;
 
   function validate(hz, decay = DEFAULT_DECAY, velocity = DEFAULT_VELOCITY, sampleRate = 48000) {
-    if (!Number.isFinite(hz) || hz < MIN_HZ || hz > MAX_HZ ||
+    // Pitched score notes may extrapolate the same modal string recipe.
+    // MIN_HZ/MAX_HZ remain the useful reference register for the explorer.
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000 ||
         !Number.isFinite(decay) || decay < .12 || decay > 1.2 ||
         !Number.isFinite(velocity) || velocity < 0 || velocity > 1 ||
         !Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 192000) {

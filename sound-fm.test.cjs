@@ -35,8 +35,12 @@ test("FM piano is deterministic, pitched and timbrally different from a sine", (
 });
 
 test("FM piano rejects unusable pitch and sample-rate inputs", () => {
-  for (const frequency of [0, 109, 881, Infinity, NaN]) {
+  for (const frequency of [0, 19.99, 5000.01, Infinity, NaN]) {
     assert.throws(() => fm.makeElectricPianoSamples(frequency, 16000), RangeError);
+  }
+  for (const frequency of [109, 881, 4000]) {
+    assert.ok(fm.makeElectricPianoSamples(frequency, 16000).every(Number.isFinite),
+      `${frequency} Hz is a valid creative-score frequency`);
   }
   for (const sampleRate of [0, 4000, Infinity, NaN]) {
     assert.throws(() => fm.makeElectricPianoSamples(440, sampleRate), RangeError);

@@ -41,8 +41,12 @@ test("clarinet keeps its E5 reference while synthesizing an extended upper regis
       assert.ok(amplitudes[0] > amplitudes[2]);
     }
   }
-  for (const hz of [120, 146, 1047, 1200, NaN, Infinity]) {
+  for (const hz of [19.99, 5000.01, NaN, Infinity]) {
     assert.throws(() => sustain.clarinetComponents(60, hz), RangeError);
+  }
+  for (const hz of [120, 146, 1047, 1200, 5000]) {
+    assert.ok(sustain.clarinetComponents(60, hz, 16000)[0].sin !== 0,
+      `${hz} Hz keeps the actual reed fundamental outside the reference register`);
   }
   for (const breath of [-1, 101, NaN, Infinity]) {
     assert.throws(() => clarinet.strengthWeights(breath), RangeError);

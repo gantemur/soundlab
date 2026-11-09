@@ -98,7 +98,7 @@
   }
   function fluteComponents(breath = DEFAULT_BREATH, hz = 440, sampleRate = FLUTE_PLOT_SAMPLE_RATE) {
     const a = fluteDrive(breath);
-    if (!Number.isFinite(hz) || hz < MIN_HZ || hz > MAX_HZ ||
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000 ||
         !Number.isFinite(sampleRate) || sampleRate < 16000) {
       throw new RangeError("Invalid flute pitch or sample rate");
     }
@@ -108,6 +108,7 @@
     const sourceCos = [0, -.15 * a2, 0, 0, 0, 0, 0, 0];
     return sourceSin.map((sin, index) => {
       const frequency = (index + 1) * hz;
+      if (frequency >= Math.min(7500, sampleRate * .47)) return Object.freeze({ sin: 0, cos: 0 });
       const hp = biquadResponse("highpass", frequency, FLUTE_HIGHPASS, sampleRate);
       const lp = biquadResponse("lowpass", frequency, FLUTE_LOWPASS, sampleRate);
       const real = hp.real * lp.real - hp.imag * lp.imag;
@@ -198,13 +199,14 @@
   function bowedComponents(kind, pressure = DEFAULT_BOW_PRESSURE, hz = 440,
     sampleRate = FLUTE_PLOT_SAMPLE_RATE) {
     bowBody(kind);
-    if (!Number.isFinite(hz) || hz < MIN_HZ || hz > MAX_HZ ||
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000 ||
         !Number.isFinite(sampleRate) || sampleRate < 16000) {
       throw new RangeError("Invalid bowed-string pitch or sample rate");
     }
     const weights = bowPressureWeights(pressure);
     const source = BOW_SOURCES[kind];
     return source.soft.map((soft, index) => {
+      if ((index + 1) * hz >= Math.min(7500, sampleRate * .47)) return Object.freeze({ sin: 0, cos: 0 });
       const hard = source.hard[index];
       const sin = weights.soft * soft.sin + weights.hard * hard.sin;
       const cos = weights.soft * soft.cos + weights.hard * hard.cos;
@@ -229,7 +231,7 @@
   }
   function clarinetComponents(breath = DEFAULT_BREATH, hz = 440,
     sampleRate = FLUTE_PLOT_SAMPLE_RATE) {
-    if (!Number.isFinite(hz) || hz < clarinet.MIN_HZ || hz > clarinet.MAX_HZ ||
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000 ||
         !Number.isFinite(sampleRate) || sampleRate < 16000 || sampleRate > 384000) {
       throw new RangeError("Invalid clarinet pitch or sample rate");
     }
@@ -239,7 +241,7 @@
       // At extended pitches not all twelve modes fit below Nyquist, especially
       // on the 16 kHz analysis host. Native PeriodicWave playback band-limits
       // them too; keep the plotted ideal tone free of folded high partials.
-      if ((index + 1) * hz >= sampleRate * .5) return Object.freeze({ sin: 0, cos: 0 });
+      if ((index + 1) * hz >= Math.min(7500, sampleRate * .47)) return Object.freeze({ sin: 0, cos: 0 });
       const bright = clarinet.SOURCES.bright[index];
       const frequency = (index + 1) * hz;
       const hp = biquadResponse("highpass", frequency, body.highpass, sampleRate);
@@ -260,8 +262,7 @@
   }
   function validate(kind, hz, attack, release) {
     if (!KINDS.includes(kind)) throw new RangeError("Unknown held-sound model");
-    const [lower, upper] = rangeFor(kind);
-    if (!Number.isFinite(hz) || hz < lower || hz > upper) {
+    if (!Number.isFinite(hz) || hz < 20 || hz > 5000) {
       throw new RangeError("Held-sound pitch outside supported range");
     }
     if (!Number.isFinite(attack) || attack < MIN_ATTACK || attack > MAX_ATTACK ||

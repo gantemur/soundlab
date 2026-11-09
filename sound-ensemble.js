@@ -74,7 +74,7 @@
       patternsNotGrid: "This ABC uses rhythms outside the sixteenth-note grid; it stays editable as text.",
       now: "Beat", selected: "Selected", maxTracks: "Four tracks is the current maximum.",
       minTracks: "Keep at least one track.", fileError: "Choose a .abc / .txt score up to 1 MiB.",
-      approximateRange: "Approximate timbre beyond modeled register",
+      approximateRange: "Approximate timbre outside usual register",
       error: "Score error", trackError: "Track", noAudio: "Sound could not start. Check audio settings." },
     mn: { heading: "Олон хөгжим тоглуулах", intro: "Бүгд нэг хэмнэлтэй. Хөгжим сонговол нотыг нь засна; тоглуулахад дуугүй болгоогүй бүгд дуугарна. «Ганцаар» нэгийг сонсгоно.",
       tuning: "Хөг", equal: "Тэнцүү (12-TET)", pythagorean: "Пифагорын", just: "Цэвэр · До төвтэй",
@@ -120,7 +120,7 @@
       patternsNotGrid: "ABC-д арван зургаатын торонд багтахгүй хэмнэл байна. Эх бичиг хэвээр үлдэнэ.",
       now: "Цохилт", selected: "Сонгосон", maxTracks: "Одоогоор дээд тал нь дөрвөн хөгжим.",
       minTracks: "Ядаж нэг хөгжмийг үлдээнэ.", fileError: "1 МиБ-аас бага .abc эсвэл .txt файл сонгоно уу.",
-      approximateRange: "Загварын хүрээнээс гадуурх нотыг ойролцоогоор дуугаргана",
+      approximateRange: "Ердийн хүрээнээс гадуурх нотыг ойролцоогоор дуугаргана",
       error: "Нотын алдаа", trackError: "Хөгжим", noAudio: "Дуу эхэлсэнгүй. Хөтчийн аудио тохиргоог шалгана уу." }
   });
   const DEFAULTS = Object.freeze([

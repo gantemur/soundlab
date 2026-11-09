@@ -188,6 +188,46 @@ test("offline export starts at score time zero and never invokes live playback o
   cleaned(f.contexts[0]);
 });
 
+test("offline WAV schedules every pitched timbre at the exact low and high ABC score pitches", async () => {
+  const text = "M:2/4\nL:1/4\nQ:1/4=80\nK:C\n__C,,, ^b'' |]";
+  const written = players.scheduledEvents(abc.parse(text)).map(note =>
+    players.noteFrequency(note, "equal", temperament));
+  assert.equal(written.length, 2);
+  for (const instrument of players.INSTRUMENTS) {
+    const f = fixture();
+    const result = await exporter.render(solo({ abc: text, instrument }), f.deps);
+    assert.equal(result.bytes[0], 82, `${instrument}: RIFF was produced`);
+    const context = f.contexts[0];
+    if (instrument === "fmep") {
+      assert.equal(context.graph.sources.filter(source => source.kind === "buffer").length, 2,
+        "FM electric piano synthesizes both notes using its dedicated frequency-based model");
+      cleaned(context);
+      continue;
+    }
+    if (instrument === "accordion") {
+      const rankHz = context.graph.sources.filter(source => source.kind === "oscillator" &&
+        source.frequency > 0).map(source => source.frequency);
+      for (const hz of written) {
+        const pair = rankHz.filter(value => Math.abs(value - hz) < hz * .005);
+        assert.equal(pair.length, 2, "Accordion has two deliberately detuned ranks for each score pitch");
+        close(Math.sqrt(pair[0] * pair[1]), hz, .00001);
+      }
+      cleaned(context);
+      continue;
+    }
+    const pitched = heldVoice.KINDS.includes(instrument) ||
+      ["organ-stopped", "organ-principal", "accordion", "bayan", "sine", "triangle", "square", "sawtooth"].includes(instrument) ?
+      context.graph.sources.filter(source => source.kind === "oscillator" &&
+        written.some(hz => Math.abs(source.frequency - hz) < .001)).map(source => source.frequency) :
+      f.modelCalls.map(call => call.hz);
+    for (const hz of written) {
+      assert.ok(pitched.some(actual => Math.abs(actual - hz) < .001),
+        `${instrument}: ${hz.toFixed(2)} Hz is scheduled unshifted`);
+    }
+    cleaned(context);
+  }
+});
+
 test("exports beyond the 30-second recorder limit have the exact mono PCM16 header and bounded duration", async () => {
   const text = "M:4/4\nL:1/4\nQ:1/4=120\nK:C\n" + Array(16).fill("C4").join(" | ") + " |]";
   const f = fixture(), result = await exporter.render(solo({ abc: text }), f.deps);

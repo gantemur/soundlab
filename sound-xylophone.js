@@ -39,7 +39,9 @@
 
   function validate(pitchHz, decaySec = DEFAULT_DECAY,
     velocity = DEFAULT_VELOCITY, sampleRate = REFERENCE_RATE) {
-    if (!Number.isFinite(pitchHz) || pitchHz < MIN_HZ || pitchHz > MAX_HZ) {
+    // Preserve the original bar register for UI/warnings; wider ABC playback
+    // uses the same sample-rate-tapered partial recipe.
+    if (!Number.isFinite(pitchHz) || pitchHz < 20 || pitchHz > 5000) {
       throw new RangeError("Xylophone pitch outside the supported range");
     }
     if (!Number.isFinite(decaySec) || decaySec < MIN_DECAY || decaySec > MAX_DECAY) {
