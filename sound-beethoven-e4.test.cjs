@@ -27,6 +27,16 @@ test("E4 pedal marks change piano release but do not change written lengths", ()
   assert.equal(scoreModel.pedalReleaseBeat(written, 2), 2, "pedal-up at a key release has precedence");
 });
 
+test("RP3 long-score timeline hides floating-point tuplet roundoff", () => {
+  const label = { textContent: "" }, playhead = { style: {} };
+  ensemble.Controller.prototype.updatePlayhead.call({
+    summary: { totalBeats: 187.49999999999957 }, playheadNodes: [playhead],
+    t: key => key === "now" ? "Beat" : key, $: id => id === "ensembleNow" ? label : null
+  }, 34.3);
+  assert.equal(label.textContent, "Beat 34.3 / 187.5");
+  assert.ok(Math.abs(parseFloat(playhead.style.left) - 100 * 34.3 / 187.5) < 1e-8);
+});
+
 test("E4 staccato and legato modify sounding releases without moving attacks or score bars", () => {
   const score = note("!staccato!C !tenuto!D | !legato!E F |]");
   const attacks = player.scheduledEvents(score);

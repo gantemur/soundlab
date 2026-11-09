@@ -643,7 +643,7 @@
             note.style.left = (100 * event.startBeat / max) + "%";
             note.style.width = isDrum ? ".8%" : Math.max(.45, 100 * event.durationBeats / max) + "%";
             note.title = (isDrum ? (drums.DRUMS.find(d => d.id === event.drum)?.[this.language] || event.drum) :
-              scoreModel.pitchName(event.pitch)) + " · " + event.startBeat;
+              scoreModel.pitchName(event.pitch)) + " · " + Number(event.startBeat.toFixed(6));
           }
         } catch (_) { /* Invalid track shown by status, not on the timeline. */ }
       }
@@ -652,8 +652,9 @@
     updatePlayhead(beat) {
       const fraction = Math.min(1, Math.max(0, beat / (this.summary?.totalBeats || 1)));
       this.playheadNodes.forEach(node => { node.style.left = 100 * fraction + "%"; });
+      const total = this.summary?.totalBeats || 0;
       this.$("ensembleNow").textContent = this.t("now") + " " + beat.toFixed(1) +
-        " / " + (this.summary?.totalBeats || 0);
+        " / " + Number(total.toFixed(6));
     }
     renderTransport() {
       this.$("ensemblePlayPause").textContent = this.t(["playing", "starting"].includes(this.player.status) ? "pause" :
