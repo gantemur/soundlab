@@ -101,7 +101,7 @@ test("the HTML has unique IDs and all scripted controls exist", () => {
   assert.match(html, /src="sound-beethoven-scores\.js\?v=rp3"/);
   assert.match(html, /src="sound-ensemble-presets\.js\?v=rp3"/);
   assert.match(html, /src="sound-export\.js\?v=rp3"/);
-  assert.match(html, /src="sound-ensemble\.js\?v=rp3"/);
+  assert.match(html, /src="sound-ensemble\.js\?v=rp3b"/);
   assert.match(html, /src="sound-project\.js\?v=s087"/);
   assert.match(html, /src="sound-project-ui\.js\?v=s087"/);
   assert.match(html, /src="sound-wav\.js\?v=s087"/);
